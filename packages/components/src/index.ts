@@ -35,7 +35,8 @@ export * from './components/Modal/Backdrop';
 export * from './components/assets/CoinLogo/CoinLogo';
 export * from './components/assets/TrezorLogo/TrezorLogo';
 export * from './components/loaders/Spinner/Spinner';
-export * from './components/loaders/Progress/Progress';
+export * from './components/loaders/ProgressBar/ProgressBar';
+export * from './components/loaders/ProgressPie/ProgressPie';
 export * from './components/loaders/LoadingContent/LoadingContent';
 export * from './components/Tooltip/Tooltip';
 export * from './components/Timerange/Timerange';
@@ -46,6 +47,8 @@ export * from './components/Image/images';
 export * from './components/CollapsibleBox/CollapsibleBox';
 export * from './components/Passphrase/PassphraseTypeCard';
 export * from './components/DataAnalytics';
+export * from './components/animations/DeviceAnimation';
+export * from './components/animations/LottieAnimation';
 export * from './components/Note/Note';
 
 export * from './constants/keyboardEvents';

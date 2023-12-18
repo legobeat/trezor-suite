@@ -14,6 +14,7 @@ import {
     AccountsStackRoutes,
     DevUtilsStackRoutes,
     OnboardingStackRoutes,
+    ConnectDeviceStackRoutes,
 } from './routes';
 
 type ReceiveAccountsParams = {
@@ -45,10 +46,6 @@ export type SettingsStackParamList = {
 
 export type ReceiveStackParamList = {
     [ReceiveStackRoutes.ReceiveAccounts]: undefined;
-    [ReceiveStackRoutes.Receive]: {
-        accountKey: AccountKey;
-        tokenContract?: TokenAddress;
-    };
 };
 
 export type AppTabsParamList = {
@@ -62,8 +59,8 @@ export type OnboardingStackParamList = {
     [OnboardingStackRoutes.Welcome]: undefined;
     [OnboardingStackRoutes.AboutReceiveCoinsFeature]: undefined;
     [OnboardingStackRoutes.TrackBalances]: undefined;
-    [OnboardingStackRoutes.GetStarted]: undefined;
     [OnboardingStackRoutes.AnalyticsConsent]: undefined;
+    [OnboardingStackRoutes.ConnectTrezor]: undefined;
 };
 
 export type AccountsImportStackParamList = {
@@ -85,9 +82,16 @@ export type AccountsImportStackParamList = {
     };
 };
 
+export type ConnectDeviceStackParamList = {
+    [ConnectDeviceStackRoutes.ConnectAndUnlockDevice]: undefined;
+    [ConnectDeviceStackRoutes.PinMatrix]: undefined;
+    [ConnectDeviceStackRoutes.ConnectingDevice]: undefined;
+};
+
 export type RootStackParamList = {
     [RootStackRoutes.AppTabs]: NavigatorScreenParams<AppTabsParamList>;
     [RootStackRoutes.Onboarding]: NavigatorScreenParams<AppTabsParamList>;
+    [RootStackRoutes.ConnectDevice]: NavigatorScreenParams<ConnectDeviceStackParamList>;
     [RootStackRoutes.AccountsImport]: NavigatorScreenParams<AccountsImportStackParamList>;
     [RootStackRoutes.ReceiveModal]: ReceiveAccountsParams;
     [RootStackRoutes.AccountSettings]: { accountKey: AccountKey };
@@ -101,4 +105,5 @@ export type RootStackParamList = {
         accountKey: AccountKey;
         tokenContract?: TokenAddress;
     };
+    [RootStackRoutes.DeviceInfo]: undefined;
 };

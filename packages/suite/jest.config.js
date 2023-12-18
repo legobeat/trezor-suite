@@ -1,68 +1,78 @@
 // all tests have same UTC timezone
 process.env.TZ = 'UTC';
+process.env.LANG = 'en-US';
 
 const babelConfig = {
     presets: [
         ['@babel/preset-env', { targets: { node: 'current' }, modules: 'commonjs' }],
         '@babel/preset-typescript',
-        '@babel/preset-react',
+        [
+            '@babel/preset-react',
+            {
+                runtime: 'automatic',
+            },
+        ],
     ],
 };
 
 module.exports = {
-    roots: ['./src'],
+    roots: [
+        '<rootDir>/src',
+        '<rootDir>/__mocks__',
+        '<rootDir>/../../suite-common/test-utils/__mocks__',
+    ],
     setupFiles: [
-        '<rootDir>/src/support/tests/setupJest.ts',
-        '<rootDir>/src/support/tests/npmMocks.tsx',
         'jest-canvas-mock', // for lottie-react
     ],
+    setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
     moduleNameMapper: {
         '^@suite-common/(.+)': '<rootDir>/../../suite-common/$1',
         '^@trezor/(.+)': '<rootDir>/../$1',
         '^src/(.+)': '<rootDir>/src/$1',
-        '\\.(mp4)$': '<rootDir>/__mocks__/file.js',
+        '\\.(mp4)$': '<rootDir>/__mocks__/import-mp4.js',
+        '\\.(svg)$': '<rootDir>/__mocks__/import-svg.js',
+        uuid: require.resolve('uuid'), // https://stackoverflow.com/questions/73203367/jest-syntaxerror-unexpected-token-export-with-uuid-library
     },
     moduleFileExtensions: ['js', 'ts', 'tsx'],
     coverageDirectory: './coverage',
     collectCoverage: true,
     collectCoverageFrom: [
-        '<rootDir>/src/reducers/**',
-        '<rootDir>/src/utils/**',
         '<rootDir>/src/actions/**',
+        '<rootDir>/src/hooks/**',
         '<rootDir>/src/middlewares/**',
-        '<rootDir>/src/hooks/suite/useDiscovery.ts',
-        '<rootDir>/src/hooks/suite/useDebounce.ts',
-        '<rootDir>/src/hooks/wallet/form/useFees.ts',
-        '<rootDir>/src/hooks/wallet/useRbfForm.ts',
-        '<rootDir>/src/hooks/wallet/useSendForm.ts',
-        '<rootDir>/src/hooks/wallet/useSendFormCompose.ts',
-        '<rootDir>/src/hooks/wallet/useSendFormFields.ts',
-        '<rootDir>/src/hooks/wallet/useSendFormOutputs.ts',
-        // '<rootDir>/src/views/wallet/send/**',
+        '<rootDir>/src/reducers/**',
+        '<rootDir>/src/storage/**',
+        '<rootDir>/src/utils/**',
         '!**/constants/**',
         '!**/__tests__/**',
         '!**/__fixtures__/**',
     ],
     coverageThreshold: {
         global: {
-            statements: 64,
-            branches: 54,
-            functions: 62,
-            lines: 66,
+            statements: 49,
+            branches: 38.8,
+            lines: 50,
+            functions: 47,
         },
     },
-    modulePathIgnorePatterns: [
-        'node_modules',
-        '<rootDir>/src/utils/suite/dom',
-        '<rootDir>/src/utils/wallet/promiseUtils',
-        '<rootDir>/libDev',
+    modulePathIgnorePatterns: ['node_modules'],
+    watchPathIgnorePatterns: ['<rootDir>/libDev'],
+    testPathIgnorePatterns: [
+        '/node_modules/',
+        '/libDev/',
+        '/lib/',
+        '/dist/',
+        '/build/',
+        '/build-electron/',
+        '/coverage/',
+        '/public/',
     ],
+
     transformIgnorePatterns: ['/node_modules/(?!d3-(.*)|internmap)/'],
     testMatch: ['**/*.test.(ts|tsx|js)'],
     transform: {
         '(d3-|internmap).*\\.js$': ['babel-jest', babelConfig],
         '\\.(ts|tsx)$': ['babel-jest', babelConfig],
-        '\\.svg$': '<rootDir>/src/support/tests/svgTransform.js', // https://stackoverflow.com/questions/46791263/jest-test-fail-syntaxerror-unexpected-token
     },
     verbose: false,
     watchPlugins: ['jest-watch-typeahead/filename', 'jest-watch-typeahead/testname'],

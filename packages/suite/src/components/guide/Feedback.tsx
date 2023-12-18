@@ -1,13 +1,13 @@
-import React, { useCallback, useEffect } from 'react';
+import { useState, useCallback, ReactNode, ChangeEvent } from 'react';
 import styled, { css } from 'styled-components';
 import { analytics, EventType } from '@trezor/suite-analytics';
 import { getFirmwareVersion } from '@trezor/device-utils';
 
-import { CharacterCount, Translation } from 'src/components/suite';
+import { Translation } from 'src/components/suite';
 import { Textarea, Select, variables, Button, CollapsibleBox } from '@trezor/components';
 import { useDevice, useDispatch, useSelector } from 'src/hooks/suite';
 import { sendFeedback, setView } from 'src/actions/suite/guideActions';
-import { ViewWrapper, Header, Content } from 'src/components/guide';
+import { GuideViewWrapper, GuideHeader, GuideContent } from 'src/components/guide';
 import { Rating, FeedbackCategory, FeedbackType, UserData } from '@suite-common/suite-types';
 import {
     getEnvironment,
@@ -34,7 +34,7 @@ const Submit = styled(Button)`
 `;
 
 const SelectWrapper = styled.div`
-    padding: 0 0 20px 0;
+    padding: 0 0 20px;
 `;
 
 const RatingWrapper = styled.div`
@@ -81,7 +81,7 @@ const AnonymousDataItem = styled.li`
 
 type RatingItem = {
     id: Rating;
-    value: React.ReactNode;
+    value: ReactNode;
 };
 
 const MESSAGE_CHARACTER_LIMIT = 1000;
@@ -110,7 +110,7 @@ const ratingOptions: RatingItem[] = [
 
 /** A format compatible with React Select component. */
 type FeedbackCategoryOption = {
-    label: React.ReactNode;
+    label: ReactNode;
     value: FeedbackCategory;
 };
 
@@ -122,10 +122,10 @@ export const Feedback = ({ type }: FeedbackProps) => {
     const { device } = useDevice();
     const dispatch = useDispatch();
     const router = useSelector(state => state.router);
-    const [description, setDescription] = React.useState('');
-    const [rating, setRating] = React.useState<RatingItem>();
+    const [description, setDescription] = useState('');
+    const [rating, setRating] = useState<RatingItem>();
 
-    const feedbackCategories: { [key in FeedbackCategory]: React.ReactNode } = {
+    const feedbackCategories: { [key in FeedbackCategory]: ReactNode } = {
         dashboard: <Translation id="TR_FEEDBACK_CATEGORY_DASHBOARD" />,
         account: <Translation id="TR_FEEDBACK_CATEGORY_ACCOUNT" />,
         settings: <Translation id="TR_FEEDBACK_CATEGORY_SETTINGS" />,
@@ -161,18 +161,12 @@ export const Feedback = ({ type }: FeedbackProps) => {
                 return undefined;
         }
     };
-    const [category, setCategory] = React.useState(getDefaultCategory());
+    const [category, setCategory] = useState(getDefaultCategory());
 
     const categoryToOption = (category: FeedbackCategory): FeedbackCategoryOption => ({
         value: category,
         label: feedbackCategories[category],
     });
-
-    useEffect(() => {
-        if (description.length >= MESSAGE_CHARACTER_LIMIT) {
-            setDescription(description.slice(0, MESSAGE_CHARACTER_LIMIT));
-        }
-    }, [description]);
 
     const goBack = () => dispatch(setView('SUPPORT_FEEDBACK_SELECTION'));
     const onSubmit = useCallback(() => {
@@ -221,8 +215,8 @@ export const Feedback = ({ type }: FeedbackProps) => {
     }, [device, dispatch, type, description, category, rating?.id]);
 
     return (
-        <ViewWrapper>
-            <Header
+        <GuideViewWrapper>
+            <GuideHeader
                 back={goBack}
                 label={
                     type === 'BUG' ? (
@@ -232,7 +226,7 @@ export const Feedback = ({ type }: FeedbackProps) => {
                     )
                 }
             />
-            <Content>
+            <GuideContent>
                 {type === 'BUG' && (
                     <>
                         <Headline>
@@ -289,14 +283,14 @@ export const Feedback = ({ type }: FeedbackProps) => {
                 <Textarea
                     rows={8}
                     value={description}
-                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
                         setDescription(e.target.value)
                     }
                     noTopLabel
+                    characterCount
                     data-test="@guide/feedback/suggestion-form"
-                >
-                    <CharacterCount current={description.length} max={MESSAGE_CHARACTER_LIMIT} />
-                </Textarea>
+                    maxLength={MESSAGE_CHARACTER_LIMIT}
+                />
 
                 <Submit
                     onClick={onSubmit}
@@ -330,7 +324,7 @@ export const Feedback = ({ type }: FeedbackProps) => {
                         </AnonymousDataItem>
                     </AnonymousDataList>
                 </CollapsibleBox>
-            </Content>
-        </ViewWrapper>
+            </GuideContent>
+        </GuideViewWrapper>
     );
 };

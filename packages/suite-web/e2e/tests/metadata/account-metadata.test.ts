@@ -8,14 +8,14 @@ const fixtures = [
     {
         provider: 'dropbox',
         numberOfRequests: {
-            '2-master': [25, 27],
+            '2-main': [25, 27],
             legacy: [25, 26],
         },
     },
     {
         provider: 'google',
         numberOfRequests: {
-            '2-master': [9, 12],
+            '2-main': [9, 12],
             legacy: [9, 12],
         },
     },
@@ -152,6 +152,17 @@ Hovering over fields that may be labeled shows "add label" button upon which is 
             //         expect(requests.length).equal(expectedNumberOfRequests[1]);
             //     }),
             // );
+
+            // test labeling of a newly added account
+            cy.getTestElement('@suite/menu/wallet-index').click();
+            cy.getTestElement('@account-menu/add-account').click();
+            cy.getTestElement('@settings/wallet/network/btc').click();
+            cy.getTestElement('@add-account').click();
+            cy.hoverTestElement("@metadata/accountLabel/m/84'/0'/2'/hover-container");
+            cy.getTestElement("@metadata/accountLabel/m/84'/0'/2'/add-label-button").click();
+            cy.getTestElement('@metadata/input').type(
+                'adding label to a newly added account. does it work?{enter}',
+            );
         });
     });
 });

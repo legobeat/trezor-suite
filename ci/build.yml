@@ -72,6 +72,7 @@ suite-web build stable codesign:
 .build: &build
   stage: build
   script:
+    - apt-get update && apt-get install -y libudev-dev # required for rebuilding usb native module
     - yarn install --immutable
     - yarn workspace @trezor/suite-desktop build:${platform}
     - ls -la packages/suite-desktop/build-electron
@@ -184,7 +185,7 @@ suite-desktop build windows:
   <<: *config_sign_dev
   only:
     <<: *run_everything_rules
-  image: $CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX/electronuserland/builder:16-wine
+  image: $CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX/electronuserland/builder:18-wine
   variables:
     artifact: ${DESKTOP_APP_NAME}*
     platform: win
@@ -195,7 +196,7 @@ suite-desktop build windows manual:
   when: manual
   except:
     <<: *run_everything_rules
-  image: $CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX/electronuserland/builder:16-wine
+  image: $CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX/electronuserland/builder:18-wine
   variables:
     artifact: ${DESKTOP_APP_NAME}*
     platform: win
@@ -208,7 +209,7 @@ suite-desktop build windows codesign:
       - codesign
   tags:
     - darwin
-  image: $CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX/electronuserland/builder:16-wine
+  image: $CI_DEPENDENCY_PROXY_DIRECT_GROUP_IMAGE_PREFIX/electronuserland/builder:18-wine
   variables:
     IS_CODESIGN_BUILD: "true"
     artifact: ${DESKTOP_APP_NAME}*
@@ -259,14 +260,17 @@ connect-web build:
     - ./packages/connect-web/scripts/check-inline-build-size.sh
     - yarn workspace @trezor/connect-iframe build
     - yarn workspace @trezor/connect-popup build
+    - yarn workspace @trezor/connect-explorer-webextension build
     # build webextension examples with latest trezor.io and latest npm package
     - node ./packages/connect-examples/update-webextensions.js --trezor-connect-src "https://suite.corp.sldev.cz/connect/${CI_COMMIT_REF_NAME}/"
     # build webextension examples with latest trezor.io and outdated npm package (current production)
     - node ./packages/connect-examples/update-webextensions.js --trezor-connect-src "https://suite.corp.sldev.cz/connect/${CI_COMMIT_REF_NAME}/" --build-folder build-legacy --npm-src "https://connect.trezor.io/9/trezor-connect.js"
-    - yarn workspace @trezor/connect-explorer-webextension build
+    # build webextension example using @trezor/connect-webextension package
+    - yarn workspace @trezor/connect-webextension build
+    - node ./packages/connect-examples/update-webextensions-sw.js
 
   artifacts:
-    expire_in: 1 week
+    expire_in: 14 days
     paths:
       - packages/connect-iframe/build
       - packages/connect-web/build
@@ -275,6 +279,7 @@ connect-web build:
       - packages/connect-examples/webextension-mv2/build-legacy
       - packages/connect-examples/webextension-mv3/build
       - packages/connect-examples/webextension-mv3/build-legacy
+      - packages/connect-examples/webextension-mv3-sw/build
       - packages/connect-explorer-webextension/build
 
 # Build components

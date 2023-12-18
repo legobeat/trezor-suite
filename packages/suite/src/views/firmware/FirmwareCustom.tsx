@@ -1,6 +1,10 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+
 import styled from 'styled-components';
+
+import { acquireDevice } from '@suite-common/wallet-core';
 import { ConfirmOnDevice } from '@trezor/components';
+
 import { useDevice, useDispatch, useFirmware } from 'src/hooks/suite';
 import { Translation, Modal } from 'src/components/suite';
 import { DeviceAcquire } from 'src/views/suite/device-acquire';
@@ -12,12 +16,11 @@ import { ConnectDevicePromptManager, OnboardingStepBox } from 'src/components/on
 import { useCachedDevice } from 'src/hooks/firmware/useCachedDevice';
 import {
     FirmwareInstallation,
-    CloseButton,
+    FirmwareCloseButton,
     CheckSeedStep,
     ReconnectDevicePrompt,
     SelectCustomFirmware,
 } from 'src/components/firmware';
-import { acquireDevice } from 'src/actions/suite/suiteActions';
 
 const StyledModal = styled(Modal)<{ isNarrow: boolean }>`
     width: ${({ isNarrow }) => (isNarrow ? '450px' : '620px')};
@@ -99,9 +102,9 @@ export const FirmwareCustom = () => {
                                 />
                             }
                             innerActions={
-                                <CloseButton onClick={onClose}>
+                                <FirmwareCloseButton onClick={onClose}>
                                     <Translation id="TR_BACK" />
-                                </CloseButton>
+                                </FirmwareCloseButton>
                             }
                             nested
                         />
@@ -175,6 +178,7 @@ export const FirmwareCustom = () => {
                     <ConfirmOnDevice
                         title={<Translation id="TR_CONFIRM_ON_TREZOR" />}
                         deviceModelInternal={liveDeviceModelInternal}
+                        deviceUnitColor={liveDevice?.features?.unit_color}
                     />
                 )
             }

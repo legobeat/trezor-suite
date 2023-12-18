@@ -106,8 +106,8 @@ const PREPARE_TX = (params = {}) => ({
             address: '1DyHzbQUoQEsLxJn6M7fMD8Xdt1XvNiwNE',
             transfers: 1,
         },
-        feeRate: 1,
-        baseFee: 1,
+        feeRate: '3.79',
+        baseFee: 175,
         ...params,
     },
 });
@@ -140,16 +140,16 @@ export const composeAndSign = [
         composedLevels: {
             normal: {
                 type: 'final',
-                transaction: {
-                    outputs: [
-                        {
-                            address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                        },
-                        {
-                            address_n: [2147483692, 2147483648, 2147483648, 1, 0],
-                        },
-                    ],
-                },
+                fee: '1761',
+                feePerByte: '7.79', // 3.79 (old) + 4 (new)
+                outputs: [
+                    {
+                        address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
+                    },
+                    {
+                        address_n: [2147483692, 2147483648, 2147483648, 1, 0],
+                    },
+                ],
             },
         },
         composeTransactionCalls: 1,
@@ -163,7 +163,62 @@ export const composeAndSign = [
                 },
                 {
                     address_n: [2147483692, 2147483648, 2147483648, 1, 0],
-                    amount: '10095',
+                    amount: '9239',
+                    orig_index: 1,
+                    orig_hash: 'ABCD',
+                },
+            ],
+        },
+    },
+    {
+        description: 'change-output reduced by fee + baseFee of chainedTransactions',
+        store: {
+            selectedAccount: {
+                ...BTC_ACCOUNT,
+            },
+        },
+        chainedTxs: {
+            own: [{ txid: 'aaaa', fee: '500' }],
+            others: [
+                { txid: 'bbbb', fee: '500' },
+                { txid: 'cccc', fee: '5000' },
+            ],
+        },
+        tx: PREPARE_TX({
+            outputs: [
+                {
+                    type: 'payment',
+                    address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
+                    amount: '20000',
+                    formattedAmount: '0.0002',
+                },
+                {
+                    type: 'change',
+                    address: '1DyHzbQUoQEsLxJn6M7fMD8Xdt1XvNiwNE',
+                    amount: '10771',
+                    formattedAmount: '0.00010771',
+                },
+            ],
+        }),
+        composedLevels: {
+            normal: {
+                type: 'final',
+                fee: '7761', // 1761 + 6000 for chainedTxs
+                feePerByte: '34.34', // 3.79 (old) + 4 (new) + 26.55 for chainedTxs
+            },
+        },
+        composeTransactionCalls: 1,
+        signedTx: {
+            outputs: [
+                {
+                    address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
+                    amount: '20000',
+                    orig_index: 0,
+                    orig_hash: 'ABCD',
+                },
+                {
+                    address_n: [2147483692, 2147483648, 2147483648, 1, 0],
+                    amount: '3239',
                     orig_index: 1,
                     orig_hash: 'ABCD',
                 },
@@ -182,17 +237,16 @@ export const composeAndSign = [
         composedLevels: {
             normal: {
                 type: 'final',
-                transaction: {
-                    outputs: [
-                        {
-                            address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                        },
-                        {
-                            // change-output is placed at the end
-                            address_n: [2147483692, 2147483648, 2147483648, 1, 0],
-                        },
-                    ],
-                },
+                feePerByte: '7.79', // 3.79 (old) + 4 (new)
+                outputs: [
+                    {
+                        address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
+                    },
+                    {
+                        // change-output is placed at the end
+                        address_n: [2147483692, 2147483648, 2147483648, 1, 0],
+                    },
+                ],
             },
         },
         composeTransactionCalls: 1,
@@ -201,7 +255,7 @@ export const composeAndSign = [
                 {
                     // change-output is restored
                     address_n: [2147483692, 2147483648, 2147483648, 1, 0],
-                    amount: '10095',
+                    amount: '9239',
                     orig_index: 0,
                     orig_hash: 'ABCD',
                 },
@@ -236,18 +290,18 @@ export const composeAndSign = [
                     formattedAmount: '0.0003',
                 },
             ],
+            feeRate: '1',
         }),
         composedLevels: {
             normal: {
                 fee: '1000',
-                transaction: {
-                    outputs: [
-                        // change-output is gone
-                        {
-                            address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                        },
-                    ],
-                },
+                feePerByte: '5.21', // 1 (old) + 4 (new) + 0.21 (dropped as dust)
+                outputs: [
+                    // change-output is gone
+                    {
+                        address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
+                    },
+                ],
             },
         },
         composeTransactionCalls: 1,
@@ -285,6 +339,7 @@ export const composeAndSign = [
                     formattedAmount: '0.000304',
                 },
             ],
+            feeRate: '1',
         }),
         composedLevels: {
             normal: {
@@ -293,16 +348,14 @@ export const composeAndSign = [
             custom: {
                 type: 'final',
                 fee: '600',
-                feePerByte: '3.13',
-                transaction: {
-                    outputs: [
-                        // change-output is gone
-                        {
-                            address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                            amount: '30400',
-                        },
-                    ],
-                },
+                feePerByte: '3.13', // 1 (old) + 2.13 (highest possible)
+                outputs: [
+                    // change-output is gone
+                    {
+                        address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
+                        amount: '30400',
+                    },
+                ],
             },
         },
         composeTransactionCalls: 2, // 1. normal fee, 2. custom fee
@@ -358,25 +411,25 @@ export const composeAndSign = [
                 },
             ],
             changeAddress: undefined,
+            feeRate: '12',
         }),
         composedLevels: {
             normal: {
                 type: 'final',
-                fee: '3741',
-                transaction: {
-                    inputs: [{ prev_hash: DCBA }, { prev_hash: ABCD }],
-                    outputs: [
-                        {
-                            address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                            amount: '31000',
-                        },
-                        // change-output is added, note that this is first unused address (not first on the list)
-                        {
-                            address_n: [2147483692, 2147483648, 2147483648, 1, 1],
-                            amount: '6259',
-                        },
-                    ],
-                },
+                fee: '8228',
+                feePerByte: '22', // 12 (old) + 10 (new)
+                inputs: [{ prev_hash: DCBA }, { prev_hash: ABCD }],
+                outputs: [
+                    {
+                        address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
+                        amount: '31000',
+                    },
+                    // change-output is added, note that this is first unused address (not first on the list)
+                    {
+                        address_n: [2147483692, 2147483648, 2147483648, 1, 1],
+                        amount: '1772',
+                    },
+                ],
             },
         },
         composeTransactionCalls: 1,
@@ -389,7 +442,7 @@ export const composeAndSign = [
                     orig_hash: 'ABCD',
                 },
                 {
-                    amount: '6259',
+                    amount: '1772',
                 },
             ],
         },
@@ -433,22 +486,21 @@ export const composeAndSign = [
                     formattedAmount: '0.00031',
                 },
             ],
+            feeRate: '1',
             changeAddress: undefined,
         }),
         composedLevels: {
             custom: {
                 type: 'final',
                 fee: '1000',
-                feePerByte: '2.94',
-                transaction: {
-                    inputs: [{ prev_hash: DCBA }, { prev_hash: ABCD }],
-                    outputs: [
-                        {
-                            address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                            amount: '31000',
-                        },
-                    ],
-                },
+                feePerByte: '2.94', // 1 (old) + 1.94 (highest possible)
+                inputs: [{ prev_hash: DCBA }, { prev_hash: ABCD }],
+                outputs: [
+                    {
+                        address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
+                        amount: '31000',
+                    },
+                ],
             },
         },
         composeTransactionCalls: 2, // 1. normal fee, 2. custom fee
@@ -509,22 +561,21 @@ export const composeAndSign = [
                     formattedAmount: '0.000302',
                 },
             ],
+            feeRate: '1',
         }),
         composedLevels: {
             custom: {
                 type: 'final',
                 fee: '1800', // new utxo + old change-output + old fee (100)
-                feePerByte: '5.29',
-                transaction: {
-                    inputs: [{ prev_hash: DCBA }, { prev_hash: ABCD }], // new utxo added
-                    outputs: [
-                        // change output was removed
-                        {
-                            address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                            amount: '30200',
-                        },
-                    ],
-                },
+                feePerByte: '5.29', // 1 (old) + 4.29 (highest possible)
+                inputs: [{ prev_hash: DCBA }, { prev_hash: ABCD }], // new utxo added
+                outputs: [
+                    // change output was removed
+                    {
+                        address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
+                        amount: '30200',
+                    },
+                ],
             },
         },
         composeTransactionCalls: 2, // 1. normal fee, 2. custom fee
@@ -580,21 +631,21 @@ export const composeAndSign = [
                     formattedAmount: '0.00031',
                 },
             ],
+            feeRate: '2',
             changeAddress: undefined,
         }),
         composedLevels: {
             normal: {
                 type: 'final',
-                fee: '1921',
-                transaction: {
-                    inputs: [{ prev_hash: DCBA }],
-                    outputs: [
-                        {
-                            address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                            amount: '29079',
-                        },
-                    ],
-                },
+                fee: '2304',
+                feePerByte: '12', // 2 (old) + 10 (new)
+                inputs: [{ prev_hash: DCBA }],
+                outputs: [
+                    {
+                        address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
+                        amount: '28696',
+                    },
+                ],
             },
         },
         composeTransactionCalls: 3, // 1. normal fee, 2. custom fee, 3. send-max
@@ -604,7 +655,7 @@ export const composeAndSign = [
             outputs: [
                 {
                     address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                    amount: '29079',
+                    amount: '28696',
                     orig_index: 0,
                     orig_hash: 'ABCD',
                 },
@@ -641,6 +692,7 @@ export const composeAndSign = [
                     formattedAmount: '0.00031',
                 },
             ],
+            feeRate: '1.37',
             changeAddress: undefined,
         }),
         composeTransactionCalls: 1, // 1. immediate send-max
@@ -648,16 +700,15 @@ export const composeAndSign = [
         composedLevels: {
             normal: {
                 type: 'final',
-                fee: '769',
-                transaction: {
-                    inputs: [{ prev_hash: DCBA }],
-                    outputs: [
-                        {
-                            address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                            amount: '30231',
-                        },
-                    ],
-                },
+                fee: '1032',
+                feePerByte: '5.38', // 1.37 (old) + 4 (new) + 0.01 (fee rounding)
+                inputs: [{ prev_hash: DCBA }],
+                outputs: [
+                    {
+                        address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
+                        amount: '29968',
+                    },
+                ],
             },
         },
         signedTx: {
@@ -665,7 +716,7 @@ export const composeAndSign = [
             outputs: [
                 {
                     address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                    amount: '30231',
+                    amount: '29968',
                     orig_index: 0,
                     orig_hash: 'ABCD',
                 },
@@ -693,15 +744,14 @@ export const composeAndSign = [
         composedLevels: {
             normal: {
                 type: 'final',
-                fee: '769',
-                transaction: {
-                    outputs: [
-                        {
-                            address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                            amount: '30231',
-                        },
-                    ],
-                },
+                fee: '1496',
+                feePerByte: '7.79', // 3.79 (old) + 4 (new)
+                outputs: [
+                    {
+                        address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
+                        amount: '29504',
+                    },
+                ],
             },
         },
         composeTransactionCalls: 3, // 1. normal fee, 2. custom fee, 3 send-max
@@ -711,7 +761,7 @@ export const composeAndSign = [
             outputs: [
                 {
                     address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                    amount: '30231',
+                    amount: '29504',
                     orig_index: 0,
                     orig_hash: 'ABCD',
                 },
@@ -730,7 +780,7 @@ export const composeAndSign = [
                 {
                     type: 'change',
                     address: '1DyHzbQUoQEsLxJn6M7fMD8Xdt1XvNiwNE',
-                    amount: '700',
+                    amount: '29043',
                     formattedAmount: '0.000007',
                 },
                 {
@@ -745,25 +795,25 @@ export const composeAndSign = [
                     formattedAmount: '0.00001',
                 },
             ],
+            feeRate: '3',
         }),
         composedLevels: {
             normal: {
                 type: 'final',
-                fee: '957',
-                transaction: {
-                    // outputs indexes are totally mixed up
-                    outputs: [
-                        {
-                            script_type: 'PAYTOOPRETURN',
-                        },
-                        {
-                            amount: '1000', // external
-                        },
-                        {
-                            amount: '29043', // change
-                        },
-                    ],
-                },
+                fee: '1673',
+                feePerByte: '7', // 3 (old) + 4 (new)
+                // outputs indexes are totally mixed up
+                outputs: [
+                    {
+                        script_type: 'PAYTOOPRETURN',
+                    },
+                    {
+                        amount: '1000', // external
+                    },
+                    {
+                        amount: '28327', // change
+                    },
+                ],
             },
         },
         composeTransactionCalls: 1,
@@ -772,7 +822,7 @@ export const composeAndSign = [
             outputs: [
                 {
                     address_n: [2147483692, 2147483648, 2147483648, 1, 0],
-                    amount: '29043',
+                    amount: '28327',
                     orig_index: 0,
                     orig_hash: 'ABCD',
                 },
@@ -819,6 +869,7 @@ export const composeAndSign = [
                     formattedAmount: '0.000005',
                 },
             ],
+            feeRate: '1',
             changeAddress: undefined,
         }),
         composedLevels: {
@@ -882,13 +933,14 @@ export const composeAndSign = [
                     formattedAmount: '0.000078',
                 },
             ],
-            feeRate: 11.33,
-            baseFee: 2175.36, // 192 * 11.33,
+            feeRate: '11.33',
             changeAddress: undefined,
         }),
         composedLevels: {
             normal: {
                 type: 'final',
+                fee: '2944',
+                feePerByte: '15.33', // 11.33 (old) + 4 (new)
             },
         },
         composeTransactionCalls: 1, // 1. immediate send-max
@@ -898,7 +950,7 @@ export const composeAndSign = [
             outputs: [
                 {
                     address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                    amount: '5057',
+                    amount: '5056',
                     orig_index: 0,
                     orig_hash: 'ABCD',
                 },
@@ -967,13 +1019,14 @@ export const composeAndSign = [
                     formattedAmount: '0.000078',
                 },
             ],
-            feeRate: 11.33,
-            baseFee: 2175.36, // 192 * 11.33,
+            feeRate: '11.33',
             changeAddress: undefined,
         }),
         composedLevels: {
             normal: {
                 type: 'final',
+                fee: '2944',
+                feePerByte: '15.33', // 11.33 (old) + 4 (new)
             },
         },
         composeTransactionCalls: 1, // 1. immediate send-max
@@ -983,7 +1036,7 @@ export const composeAndSign = [
             outputs: [
                 {
                     address: '1MCgrVZjXRJJJhi2Z6SR11GpRjCyvNjscY',
-                    amount: '5057',
+                    amount: '5056',
                     orig_index: 0,
                     orig_hash: 'ABCD',
                 },
@@ -1000,4 +1053,3 @@ export const composeAndSign = [
 // TODO: finalize (check constants)
 // TODO: with locktime
 // TODO: ethereum cases
-// TODO: with chained txs

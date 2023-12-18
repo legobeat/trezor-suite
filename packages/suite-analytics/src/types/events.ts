@@ -123,6 +123,13 @@ export type SuiteAnalyticsEvent =
           };
       }
     | {
+          type: EventType.AccountsActions;
+          payload: {
+              action: string;
+              symbol: string;
+          };
+      }
+    | {
           type: EventType.AddToken;
           payload: {
               networkSymbol: string;
@@ -160,6 +167,13 @@ export type SuiteAnalyticsEvent =
           type: EventType.AccountsDashboardBuy;
           payload: {
               symbol: string;
+          };
+      }
+    | {
+          type: EventType.AccountsTradeboxButton;
+          payload: {
+              symbol: string;
+              type: 'exchange' | 'buy' | 'sell' | 'spend';
           };
       }
     | {
@@ -301,6 +315,12 @@ export type SuiteAnalyticsEvent =
           };
       }
     | {
+          type: EventType.SettingsGeneralAddressDisplayType;
+          payload: {
+              addressDisplayType: 'original' | 'chunked';
+          };
+      }
+    | {
           type: EventType.SettingsGeneralChangeFiat;
           payload: {
               fiat: string;
@@ -341,7 +361,14 @@ export type SuiteAnalyticsEvent =
           type: EventType.SettingsCoinsBackend;
           payload: {
               symbol: string;
-              type: 'blockbook' | 'electrum' | 'ripple' | 'blockfrost' | 'coinjoin' | 'default';
+              type:
+                  | 'blockbook'
+                  | 'electrum'
+                  | 'ripple'
+                  | 'blockfrost'
+                  | 'coinjoin'
+                  | 'default'
+                  | 'solana';
               totalRegular: number;
               totalOnion: number;
           };
@@ -384,5 +411,11 @@ export type SuiteAnalyticsEvent =
           type: EventType.GetMobileApp;
           payload: {
               platform: 'ios' | 'android';
+          };
+      }
+    | {
+          type: EventType.T2B1DashboardPromo;
+          payload: {
+              action: 'shop' | 'close';
           };
       };

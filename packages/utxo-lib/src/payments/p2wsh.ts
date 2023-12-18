@@ -1,13 +1,12 @@
 // upstream: https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/ts_src/payments/p2wsh.ts
 
-import * as ecc from 'tiny-secp256k1';
-import * as typef from 'typeforce';
+import ecc from 'tiny-secp256k1';
 import { bech32 } from 'bech32';
 import * as bcrypto from '../crypto';
 import { bitcoin as BITCOIN_NETWORK } from '../networks';
 import * as bscript from '../script';
 import * as lazy from './lazy';
-import { Payment, PaymentOpts, StackElement, StackFunction } from '../types';
+import { Payment, PaymentOpts, StackElement, StackFunction, typeforce } from '../types';
 
 const { OPS } = bscript;
 
@@ -35,22 +34,22 @@ export function p2wsh(a: Payment, opts?: PaymentOpts): Payment {
 
     opts = Object.assign({ validate: true }, opts || {});
 
-    typef(
+    typeforce(
         {
-            network: typef.maybe(typef.Object),
+            network: typeforce.maybe(typeforce.Object),
 
-            address: typef.maybe(typef.String),
-            hash: typef.maybe(typef.BufferN(32)),
-            output: typef.maybe(typef.BufferN(34)),
+            address: typeforce.maybe(typeforce.String),
+            hash: typeforce.maybe(typeforce.BufferN(32)),
+            output: typeforce.maybe(typeforce.BufferN(34)),
 
-            redeem: typef.maybe({
-                input: typef.maybe(typef.Buffer),
-                network: typef.maybe(typef.Object),
-                output: typef.maybe(typef.Buffer),
-                witness: typef.maybe(typef.arrayOf(typef.Buffer)),
+            redeem: typeforce.maybe({
+                input: typeforce.maybe(typeforce.Buffer),
+                network: typeforce.maybe(typeforce.Object),
+                output: typeforce.maybe(typeforce.Buffer),
+                witness: typeforce.maybe(typeforce.arrayOf(typeforce.Buffer)),
             }),
-            input: typef.maybe(typef.BufferN(0)),
-            witness: typef.maybe(typef.arrayOf(typef.Buffer)),
+            input: typeforce.maybe(typeforce.BufferN(0)),
+            witness: typeforce.maybe(typeforce.arrayOf(typeforce.Buffer)),
         },
         a,
     );
@@ -82,7 +81,7 @@ export function p2wsh(a: Payment, opts?: PaymentOpts): Payment {
         return bech32.encode(network!.bech32, words);
     });
     lazy.prop(o, 'hash', () => {
-        if (a.output) return a.output.slice(2);
+        if (a.output) return a.output.subarray(2);
         if (a.address) return _address().data;
         if (o.redeem && o.redeem.output) return bcrypto.sha256(o.redeem.output);
     });
@@ -150,7 +149,7 @@ export function p2wsh(a: Payment, opts?: PaymentOpts): Payment {
         if (a.output) {
             if (a.output.length !== 34 || a.output[0] !== OPS.OP_0 || a.output[1] !== 0x20)
                 throw new TypeError('Output is invalid');
-            const hash2 = a.output.slice(2);
+            const hash2 = a.output.subarray(2);
             if (hash.length > 0 && !hash.equals(hash2)) throw new TypeError('Hash mismatch');
             else hash = hash2;
         }

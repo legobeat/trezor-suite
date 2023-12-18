@@ -1,7 +1,6 @@
-import React from 'react';
-
 import styled from 'styled-components';
 
+import { getFwUpdateVersion, parseFirmwareChangelog } from '@suite-common/suite-utils';
 import { Icon, Tooltip, variables } from '@trezor/components';
 import { getFirmwareVersion } from '@trezor/device-utils';
 import { AcquiredDevice } from '@suite-common/suite-types';
@@ -9,7 +8,6 @@ import { FirmwareType } from '@trezor/connect';
 
 import { Translation } from 'src/components/suite';
 import { FirmwareChangelog } from 'src/components/firmware';
-import { getFwUpdateVersion, parseFirmwareChangelog } from 'src/utils/suite/device';
 import { useFirmware, useTranslation, useSelector } from 'src/hooks/suite';
 import { getSuiteFirmwareTypeString } from 'src/utils/firmware';
 
@@ -19,7 +17,7 @@ const FwVersionWrapper = styled.div`
     max-width: 364px;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 0px;
+    padding: 16px 0;
 `;
 
 const FwVersion = styled.div`
@@ -66,15 +64,11 @@ export const FirmwareOffer = ({
         : parseFirmwareChangelog(device.firmwareRelease?.release);
 
     const currentFirmwareType = getSuiteFirmwareTypeString(device.firmwareType);
-
-    // firmware type is undefined in bootloader, regular type will be installed by default
-    const futureFirmwareType = getSuiteFirmwareTypeString(
-        targetFirmwareType || targetType || FirmwareType.Regular,
-    );
+    const futureFirmwareType = getSuiteFirmwareTypeString(targetFirmwareType || targetType);
 
     const nextVersionElement = (
         <Version isNew data-test="@firmware/offer-version/new">
-            <Translation id={futureFirmwareType!} />
+            {futureFirmwareType ? translationString(futureFirmwareType) : ''}
             {nextVersion ? ` ${nextVersion}` : ''}
             {useDevkit ? ' DEVKIT' : ''}
         </Version>

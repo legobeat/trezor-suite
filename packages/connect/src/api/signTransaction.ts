@@ -69,6 +69,7 @@ export default class SignTransaction extends AbstractMethod<'signTransaction', P
             { name: 'amountUnit', type: ['number', 'string'] },
             { name: 'unlockPath', type: 'object' },
             { name: 'serialize', type: 'boolean' },
+            { name: 'chunkify', type: 'boolean' },
         ]);
 
         if (payload.unlockPath) {
@@ -122,7 +123,7 @@ export default class SignTransaction extends AbstractMethod<'signTransaction', P
 
         this.params = {
             inputs,
-            outputs: payload.outputs,
+            outputs,
             paymentRequests: payload.paymentRequests || [],
             refTxs,
             addresses: payload.account ? payload.account.addresses : undefined,
@@ -138,6 +139,7 @@ export default class SignTransaction extends AbstractMethod<'signTransaction', P
                 amount_unit: payload.amountUnit,
                 serialize: payload.serialize,
                 coinjoin_request: payload.coinjoinRequest,
+                chunkify: typeof payload.chunkify === 'boolean' ? payload.chunkify : false,
             },
             coinInfo,
             push: typeof payload.push === 'boolean' ? payload.push : false,
@@ -250,8 +252,8 @@ export default class SignTransaction extends AbstractMethod<'signTransaction', P
             );
 
             if (bitcoinTx.hasWitnesses()) {
-                response.witnesses = bitcoinTx.ins.map((_, i) =>
-                    bitcoinTx?.getWitness(i)?.toString('hex'),
+                response.witnesses = bitcoinTx.ins.map(
+                    (_, i) => bitcoinTx?.getWitness(i)?.toString('hex'),
                 );
             }
         }

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo, Children, ReactElement } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import { MenuListProps, SelectInstance, createFilter } from 'react-select';
 import styled from 'styled-components';
@@ -12,7 +12,7 @@ import { createTimeoutPromise } from '@trezor/utils';
 const options = bip39.map(item => ({ label: item, value: item }));
 
 const SelectWrapper = styled.div`
-    margin: 12px auto 0px auto;
+    margin: 12px auto 0;
     text-align: left;
 
     width: 380px;
@@ -36,7 +36,7 @@ type Option = { label: string; value: string };
 const MenuList = (props: MenuListProps<Option, boolean>) => {
     const listRef = useRef<List>(null);
 
-    const children = React.Children.toArray(props.children) as React.ReactElement[];
+    const children = Children.toArray(props.children) as ReactElement[];
     const [arrowDownPress] = useKeyPress('ArrowDown');
     const [arrowUpPress] = useKeyPress('ArrowUp');
 
@@ -62,7 +62,7 @@ const MenuList = (props: MenuListProps<Option, boolean>) => {
     );
 };
 
-export const WordInput = React.memo(() => {
+export const WordInput = memo(() => {
     const { translationString } = useTranslation();
 
     return (

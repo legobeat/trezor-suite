@@ -13,6 +13,7 @@ export enum DeviceModelInternal {
 export type BinanceGetAddress = {
     address_n: number[];
     show_display?: boolean;
+    chunkify?: boolean;
 };
 
 // BinanceAddress
@@ -40,6 +41,7 @@ export type BinanceSignTx = {
     memo?: string;
     sequence: number;
     source: number;
+    chunkify?: boolean;
 };
 
 // BinanceTxRequest
@@ -59,6 +61,7 @@ export type BinanceInputOutput = {
 export type BinanceTransferMsg = {
     inputs: BinanceInputOutput[];
     outputs: BinanceInputOutput[];
+    chunkify?: boolean;
 };
 
 export enum BinanceOrderType {
@@ -190,6 +193,7 @@ export type GetAddress = {
     multisig?: MultisigRedeemScriptType;
     script_type?: InputScriptType;
     ignore_xpub_magic?: boolean;
+    chunkify?: boolean;
 };
 
 // Address
@@ -218,6 +222,7 @@ export type SignMessage = {
     coin_name?: string;
     script_type?: InputScriptType;
     no_script_type?: boolean;
+    chunkify?: boolean;
 };
 
 // MessageSignature
@@ -232,6 +237,7 @@ export type VerifyMessage = {
     signature: string;
     message: string;
     coin_name?: string;
+    chunkify?: boolean;
 };
 
 export type CoinJoinRequest = {
@@ -258,6 +264,7 @@ export type SignTx = {
     decred_staking_ticket?: boolean;
     serialize?: boolean;
     coinjoin_request?: CoinJoinRequest;
+    chunkify?: boolean;
 };
 
 export enum Enum_RequestType {
@@ -701,6 +708,7 @@ export type CardanoGetAddress = {
     network_id: number;
     address_parameters: CardanoAddressParametersType;
     derivation_type: CardanoDerivationType;
+    chunkify?: boolean;
 };
 
 // CardanoAddress
@@ -744,6 +752,7 @@ export type CardanoSignTxInit = {
     has_collateral_return?: boolean;
     total_collateral?: UintType;
     reference_inputs_count?: number;
+    chunkify?: boolean;
 };
 
 // CardanoTxInput
@@ -1097,6 +1106,7 @@ export type DebugLinkResetDebugEvents = {};
 export type EosGetPublicKey = {
     address_n: number[];
     show_display?: boolean;
+    chunkify?: boolean;
 };
 
 // EosPublicKey
@@ -1120,6 +1130,7 @@ export type EosSignTx = {
     chain_id: string;
     header: EosTxHeader;
     num_actions: number;
+    chunkify?: boolean;
 };
 
 // EosTxActionRequest
@@ -1373,6 +1384,7 @@ export type EthereumGetAddress = {
     address_n: number[];
     show_display?: boolean;
     encoded_network?: ArrayBuffer;
+    chunkify?: boolean;
 };
 
 // EthereumAddress
@@ -1394,6 +1406,7 @@ export type EthereumSignTx = {
     chain_id: number;
     tx_type?: number;
     definitions?: EthereumDefinitions;
+    chunkify?: boolean;
 };
 
 export type EthereumAccessList = {
@@ -1415,6 +1428,7 @@ export type EthereumSignTxEIP1559 = {
     chain_id: number;
     access_list: EthereumAccessList[];
     definitions?: EthereumDefinitions;
+    chunkify?: boolean;
 };
 
 // EthereumTxRequest
@@ -1435,6 +1449,7 @@ export type EthereumSignMessage = {
     address_n: number[];
     message: string;
     encoded_network?: ArrayBuffer;
+    chunkify?: boolean;
 };
 
 // EthereumMessageSignature
@@ -1448,6 +1463,7 @@ export type EthereumVerifyMessage = {
     signature: string;
     message: string;
     address: string;
+    chunkify?: boolean;
 };
 
 // EthereumSignTypedHash
@@ -1516,6 +1532,7 @@ export enum Enum_Capability {
     Capability_Shamir = 15,
     Capability_ShamirGroups = 16,
     Capability_PassphraseEntry = 17,
+    Capability_Solana = 18,
 }
 
 export type Capability = keyof typeof Enum_Capability;
@@ -1568,6 +1585,7 @@ export type Features = {
     unit_btconly?: boolean;
     homescreen_width?: number;
     homescreen_height?: number;
+    bootloader_locked?: boolean;
 };
 
 // LockDevice
@@ -1649,6 +1667,17 @@ export type GetFirmwareHash = {
 // FirmwareHash
 export type FirmwareHash = {
     hash: string;
+};
+
+// AuthenticateDevice
+export type AuthenticateDevice = {
+    challenge: string;
+};
+
+// AuthenticityProof
+export type AuthenticityProof = {
+    certificates: string[];
+    signature: string;
 };
 
 // WipeDevice
@@ -1737,8 +1766,16 @@ export type PreauthorizedRequest = {};
 // CancelAuthorization
 export type CancelAuthorization = {};
 
+export enum BootCommand {
+    STOP_AND_WAIT = 0,
+    INSTALL_UPGRADE = 1,
+}
+
 // RebootToBootloader
-export type RebootToBootloader = {};
+export type RebootToBootloader = {
+    boot_command?: BootCommand;
+    firmware_header?: string;
+};
 
 // GetNonce
 export type GetNonce = {};
@@ -1762,6 +1799,9 @@ export type UnlockedPathRequest = {
 // ShowDeviceTutorial
 export type ShowDeviceTutorial = {};
 
+// UnlockBootloader
+export type UnlockBootloader = {};
+
 export enum MoneroNetworkType {
     MAINNET = 0,
     TESTNET = 1,
@@ -1774,6 +1814,7 @@ export type NEMGetAddress = {
     address_n: number[];
     network?: number;
     show_display?: boolean;
+    chunkify?: boolean;
 };
 
 // NEMAddress
@@ -1888,6 +1929,7 @@ export type NEMSignTx = {
     supply_change?: NEMMosaicSupplyChange;
     aggregate_modification?: NEMAggregateModification;
     importance_transfer?: NEMImportanceTransfer;
+    chunkify?: boolean;
 };
 
 // NEMSignedTx
@@ -1913,6 +1955,7 @@ export type NEMDecryptedMessage = {
 export type RippleGetAddress = {
     address_n: number[];
     show_display?: boolean;
+    chunkify?: boolean;
 };
 
 // RippleAddress
@@ -1934,12 +1977,61 @@ export type RippleSignTx = {
     sequence: number;
     last_ledger_sequence?: number;
     payment: RipplePayment;
+    chunkify?: boolean;
 };
 
 // RippleSignedTx
 export type RippleSignedTx = {
     signature: string;
     serialized_tx: string;
+};
+
+// SolanaGetPublicKey
+export type SolanaGetPublicKey = {
+    address_n: number[];
+    show_display?: boolean;
+};
+
+// SolanaPublicKey
+export type SolanaPublicKey = {
+    public_key: string;
+};
+
+// SolanaGetAddress
+export type SolanaGetAddress = {
+    address_n: number[];
+    show_display?: boolean;
+    chunkify?: boolean;
+};
+
+// SolanaAddress
+export type SolanaAddress = {
+    address: string;
+};
+
+// SolanaTxTokenAccountInfo
+export type SolanaTxTokenAccountInfo = {
+    base_address: string;
+    token_program: string;
+    token_mint: string;
+    token_account: string;
+};
+
+// SolanaTxAdditionalInfo
+export type SolanaTxAdditionalInfo = {
+    token_accounts_infos: SolanaTxTokenAccountInfo[];
+};
+
+// SolanaSignTx
+export type SolanaSignTx = {
+    address_n: number[];
+    serialized_tx: string;
+    additional_info?: SolanaTxAdditionalInfo;
+};
+
+// SolanaTxSignature
+export type SolanaTxSignature = {
+    signature: string;
 };
 
 export enum StellarAssetType {
@@ -1959,6 +2051,7 @@ export type StellarAsset = {
 export type StellarGetAddress = {
     address_n: number[];
     show_display?: boolean;
+    chunkify?: boolean;
 };
 
 // StellarAddress
@@ -2129,6 +2222,7 @@ export type StellarSignedTx = {
 export type TezosGetAddress = {
     address_n: number[];
     show_display?: boolean;
+    chunkify?: boolean;
 };
 
 // TezosAddress
@@ -2140,6 +2234,7 @@ export type TezosAddress = {
 export type TezosGetPublicKey = {
     address_n: number[];
     show_display?: boolean;
+    chunkify?: boolean;
 };
 
 // TezosPublicKey
@@ -2241,6 +2336,7 @@ export type TezosSignTx = {
     delegation?: TezosDelegationOp;
     proposal?: TezosProposalOp;
     ballot?: TezosBallotOp;
+    chunkify?: boolean;
 };
 
 // TezosSignedTx
@@ -2440,6 +2536,8 @@ export type MessageType = {
     Entropy: Entropy;
     GetFirmwareHash: GetFirmwareHash;
     FirmwareHash: FirmwareHash;
+    AuthenticateDevice: AuthenticateDevice;
+    AuthenticityProof: AuthenticityProof;
     WipeDevice: WipeDevice;
     ResetDevice: ResetDevice;
     BackupDevice: BackupDevice;
@@ -2460,6 +2558,7 @@ export type MessageType = {
     UnlockPath: UnlockPath;
     UnlockedPathRequest: UnlockedPathRequest;
     ShowDeviceTutorial: ShowDeviceTutorial;
+    UnlockBootloader: UnlockBootloader;
     NEMGetAddress: NEMGetAddress;
     NEMAddress: NEMAddress;
     NEMTransactionCommon: NEMTransactionCommon;
@@ -2481,6 +2580,14 @@ export type MessageType = {
     RipplePayment: RipplePayment;
     RippleSignTx: RippleSignTx;
     RippleSignedTx: RippleSignedTx;
+    SolanaGetPublicKey: SolanaGetPublicKey;
+    SolanaPublicKey: SolanaPublicKey;
+    SolanaGetAddress: SolanaGetAddress;
+    SolanaAddress: SolanaAddress;
+    SolanaTxTokenAccountInfo: SolanaTxTokenAccountInfo;
+    SolanaTxAdditionalInfo: SolanaTxAdditionalInfo;
+    SolanaSignTx: SolanaSignTx;
+    SolanaTxSignature: SolanaTxSignature;
     StellarAsset: StellarAsset;
     StellarGetAddress: StellarGetAddress;
     StellarAddress: StellarAddress;

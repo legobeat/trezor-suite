@@ -24,15 +24,22 @@
         {
             "path": "../../suite-common/wallet-core"
         },
+        { "path": "../accounts" },
         { "path": "../alerts" },
         { "path": "../analytics" },
         { "path": "../atoms" },
         { "path": "../biometrics" },
         { "path": "../config" },
+        { "path": "../device" },
+        { "path": "../feature-flags" },
         { "path": "../fiat-rates" },
+        { "path": "../intl" },
         { "path": "../message-system" },
-        { "path": "../module-accounts" },
         { "path": "../module-accounts-import" },
+        {
+            "path": "../module-accounts-management"
+        },
+        { "path": "../module-connect-device" },
         { "path": "../module-dev-utils" },
         { "path": "../module-home" },
         { "path": "../module-onboarding" },
@@ -47,8 +54,10 @@
         { "path": "../toasts" },
         { "path": "../transactions" },
         { "path": "../../packages/connect" },
+        {
+            "path": "../../packages/react-native-usb"
+        },
         { "path": "../../packages/styles" },
-        { "path": "../../packages/suite-data" },
         { "path": "../../packages/theme" }
     ],
     "include": [".", "**.json"]

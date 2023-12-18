@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import {
@@ -9,7 +7,6 @@ import {
 } from '@suite-native/navigation';
 
 import { ReceiveAccountsScreen } from '../screens/ReceiveAccountsScreen';
-import { ReceiveScreen } from '../screens/ReceiveScreen';
 
 const ReceiveStack = createNativeStackNavigator<ReceiveStackParamList>();
 
@@ -22,6 +19,5 @@ export const ReceiveStackNavigator = () => (
             name={ReceiveStackRoutes.ReceiveAccounts}
             component={ReceiveAccountsScreen}
         />
-        <ReceiveStack.Screen name={ReceiveStackRoutes.Receive} component={ReceiveScreen} />
     </ReceiveStack.Navigator>
 );

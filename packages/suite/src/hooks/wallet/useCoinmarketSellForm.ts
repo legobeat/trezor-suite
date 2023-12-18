@@ -1,15 +1,21 @@
 import { createContext, useContext, useCallback, useState, useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
+
 import type { SellFiatTradeQuoteRequest } from 'invity-api';
-import { useDispatch, useSelector, useTranslation } from 'src/hooks/suite';
-import invityAPI from 'src/services/suite/invityAPI';
+import useDebounce from 'react-use/lib/useDebounce';
+
 import {
     fromFiatCurrency,
     getFeeLevels,
     amountToSatoshi,
     formatAmount,
 } from '@suite-common/wallet-utils';
-import { isChanged } from 'src/utils/suite/comparisonUtils';
+import { useDidUpdate } from '@trezor/react-utils';
+import { isChanged } from '@suite-common/suite-utils';
+import { selectDevice } from '@suite-common/wallet-core';
+
+import { useDispatch, useSelector, useTranslation } from 'src/hooks/suite';
+import invityAPI from 'src/services/suite/invityAPI';
 import {
     clearQuotes,
     saveQuoteRequest,
@@ -30,19 +36,20 @@ import {
 } from 'src/types/wallet/coinmarketSellForm';
 import {
     getComposeAddressPlaceholder,
+    getTokensFiatValue,
     mapTestnetSymbol,
 } from 'src/utils/wallet/coinmarket/coinmarketUtils';
 import { getAmountLimits, processQuotes } from 'src/utils/wallet/coinmarket/sellUtils';
-import { useFees } from './form/useFees';
-import { useCompose } from './form/useCompose';
-import useDebounce from 'react-use/lib/useDebounce';
 import { useFormDraft } from 'src/hooks/wallet/useFormDraft';
-import { useCoinmarketSellFormDefaultValues } from './useCoinmarketSellFormDefaultValues';
 import { useCoinmarketNavigation } from 'src/hooks/wallet/useCoinmarketNavigation';
 import type { AppState } from 'src/types/suite';
 import { useBitcoinAmountUnit } from 'src/hooks/wallet/useBitcoinAmountUnit';
-import { useDidUpdate } from '@trezor/react-utils';
 import { AmountLimits } from 'src/types/wallet/coinmarketCommonTypes';
+
+import { useCoinmarketSellFormDefaultValues } from './useCoinmarketSellFormDefaultValues';
+import { useCompose } from './form/useCompose';
+import { useFees } from './form/useFees';
+import { AddressDisplayOptions, selectAddressDisplayType } from 'src/reducers/suite/suiteReducer';
 
 export const SellFormContext = createContext<SellFormContextValues | null>(null);
 SellFormContext.displayName = 'CoinmarketSellContext';
@@ -60,11 +67,13 @@ const useSellState = (
     const coinFees = fees[account.symbol];
     const levels = getFeeLevels(account.networkType, coinFees);
     const feeInfo = { ...coinFees, levels };
+    const tokensFiatValue: Awaited<ReturnType<typeof getTokensFiatValue>> = {};
 
     return {
         account,
         network,
         feeInfo,
+        tokensFiatValue,
         formValues: defaultFormValues,
     };
 };
@@ -79,7 +88,7 @@ export const useCoinmarketSellForm = ({
     }, [dispatch]);
 
     const accounts = useSelector(state => state.wallet.accounts);
-    const device = useSelector(state => state.suite.device);
+    const device = useSelector(selectDevice);
     const fiat = useSelector(state => state.wallet.fiat);
     const localCurrency = useSelector(state => state.wallet.settings.localCurrency);
     const fees = useSelector(state => state.wallet.fees);
@@ -88,6 +97,7 @@ export const useCoinmarketSellForm = ({
     const exchangeCoinInfo = useSelector(
         state => state.wallet.coinmarket.exchange.exchangeCoinInfo,
     );
+    const addressDisplayType = useSelector(selectAddressDisplayType);
 
     const { account, network } = selectedAccount;
     const { navigateToSellOffers } = useCoinmarketNavigation(account);
@@ -116,11 +126,25 @@ export const useCoinmarketSellForm = ({
     // throttle initial state calculation
     const initState = useSellState(selectedAccount, fees, !!state, defaultValues);
 
+    const chunkify = addressDisplayType === AddressDisplayOptions.CHUNKED;
+
     useEffect(() => {
-        const setStateAsync = async (initState: ReturnType<typeof useSellState>) => {
-            const address = await getComposeAddressPlaceholder(account, network, device, accounts);
-            if (initState?.formValues && address) {
+        const setStateAsync = async (initState: NonNullable<ReturnType<typeof useSellState>>) => {
+            const address = await getComposeAddressPlaceholder(
+                account,
+                network,
+                device,
+                accounts,
+                chunkify,
+            );
+            if (initState.formValues && address) {
                 initState.formValues.outputs[0].address = address;
+
+                initState.tokensFiatValue = await getTokensFiatValue(
+                    account,
+                    sellInfo?.supportedCryptoCurrencies || new Set(),
+                );
+
                 setState(initState);
             }
         };
@@ -128,7 +152,16 @@ export const useCoinmarketSellForm = ({
         if (!state && initState) {
             setStateAsync(initState);
         }
-    }, [state, initState, account, network, device, accounts]);
+    }, [
+        state,
+        initState,
+        account,
+        network,
+        device,
+        accounts,
+        chunkify,
+        sellInfo?.supportedCryptoCurrencies,
+    ]);
 
     const methods = useForm<SellFormState>({
         mode: 'onChange',
@@ -365,6 +398,7 @@ export const useCoinmarketSellForm = ({
         handleClearFormButtonClick,
         formState,
         isDraft,
+        tokensFiatValue: state?.tokensFiatValue,
     };
 };
 

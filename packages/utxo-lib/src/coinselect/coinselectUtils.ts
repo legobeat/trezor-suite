@@ -1,4 +1,4 @@
-import * as BN from 'bn.js';
+import BN from 'bn.js';
 import {
     CoinSelectPaymentType,
     CoinSelectAlgorithm,
@@ -7,6 +7,7 @@ import {
     CoinSelectOutput,
     CoinSelectOutputFinal,
 } from '../types';
+import { Network, isNetworkType } from '../networks';
 
 export const ZERO = new BN(0);
 
@@ -153,36 +154,86 @@ export function sumOrNaN(range: { value?: string }[], forgiving = false) {
     }, ZERO);
 }
 
-// DOGE fee policy https://github.com/dogecoin/dogecoin/issues/1650#issuecomment-722229742
-// 1 DOGE base fee + 1 DOGE per every started kb + 1 DOGE for every output below 1 DOGE (dust limit)
-export function getFee(
-    feeRate: number,
-    bytes: number,
-    options: Partial<CoinSelectOptions>,
+export function getFeePolicy(network?: Network) {
+    if (isNetworkType('doge', network)) return 'doge';
+    if (isNetworkType('zcash', network)) return 'zcash';
+    return 'bitcoin';
+}
+
+function getBitcoinFee(
+    inputs: CoinSelectInput[],
     outputs: CoinSelectOutput[],
+    feeRate: number,
+    { baseFee = 0, floorBaseFee }: Partial<CoinSelectOptions>,
 ) {
+    const bytes = transactionBytes(inputs, outputs);
     const defaultFee = getFeeForBytes(feeRate, bytes);
-    let baseFee = options.baseFee || 0;
-    if (baseFee && bytes) {
-        if (options.floorBaseFee) {
-            // increase baseFee for every started kb
-            baseFee *= Math.floor((baseFee + defaultFee) / baseFee);
-        } else {
-            // simple increase baseFee
-            baseFee += defaultFee;
-        }
+    return baseFee && floorBaseFee
+        ? // increase baseFee for every started kb
+          baseFee * (1 + Math.floor(defaultFee / baseFee))
+        : // simple increase baseFee
+          baseFee + defaultFee;
+}
+
+// DOGE fee policy https://github.com/dogecoin/dogecoin/blob/3a29ba6d497cd1d0a32ecb039da0d35ea43c9c85/doc/fee-recommendation.md
+// 0.01 DOGE per every started kb + 0.01 DOGE for every output below 0.01 DOGE (dust limit)
+function getDogeFee(
+    inputs: CoinSelectInput[],
+    outputs: CoinSelectOutput[],
+    feeRate: number,
+    { dustThreshold = 0, ...options }: Partial<CoinSelectOptions>,
+) {
+    const fee = getBitcoinFee(inputs, outputs, feeRate, options);
+
+    // find all outputs below dust limit
+    const limit = new BN(dustThreshold);
+    const dustOutputsCount = outputs.filter(({ value }) => value && new BN(value).lt(limit)).length;
+
+    // increase for every output below dustThreshold
+    return fee + dustOutputsCount * dustThreshold;
+}
+
+const MARGINAL_FEE_ZAT_PER_ACTION = 5000;
+const GRACE_ACTIONS = 2;
+const P2PKH_STANDARD_INPUT_SIZE = 150;
+const P2PKH_STANDARD_OUTPUT_SIZE = 34;
+
+// ZCASH fee policy https://github.com/zcash/zips/blob/c6086941577b711ada286b7c82466a92105ad066/zip-0317.rst
+// 5000 zat per every input or output (whichever there's more of, but at least 2), Orchard/Sapling currently ignored
+function getZcashFee(
+    inputs: CoinSelectInput[],
+    outputs: CoinSelectOutput[],
+    feeRate: number,
+    options: Partial<CoinSelectOptions>,
+) {
+    const fee = getBitcoinFee(inputs, outputs, feeRate, options);
+
+    const txInTotalBytes = inputs.reduce((sum, i) => sum + inputBytes(i), 0);
+    const txOutTotalBytes = outputs.reduce((sum, o) => sum + outputBytes(o), 0);
+    const actions = Math.max(
+        GRACE_ACTIONS,
+        Math.ceil(txInTotalBytes / P2PKH_STANDARD_INPUT_SIZE),
+        Math.ceil(txOutTotalBytes / P2PKH_STANDARD_OUTPUT_SIZE),
+    );
+
+    // Use the greater from standard fee and zip-317 calculated fee
+    return Math.max(actions * MARGINAL_FEE_ZAT_PER_ACTION, fee);
+}
+
+export function getFee(
+    inputs: CoinSelectInput[],
+    outputs: CoinSelectOutput[],
+    feeRate: number,
+    { feePolicy, ...options }: Partial<CoinSelectOptions> = {},
+) {
+    switch (feePolicy) {
+        case 'doge':
+            return getDogeFee(inputs, outputs, feeRate, options);
+        case 'zcash':
+            return getZcashFee(inputs, outputs, feeRate, options);
+        default:
+            return getBitcoinFee(inputs, outputs, feeRate, options);
     }
-    if (options.dustOutputFee && options.dustThreshold) {
-        // find all outputs below dust limit
-        for (let i = 0; i < outputs.length; i++) {
-            const { value } = outputs[i];
-            if (value && new BN(value).sub(new BN(options.dustThreshold)).isNeg()) {
-                // increase for every output below dustThreshold
-                baseFee += options.dustOutputFee;
-            }
-        }
-    }
-    return baseFee || defaultFee;
 }
 
 export function finalize(
@@ -191,12 +242,11 @@ export function finalize(
     feeRate: number,
     options: CoinSelectOptions,
 ) {
-    const bytesAccum = transactionBytes(inputs, outputs);
-    const blankOutputBytes = outputBytes({
+    const changeOutput = options.changeOutput || {
         script: { length: OUTPUT_SCRIPT_LENGTH[options.txType] },
-    });
-    const fee = getFee(feeRate, bytesAccum, options, outputs);
-    const feeAfterExtraOutput = getFee(feeRate, bytesAccum + blankOutputBytes, options, outputs);
+    };
+    const fee = getFee(inputs, outputs, feeRate, options);
+    const feeAfterExtraOutput = getFee(inputs, [...outputs, changeOutput], feeRate, options);
     const sumInputs = sumOrNaN(inputs);
     const sumOutputs = sumOrNaN(outputs);
     // if sum inputs/outputs is NaN
@@ -218,10 +268,8 @@ export function finalize(
     // is it worth a change output?
     if (remainderAfterExtraOutput.gte(new BN(dustAmount))) {
         finalOutputs.push({
+            ...changeOutput,
             value: remainderAfterExtraOutput.toString(),
-            script: {
-                length: OUTPUT_SCRIPT_LENGTH[options.txType],
-            },
         });
     }
 

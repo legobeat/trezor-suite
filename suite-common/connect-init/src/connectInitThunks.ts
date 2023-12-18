@@ -5,6 +5,7 @@ import TrezorConnect, {
     TRANSPORT_EVENT,
     UI_EVENT,
 } from '@trezor/connect';
+import { getSynchronize } from '@trezor/utils';
 
 import { cardanoConnectPatch } from './cardanoConnectPatch';
 
@@ -49,6 +50,8 @@ export const connectInitThunk = createThunk(
             dispatch(action);
         });
 
+        const synchronize = getSynchronize();
+
         const wrappedMethods = [
             'getFeatures',
             'getDeviceState',
@@ -56,6 +59,7 @@ export const connectInitThunk = createThunk(
             'ethereumGetAddress',
             'rippleGetAddress',
             'cardanoGetAddress',
+            'solanaGetAddress',
             'applySettings',
             'changePin',
             'pushTransaction',
@@ -63,6 +67,7 @@ export const connectInitThunk = createThunk(
             'signTransaction',
             'rippleSignTransaction',
             'cardanoSignTransaction',
+            'solanaSignTransaction',
             'backupDevice',
             'recoveryDevice',
             'checkFirmwareAuthenticity',
@@ -70,6 +75,8 @@ export const connectInitThunk = createThunk(
             'cancelCoinjoinAuthorization',
             'getOwnershipProof',
             'setBusy',
+            'rebootToBootloader',
+            'cipherKeyValue',
         ] as const;
 
         wrappedMethods.forEach(key => {
@@ -78,7 +85,7 @@ export const connectInitThunk = createThunk(
             if (!original) return;
             (TrezorConnect[key] as any) = async (params: any) => {
                 dispatch(lockDevice(true));
-                const result = await original(params);
+                const result = await synchronize(() => original(params));
                 dispatch(lockDevice(false));
                 return result;
             };

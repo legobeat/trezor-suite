@@ -121,12 +121,15 @@ class TrezorUserEnvLinkClass extends EventEmitter {
     }
 
     // todo: typesafe interface
-    send(params: any) {
+    async send(params: any) {
+        // probably after update to node 18 it started to disconnect after certain
+        // period of inactivity.
+        await this.connect();
         const { ws } = this;
         if (!ws) throw NOT_INITIALIZED;
         const id = this.messageID;
 
-        const dfd = createDeferred(id);
+        const dfd = createDeferred<{ response: any }>(id);
         const req = {
             id,
             ...params,
@@ -140,7 +143,7 @@ class TrezorUserEnvLinkClass extends EventEmitter {
 
         ws.send(JSON.stringify(req));
         // todo: proper return type
-        return dfd.promise as Promise<{ response: any }>;
+        return dfd.promise;
     }
 
     // todo: typesafe messages

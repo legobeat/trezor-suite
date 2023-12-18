@@ -5,6 +5,28 @@
     - schedules
     - /^release\//
 
+.connect_included_methods: &connect_included_methods
+  TESTS_INCLUDED_METHODS:
+    [
+      "applySettings,applyFlags,getFeatures,getFirmwareHash,checkFirmwareAuthenticity",
+      "signTransaction",
+      "getAccountInfo,getAccountDescriptor,getAddress,getPublicKey,signMessage,verifyMessage,composeTransaction,getOwnershipId,getOwnershipProof",
+      "stellarGetAddress,stellarSignTransaction",
+      "cardanoGetAddress,cardanoGetNativeScriptHash,cardanoGetPublicKey,cardanoSignTransaction",
+      "eosGetPublicKey,eosSignTransaction",
+      "ethereumGetAddress,ethereumGetPublicKey,ethereumSignMessage,ethereumSignTransaction,ethereumVerifyMessage,ethereumSignTypedData",
+      "nemGetAddress,nemSignTransaction",
+      "rippleGetAddress,rippleSignTransaction",
+      "tezosGetAddress,tezosGetPublicKey,tezosSignTransaction",
+      "binanceGetAddress,binanceGetPublicKey,binanceSignTransaction",
+    ]
+
+.connect_test_pattern_1: &connect_test_pattern_1
+  TESTS_PATTERN: "init authorizeCoinjoin cancelCoinjoinAuthorization passphrase unlockPath setBusy override"
+
+.connect_test_pattern_2: &connect_test_pattern_2
+  TESTS_PATTERN: "methods"
+
 # @trezor/suite-web
 .e2e web:
   stage: integration testing
@@ -21,7 +43,7 @@
     # cypress open todo. temporarily turned off (messaging system)
     CYPRESS_SNAPSHOT: 0
     ## reporter url
-    TRACK_SUITE_URL: https://track-suite.herokuapp.com
+    TRACK_SUITE_URL: https://track-suite-ff9ad9f5b4f6.herokuapp.com
     ## when debugging or developing tests it does not make sense to have retries,
     ## in other cases retries are useful to avoid occasional failures due to flaky tests
     ALLOW_RETRY: 1
@@ -77,6 +99,7 @@
 
 suite web migrations:
   extends: .e2e web
+  stage: legacy testing
   variables:
     # Each test file will be run for all urls in TEST_URLS array. Useful for migration tests
     CYPRESS_TEST_URLS: release/22.5 ${CI_COMMIT_REF_NAME}
@@ -96,23 +119,25 @@ suite web snapshots:
     CYPRESS_SNAPSHOT: 1
     CYPRESS_updateSnapshots: 1
 
-# Tests against latest trezor-firmware master
-suite web 2-master:
+# Tests against latest trezor-firmware main
+suite web canary fws:
   extends: .suite web base
+  stage: canary testing
   only:
     refs:
       - schedules
   variables:
-    FIRMWARE: 2-master
+    FIRMWARE: 2-main
 
-suite web 2-master manual:
+suite web canary fws manual:
   extends: .suite web base
+  stage: canary testing
   except:
     refs:
       - schedules
   when: manual
   variables:
-    FIRMWARE: 2-master
+    FIRMWARE: 2-main
 
 # TODO scheduled jobs against beta chrome channel
 # TODO scheduled jobs against suite.trezor.io
@@ -149,7 +174,7 @@ suite web 2-master manual:
   interruptible: true
   parallel:
     matrix:
-      - TEST_FILE: ["spawn-tor", "spawn-bridge"]
+      - TEST_FILE: ["spawn-tor", "spawn-bridge", "suite-guide", "wallet-discovery"]
         CONTAINERS: "trezor-user-env-unix"
       - TEST_FILE: ["electrum"]
         CONTAINERS: "trezor-user-env-unix electrum-regtest"
@@ -226,9 +251,11 @@ transport manual:
       - TEST_FILE: ["popup-close.test"]
       - TEST_FILE: ["popup-error-page.test"]
       - TEST_FILE: ["passphrase.test"]
+      - TEST_FILE: ["log-page.test"]
       - TEST_FILE: ["unchained.test"]
       - TEST_FILE: ["browser-support.test"]
-      - TEST_FILE: ["install-bridge.test"]
+      - TEST_FILE: ["transport.test"]
+      - TEST_FILE: ["permissions.test"]
 
 connect-popup:
   extends: .e2e connect-popup
@@ -247,8 +274,9 @@ connect-popup manual:
     <<: *run_everything_rules
   when: manual
 
-connect-popup legacy:
+.connect-popup legacy npm package base:
   extends: .e2e connect-popup
+  stage: legacy testing
   needs:
     - install
     - connect-web build
@@ -261,14 +289,79 @@ connect-popup legacy:
     TEST_FILE: $TEST_FILE
   parallel:
     matrix:
-      - CONNECT_VERSION: "9.0.11"
-        TEST_FILE: ["methods.test", "browser-support.test", "popup-close-legacy.test"]
+      - CONNECT_VERSION: "9.0.10"
+        TEST_FILE: [
+            "browser-support.test",
+            "popup-close-legacy.test",
+            # Test methods commented until we make it work with legacy connect due to trustHost in old connect-explorer
+            # "methods.test",
+          ]
+
+connect-popup legacy npm package manual:
+  extends: .connect-popup legacy npm package base
+  except:
+    <<: *run_everything_rules
+  when: manual
+
+connect-popup legacy npm package:
+  extends: .connect-popup legacy npm package base
+  only:
+    refs:
+      - schedules
+
+.e2e connect-popup-webextension:
+  stage: integration testing
+  retry: 1
+  variables:
+    COMPOSE_PROJECT_NAME: $CI_JOB_ID
+    COMPOSE_FILE: ./docker/docker-compose.connect-popup-ci.yml
+    URL: ${DEV_SERVER_URL}/connect/${CI_COMMIT_REF_NAME}/
+    TEST_FILE: $TEST_FILE
+    IS_WEBEXTENSION: "true"
+  script:
+    - yarn install --immutable
+    - yarn workspace @trezor/connect-explorer-webextension build
+    - docker-compose pull
+    - docker-compose up -d trezor-user-env-unix
+    - docker-compose run test-run
+  after_script:
+    - docker-compose down
+    - docker network prune -f
+  artifacts:
+    expire_in: 7 days
+    when: always
+    paths:
+      - ./packages/connect-popup/e2e/screenshots
+      - ./packages/connect-popup/connect-popup-overview.html
+      - ./packages/connect-popup/test-results
+  interruptible: true
+  parallel:
+    matrix:
+      - TEST_FILE: ["methods.test"]
+      - TEST_FILE: ["passphrase.test"]
+      - TEST_FILE: ["popup-close.test"]
+      - TEST_FILE: ["popup-error-page.test"]
+
+connect-popup-webextension:
+  extends: .e2e connect-popup-webextension
+  dependencies:
+    - install
+    - connect-web build
+  only:
+    <<: *run_everything_rules
+
+connect-popup-webextension manual:
+  extends: .e2e connect-popup-webextension
+  needs:
+    - install
+    - connect-web build
   except:
     <<: *run_everything_rules
   when: manual
 
 .connect:
   stage: integration testing
+  retry: 1
   dependencies:
     - install
   variables:
@@ -319,66 +412,74 @@ connect-popup legacy:
   parallel:
     matrix:
       - TESTS_ENVIRONMENT: ["node", "web"]
-        TESTS_PATTERN: "init authorizeCoinjoin cancelCoinjoinAuthorization passphrase unlockPath setBusy override"
-        TESTS_FIRMWARE: ["2-master", "2.2.0"]
-        # todo:
-        # TESTS_NODE_VERSION: ["12", "14", "16"]
+        <<: *connect_test_pattern_1
       - TESTS_ENVIRONMENT: ["node", "web"]
-        TESTS_PATTERN: "methods"
-        TESTS_FIRMWARE: ["2-master", "2.2.0"]
-        # todo:
-        # TESTS_NODE_VERSION: ["12", "14", "16"]
-        TESTS_INCLUDED_METHODS:
-          [
-            "applySettings,applyFlags,getFeatures,getFirmwareHash,checkFirmwareAuthenticity",
-            "signTransaction",
-            "getAccountInfo,getAddress,getPublicKey,signMessage,verifyMessage,composeTransaction,getOwnershipId,getOwnershipProof",
-            "stellarGetAddress,stellarSignTransaction",
-            "cardanoGetAddress,cardanoGetNativeScriptHash,cardanoGetPublicKey,cardanoSignTransaction",
-            "eosGetPublicKey,eosSignTransaction",
-            "ethereumGetAddress,ethereumGetPublicKey,ethereumSignMessage,ethereumSignTransaction,ethereumVerifyMessage,ethereumSignTypedData",
-            "nemGetAddress,nemSignTransaction",
-            "rippleGetAddress,rippleSignTransaction",
-            "tezosGetAddress,tezosGetPublicKey,tezosSignTransaction",
-            "binanceGetAddress,binanceGetPublicKey,binanceSignTransaction",
-          ]
+        <<: *connect_test_pattern_2
+        <<: *connect_included_methods
         TESTS_MOCK_BACKENDS: "false"
 
-connect:
+.connect legacy fws base:
   extends: .connect matrix
-  retry: 1
+  stage: legacy testing
+  variables:
+    TESTS_FIRMWARE: "2.2.0"
+
+connect legacy fws:
+  extends: .connect legacy fws base
   only:
     refs:
-      - schedules # only nightly jobs, this is too heavy for develop branches at the moment
+      - schedules
 
-connect manual:
-  extends: .connect matrix
+connect legacy fws manual:
+  extends: .connect legacy fws base
   except:
     refs:
       - schedules
   when: manual
 
-connect model R:
+.connect canary fws base:
+  extends: .connect matrix
+  stage: canary testing
+  variables:
+    TESTS_FIRMWARE: "2-main"
+
+connect canary fws:
+  extends: .connect canary fws base
+  only:
+    refs:
+      - schedules
+
+connect canary fws manual:
+  extends: .connect canary fws base
+  except:
+    refs:
+      - schedules
+  when: manual
+
+connect T2B1:
   extends: .connect
   only:
     refs:
       - schedules
   parallel:
     matrix:
+      - TESTS_ENVIRONMENT: ["node", "web"]
+        TESTS_PATTERN: "authenticateDevice"
+        TESTS_FIRMWARE: ["2-latest"]
+        TESTS_FIRMWARE_MODEL: "R"
       - TESTS_ENVIRONMENT: ["node"]
         TESTS_PATTERN: "methods"
         TESTS_FIRMWARE: ["2-latest"]
         TESTS_FIRMWARE_MODEL: "R"
-        TESTS_INCLUDED_METHODS:
-          [
-            "applySettings,applyFlags,getFeatures,getFirmwareHash",
-            "signTransaction",
-            "getAccountInfo,getAddress,getPublicKey,signMessage,verifyMessage,composeTransaction,getOwnershipId,getOwnershipProof",
+        TESTS_INCLUDED_METHODS: [
+            "applySettings,applyFlags,getFirmwareHash", # getFeatures (capabilies)
+            # "signTransaction", (unsupported chain in fixtures)
+            "getAccountInfo,getAccountDescriptor,getPublicKey,signMessage,verifyMessage,composeTransaction,getOwnershipId,getOwnershipProof", # getAddress (unsuppported chain in fixtures)
             "stellarGetAddress,stellarSignTransaction",
             "cardanoGetAddress,cardanoGetNativeScriptHash,cardanoGetPublicKey,cardanoSignTransaction",
-            "eosGetPublicKey,eosSignTransaction",
+            # eos not supported
             "ethereumGetAddress,ethereumGetPublicKey,ethereumSignMessage,ethereumSignTransaction,ethereumVerifyMessage,ethereumSignTypedData",
-            "nemGetAddress,nemSignTransaction",
+            # nem not supported
             "rippleGetAddress,rippleSignTransaction",
             "tezosGetAddress,tezosGetPublicKey,tezosSignTransaction",
             "binanceGetAddress,binanceGetPublicKey,binanceSignTransaction",
@@ -399,7 +500,7 @@ connect-web:
   only:
     <<: *run_everything_rules
 
-connect-web mv2:
+.connect-web mv2:
   stage: integration testing
   variables:
     COMPOSE_PROJECT_NAME: $CI_JOB_ID
@@ -414,5 +515,15 @@ connect-web mv2:
   after_script:
     - docker-compose down
     - docker network prune -f
+
+connect-web mv2:
+  extends: .connect-web mv2
   only:
     <<: *run_everything_rules
+  when: always
+
+connect-web mv2 manual:
+  extends: .connect-web mv2
+  except:
+    <<: *run_everything_rules
+  when: manual

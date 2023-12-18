@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+
 import styled from 'styled-components';
+
+import { acquireDevice, selectDevice } from '@suite-common/wallet-core';
+import { ConfirmOnDevice, variables } from '@trezor/components';
+
 import { closeModalApp } from 'src/actions/suite/routerActions';
 import { TrezorDevice } from 'src/types/suite';
 import {
     CheckSeedStep,
-    CloseButton,
+    FirmwareCloseButton,
     FirmwareInitial,
     FirmwareInstallation,
 } from 'src/components/firmware';
@@ -14,8 +19,7 @@ import { DeviceUnreadable } from 'src/views/suite/device-unreadable';
 import { Translation, Modal } from 'src/components/suite';
 import { OnboardingStepBox } from 'src/components/onboarding';
 import { useDispatch, useFirmware, useSelector } from 'src/hooks/suite';
-import { ConfirmOnDevice, variables } from '@trezor/components';
-import { acquireDevice } from 'src/actions/suite/suiteActions';
+import { DeviceModelInternal } from '@trezor/connect';
 
 const Wrapper = styled.div<{ isWithTopPadding: boolean }>`
     display: flex;
@@ -43,10 +47,13 @@ type FirmwareProps = {
 export const Firmware = ({ shouldSwitchFirmwareType }: FirmwareProps) => {
     const { resetReducer, status, setStatus, error, firmwareUpdate, firmwareHashInvalid } =
         useFirmware();
-    const device = useSelector(state => state.suite.device);
+    const device = useSelector(selectDevice);
     const dispatch = useDispatch();
 
     const deviceModelInternal = device?.features?.internal_model;
+    // Device will be wiped because Universal and Bitcoin-only firmware have different vendor headers on T2B1 or later devices.
+    const deviceWillBeWiped =
+        shouldSwitchFirmwareType && deviceModelInternal === DeviceModelInternal.T2B1;
 
     const onClose = () => {
         if (device?.status !== 'available') {
@@ -95,9 +102,9 @@ export const Firmware = ({ shouldSwitchFirmwareType }: FirmwareProps) => {
                             <Translation id="TOAST_GENERIC_ERROR" values={{ error: error || '' }} />
                         }
                         innerActions={
-                            <CloseButton onClick={onClose}>
+                            <FirmwareCloseButton onClick={onClose}>
                                 <Translation id="TR_BACK" />
-                            </CloseButton>
+                            </FirmwareCloseButton>
                         }
                         nested
                     />
@@ -111,12 +118,19 @@ export const Firmware = ({ shouldSwitchFirmwareType }: FirmwareProps) => {
                         setCachedDevice={setCachedDevice}
                         standaloneFwUpdate
                         shouldSwitchFirmwareType={shouldSwitchFirmwareType}
+                        willBeWiped={deviceWillBeWiped}
                         onInstall={firmwareUpdate}
                         onClose={onClose}
                     />
                 );
             case 'check-seed': // triggered from FirmwareInitial
-                return <CheckSeedStep onSuccess={() => setStatus('waiting-for-bootloader')} />;
+                return (
+                    <CheckSeedStep
+                        onSuccess={() => setStatus('waiting-for-bootloader')}
+                        onClose={onClose}
+                        willBeWiped={deviceWillBeWiped}
+                    />
+                );
             case 'waiting-for-confirmation': // waiting for confirming installation on a device
             case 'started': // called from firmwareUpdate()
             case 'installing':
@@ -151,6 +165,7 @@ export const Firmware = ({ shouldSwitchFirmwareType }: FirmwareProps) => {
     const isCancelable = ['initial', 'check-seed', 'done', 'partially-done', 'error'].includes(
         status,
     );
+    const heading = shouldSwitchFirmwareType ? 'TR_SWITCH_FIRMWARE' : 'TR_INSTALL_FIRMWARE';
 
     return (
         <StyledModal
@@ -160,12 +175,13 @@ export const Firmware = ({ shouldSwitchFirmwareType }: FirmwareProps) => {
                     <ConfirmOnDevice
                         title={<Translation id="TR_CONFIRM_ON_TREZOR" />}
                         deviceModelInternal={deviceModelInternal}
+                        deviceUnitColor={device?.features?.unit_color}
                     />
                 )
             }
             onCancel={onClose}
             data-test="@firmware"
-            heading={<Translation id="TR_INSTALL_FIRMWARE" />}
+            heading={<Translation id={heading} />}
         >
             <Wrapper isWithTopPadding={!isCancelable}>{Component}</Wrapper>
         </StyledModal>

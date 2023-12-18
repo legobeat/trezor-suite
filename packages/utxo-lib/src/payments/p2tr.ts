@@ -1,14 +1,13 @@
 // SegWit version 1 P2TR output type for Taproot defined in
 // https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
 
-import * as ecc from 'tiny-secp256k1';
-import * as typef from 'typeforce';
+import ecc from 'tiny-secp256k1';
 import { bech32m } from 'bech32';
 import { bitcoin as BITCOIN_NETWORK } from '../networks';
 import * as bcrypto from '../crypto';
 import * as bscript from '../script';
 import * as lazy from './lazy';
-import { Payment, PaymentOpts } from '../types';
+import { Payment, PaymentOpts, typeforce } from '../types';
 
 const { OPS } = bscript;
 
@@ -20,11 +19,14 @@ const { OPS } = bscript;
 const TAGS = ['TapLeaf', 'TapBranch', 'TapTweak', 'KeyAgg list', 'KeyAgg coefficient'] as const;
 type TaggedHashPrefix = (typeof TAGS)[number];
 /** An object mapping tags to their tagged hash prefix of [SHA256(tag) | SHA256(tag)] */
-const TAGGED_HASH_PREFIXES = TAGS.reduce((obj, tag) => {
-    const tagHash = bcrypto.sha256(Buffer.from(tag));
-    obj[tag] = Buffer.concat([tagHash, tagHash]);
-    return obj;
-}, {} as { [k in TaggedHashPrefix]: Buffer });
+const TAGGED_HASH_PREFIXES = TAGS.reduce(
+    (obj, tag) => {
+        const tagHash = bcrypto.sha256(Buffer.from(tag));
+        obj[tag] = Buffer.concat([tagHash, tagHash]);
+        return obj;
+    },
+    {} as { [k in TaggedHashPrefix]: Buffer },
+);
 
 const EVEN_Y_COORD_PREFIX = new Uint8Array([0x02]);
 
@@ -53,7 +55,7 @@ function tapTweakPubkey(pubkey: Buffer, tapTreeRoot?: Buffer) {
 const liftX = (pubkey: Buffer) => {
     // bip32.derive returns one additional byte in publicKey
     const offset = pubkey.length === 33 ? 1 : 0;
-    return pubkey.slice(offset);
+    return pubkey.subarray(offset);
 };
 
 // output: OP_1 {witnessProgram}
@@ -65,13 +67,13 @@ export function p2tr(a: Payment, opts?: PaymentOpts): Payment {
 
     const o: Payment = { name: 'p2tr', network };
 
-    typef(
+    typeforce(
         {
-            network: typef.maybe(typef.Object),
+            network: typeforce.maybe(typeforce.Object),
 
-            address: typef.maybe(typef.String),
-            output: typef.maybe(typef.BufferN(34)),
-            pubkey: typef.maybe(typef.anyOf(typef.BufferN(32), typef.BufferN(33))), // see liftX
+            address: typeforce.maybe(typeforce.String),
+            output: typeforce.maybe(typeforce.BufferN(34)),
+            pubkey: typeforce.maybe(typeforce.anyOf(typeforce.BufferN(32), typeforce.BufferN(33))), // see liftX
         },
         a,
     );
@@ -94,7 +96,7 @@ export function p2tr(a: Payment, opts?: PaymentOpts): Payment {
         return bech32m.encode(network.bech32, words);
     });
     lazy.prop(o, 'hash', () => {
-        if (a.output) return a.output.slice(2);
+        if (a.output) return a.output.subarray(2);
         if (a.address) return _address().data;
         if (a.pubkey) {
             return tapTweakPubkey(liftX(a.pubkey)).pubkey;
@@ -123,7 +125,7 @@ export function p2tr(a: Payment, opts?: PaymentOpts): Payment {
         if (a.output) {
             if (a.output[0] !== OPS.OP_1 || a.output[1] !== 0x20)
                 throw new TypeError('p2tr output is invalid');
-            const hash2 = a.output.slice(2);
+            const hash2 = a.output.subarray(2);
             if (hash.length > 0 && !hash.equals(hash2)) throw new TypeError('Hash mismatch');
             else hash = hash2;
         }

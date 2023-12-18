@@ -1,3 +1,27 @@
+# 9.0.16
+
+-   chore(connect): use `tslib` as dependency in all public libs (606ecc63b)
+-   chore: update `jest` and related dependency (b8a321c83)
+-   chore(repo): update tsx (53de3e3a8)
+
+# 9.0.15
+
+-   chore(repo): Upgrade TS 5.3 (#10017) (7277f9d0f)
+-   chore(jest): update jest in packages without issues (7458ab20f)
+-   chore(repo): upgrade to TS 5.2 (#9989) (bf8d0fe80)
+-   chore(connect): improve error message (07d504662)
+-   feat(deps): update deps without breaking changes (7e0584c51)
+-   feat(utils): addDashesToSpaces utils (116c3a927)
+-   chore: update prettier to v3 and reformat (4229fd483)
+-   chore(desktop): update deps related to desktop packages (af412cfb5)
+
+# 9.0.13
+
+-   test(utils): mock timer in createCooldown (99c6394f5)
+-   fix(utils): versionUtils.isVersionArray strict validation (b61d52c1d)
+-   fix(utils): createDeferred arg and return type (7ca2fd07c)
+-   chore(utils): add `getChunkSize` to bufferUtils (2d6341005)
+
 # 9.0.12
 
 -   feat(utils): add parseElectrumUrl util (61dce520d)

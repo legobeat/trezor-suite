@@ -1,4 +1,4 @@
-import React from 'react';
+import { MouseEvent } from 'react';
 import styled from 'styled-components';
 import { Icon, variables } from '@trezor/components';
 import { showAddress } from 'src/actions/wallet/signVerifyActions';
@@ -18,7 +18,7 @@ const RevealText = styled.div`
 
 const ButtonWrapper = styled.button`
     position: absolute;
-    right: 0px;
+    right: 0;
     display: flex;
     align-items: center;
     margin-left: auto;
@@ -46,7 +46,7 @@ interface VerifyAddressButtonProps {
 export const VerifyAddressButton = ({ item: { label, value } }: VerifyAddressButtonProps) => {
     const dispatch = useDispatch();
 
-    const reveal = (e: React.MouseEvent<HTMLElement>) => {
+    const reveal = (e: MouseEvent<HTMLElement>) => {
         e.stopPropagation();
         dispatch(showAddress(label, value));
     };

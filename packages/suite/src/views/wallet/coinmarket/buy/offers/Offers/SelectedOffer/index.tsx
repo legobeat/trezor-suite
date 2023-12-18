@@ -1,9 +1,8 @@
-import React from 'react';
 import styled from 'styled-components';
 import { Card, variables } from '@trezor/components';
 import VerifyAddress from './components/VerifyAddress';
-import { CoinmarketBuyOfferInfo } from 'src/components/wallet';
 import { useCoinmarketBuyOffersContext } from 'src/hooks/wallet/useCoinmarketBuyOffers';
+import { CoinmarketBuyOfferInfo } from '../../../components/CoinmarketBuyOfferInfo';
 
 const Wrapper = styled.div`
     display: flex;

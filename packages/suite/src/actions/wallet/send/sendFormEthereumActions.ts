@@ -1,12 +1,12 @@
-import TrezorConnect, { FeeLevel, TokenInfo } from '@trezor/connect';
 import BigNumber from 'bignumber.js';
 import { toWei } from 'web3-utils';
+
+import TrezorConnect, { FeeLevel, TokenInfo } from '@trezor/connect';
 import { notificationsActions } from '@suite-common/toast-notifications';
 import {
     calculateTotal,
     calculateMax,
     calculateEthFee,
-    serializeEthereumTx,
     getEthereumEstimateFeeParams,
     prepareEthereumTransaction,
     getExternalComposeOutput,
@@ -23,7 +23,10 @@ import {
     PrecomposedTransactionFinal,
     ExternalOutput,
 } from '@suite-common/wallet-types';
+import { selectDevice } from '@suite-common/wallet-core';
+
 import { Dispatch, GetState } from 'src/types/suite';
+import { AddressDisplayOptions, selectAddressDisplayType } from 'src/reducers/suite/suiteReducer';
 
 const calculate = (
     availableBalance: string,
@@ -70,7 +73,7 @@ const calculate = (
     }
 
     const payloadData = {
-        type: 'nonfinal',
+        type: 'nonfinal' as const,
         totalSpent: token ? amount : totalSpent.toString(),
         max,
         fee: feeInSatoshi,
@@ -78,24 +81,23 @@ const calculate = (
         feeLimit: feeLevel.feeLimit,
         token,
         bytes: 0, // TODO: calculate
-    } as const;
+        inputs: [],
+    };
 
-    if (output.type === 'send-max' || output.type === 'external') {
+    if (output.type === 'send-max' || output.type === 'payment') {
         return {
             ...payloadData,
             type: 'final',
             // compatibility with BTC PrecomposedTransaction from @trezor/connect
-            transaction: {
-                inputs: [],
-                outputsPermutation: [0],
-                outputs: [
-                    {
-                        address: output.address,
-                        amount,
-                        script_type: 'PAYTOADDRESS',
-                    },
-                ],
-            },
+            inputs: [],
+            outputsPermutation: [0],
+            outputs: [
+                {
+                    address: output.address,
+                    amount,
+                    script_type: 'PAYTOADDRESS',
+                },
+            ],
         };
     }
     return payloadData;
@@ -226,7 +228,7 @@ export const signTransaction =
     (formValues: FormState, transactionInfo: PrecomposedTransactionFinal) =>
     async (dispatch: Dispatch, getState: GetState) => {
         const { selectedAccount, transactions } = getState().wallet;
-        const { device } = getState().suite;
+        const device = selectDevice(getState());
         if (
             selectedAccount.status !== 'loaded' ||
             !device ||
@@ -237,6 +239,8 @@ export const signTransaction =
 
         const { account, network } = selectedAccount;
         if (account.networkType !== 'ethereum' || !network.chainId) return;
+
+        const addressDisplayType = selectAddressDisplayType(getState());
 
         // Ethereum account `misc.nonce` is not updated before pending tx is mined
         // Calculate `pendingNonce`: greatest value in pending tx + 1
@@ -278,10 +282,11 @@ export const signTransaction =
             useEmptyPassphrase: device.useEmptyPassphrase,
             path: account.path,
             transaction,
+            chunkify: addressDisplayType === AddressDisplayOptions.CHUNKED,
         });
 
         if (!signedTx.success) {
-            // catch manual error from ReviewTransaction modal
+            // catch manual error from TransactionReviewModal
             if (signedTx.payload.error === 'tx-cancelled') return;
             dispatch(
                 notificationsActions.addToast({
@@ -292,8 +297,5 @@ export const signTransaction =
             return;
         }
 
-        return serializeEthereumTx({
-            ...transaction,
-            ...signedTx.payload,
-        });
+        return signedTx.payload.serializedTx;
     };

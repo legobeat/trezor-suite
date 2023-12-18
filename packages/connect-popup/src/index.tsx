@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
+
 // origin: https://github.com/trezor/connect/blob/develop/src/js/popup/popup.js/
 import {
     POPUP,
+    IFRAME,
     UI_REQUEST,
     RESPONSE_EVENT,
     parseMessage,
@@ -10,24 +13,38 @@ import {
     PopupInit,
     PopupHandshake,
     MethodResponseMessage,
-} from '@trezor/connect';
+    CORE_EVENT,
+    IFrameCallMessage,
+    IFrameLogRequest,
+    CoreMessage,
+} from '@trezor/connect/lib/exports';
+import type { Core } from '@trezor/connect/lib/core';
 import { config } from '@trezor/connect/lib/data/config';
+import { parseConnectSettings } from '@trezor/connect-iframe/src/connectSettings';
+import { initLogWriterWithSrcPath } from '@trezor/connect-iframe/src/sharedLoggerUtils';
 
 import { reactEventBus } from '@trezor/connect-ui/src/utils/eventBus';
+import { ErrorViewProps } from '@trezor/connect-ui/src/views/Error';
 import { analytics, EventType } from '@trezor/connect-analytics';
 import { getSystemInfo } from '@trezor/connect-common';
 
 import * as view from './view';
 import {
+    getState,
     setState,
-    showView,
-    initMessageChannel,
+    initMessageChannelWithIframe,
     postMessageToParent,
     renderConnectUI,
+    showView,
 } from './view/common';
 import { isPhishingDomain } from './utils/isPhishingDomain';
+import { initLog, setLogWriter, LogWriter } from '@trezor/connect/lib/utils/debug';
+
+const log = initLog('@trezor/connect-popup');
+const proxyLogger = initLog('@trezor/connect-webextension');
 
 let handshakeTimeout: ReturnType<typeof setTimeout>;
+let renderConnectUIPromise: Promise<void> | undefined;
 
 // browser built-in functionality to quickly and safely escape the string
 const escapeHtml = (payload: any) => {
@@ -41,92 +58,15 @@ const escapeHtml = (payload: any) => {
     }
 };
 
-// handle messages from window.opener and iframe
-const handleMessage = (
-    event: MessageEvent<
-        | PopupEvent
-        | UiEvent
-        | (Omit<MethodResponseMessage, 'payload'> & { payload?: { error: string; code?: string } })
-    >,
-) => {
-    const { data } = event;
-    if (!data) return;
-    // This is message from the window.opener
-    if (data.type === POPUP.INIT) {
-        init(escapeHtml(data.payload)); // eslint-disable-line @typescript-eslint/no-use-before-define
-        return;
-    }
-
-    if (data.type === RESPONSE_EVENT && data.success) {
-        // When success we can close popup.
-        window.close();
-        return;
-    }
-
-    if (data.type === RESPONSE_EVENT && !data.success) {
-        switch (data.payload?.code) {
-            case 'Device_CallInProgress':
-                // Ignoring when device call is in progress.
-                // User triggers new call but device call is in progress PopupManager will focus popup.
-                break;
-            case 'Transport_Missing':
-                // Ignore this error. It is handled after.
-                break;
-            case 'Method_PermissionsNotGranted':
-            case 'Method_Cancel':
-                // User canceled process, close popup.
-                window.close();
-                break;
-            default:
-                reactEventBus.dispatch({
-                    type: 'error',
-                    detail: 'response-event-error',
-                    message: data.payload?.error || 'Unknown error',
-                });
-                analytics.report({
-                    type: EventType.ViewChangeError,
-                    payload: { code: data.payload?.code || 'Code missing' },
-                });
-                return;
-        }
-    }
-
-    // This is message from the window.opener
-    if (data.type === UI_REQUEST.IFRAME_FAILURE) {
-        reactEventBus.dispatch({
-            type: 'error',
-            detail: 'iframe-failure',
-        });
-
-        return;
-    }
-
-    // ignore messages from origin other then MessagePort (iframe)
-    const isMessagePort =
-        event.target instanceof MessagePort ||
-        (typeof BroadcastChannel !== 'undefined' && event.target instanceof BroadcastChannel);
-    if (!isMessagePort) return;
-
-    // catch first message from iframe
-    if (data.type === POPUP.HANDSHAKE) {
-        handshake(data); // eslint-disable-line @typescript-eslint/no-use-before-define
-        return;
-    }
-
-    const message = parseMessage(data);
-
-    analytics.report({ type: EventType.ViewChange, payload: { nextView: message.type } });
-
-    if (
-        message?.payload &&
-        typeof message.payload === 'object' &&
-        'analytics' in message.payload &&
-        message.payload.analytics
-    ) {
-        analytics.report(message.payload.analytics);
-    }
-
+export const handleUIAffectingMessage = (message: CoreMessage) => {
     switch (message.type) {
+        case POPUP.METHOD_INFO:
+            setState({
+                method: message.payload.method,
+                info: message.payload.info,
+            });
+            reactEventBus.dispatch({ type: 'state-update', payload: getState() });
+            return;
         case UI_REQUEST.TRANSPORT:
         case UI_REQUEST.FIRMWARE_OUTDATED:
         case UI_REQUEST.DEVICE_NEEDS_BACKUP:
@@ -214,67 +154,381 @@ const handleMessage = (
     }
 };
 
-// handle POPUP.INIT message from window.opener
-const init = async (payload: PopupInit['payload']) => {
-    if (!payload) return;
+const handleResponseEvent = (data: any) => {
+    if (data.type === RESPONSE_EVENT) {
+        if (getState().core) {
+            // If we send this event to parent when iframe mode it gets duplicated in connect-web.
+            postMessageToParent(data);
+        }
 
-    if (!payload.systemInfo) {
-        payload.systemInfo = getSystemInfo(config.supportedBrowsers);
+        // When success we can close popup.
+        if (data.success) {
+            window.close();
+        }
     }
+    if (data.type === RESPONSE_EVENT && !data.success) {
+        switch (data.payload?.code) {
+            case 'Device_CallInProgress':
+                // Ignoring when device call is in progress.
+                // User triggers new call but device call is in progress PopupManager will focus popup.
+                break;
+            case 'Transport_Missing':
+                // Ignore this error. It is handled after.
+                break;
+            case 'Method_PermissionsNotGranted':
+            case 'Method_Cancel':
+                // User canceled process, close popup.
+                window.close();
+                break;
+            default:
+                fail({
+                    type: 'error',
+                    detail: 'response-event-error',
+                    message: data.payload?.error || 'Unknown error',
+                });
+                analytics.report({
+                    type: EventType.ViewChangeError,
+                    payload: { code: data.payload?.code || 'Code missing' },
+                });
+        }
+    }
+};
 
-    const isBrowserSupported = await view.initBrowserView(payload.systemInfo);
-    if (!isBrowserSupported) {
+/**
+ * receive initial configuration from npm package
+ */
+const handleInitMessage = (event: MessageEvent<PopupEvent | IFrameLogRequest>) => {
+    const { data } = event;
+    if (!data) return;
+
+    // case of webextension which uses cross origin communication via content script
+    if (data.type === POPUP.CONTENT_SCRIPT_LOADED) {
+        log.debug('content-script loaded', data.payload);
+        setState({
+            settings: {
+                ...getState().settings!,
+                origin: data.payload.id,
+            },
+        });
+        reactEventBus.dispatch({ type: 'state-update', payload: getState() });
         return;
     }
 
+    // This is message from the window.opener
+    if (data.type === POPUP.INIT) {
+        init(escapeHtml(data.payload));
+        window.removeEventListener('message', handleInitMessage);
+    }
+};
+
+const handleMessageInIframeMode = (
+    event: MessageEvent<
+        | PopupEvent
+        | UiEvent
+        | (Omit<MethodResponseMessage, 'payload'> & { payload?: { error: string; code?: string } })
+    >,
+) => {
+    const { data } = event;
+
+    if (!data) return;
+
+    if (disposed) return;
+
+    log.debug('handleMessage', data);
+    handleResponseEvent(data);
+
+    // This is message from the window.opener
+    if (data.type === UI_REQUEST.IFRAME_FAILURE) {
+        fail({
+            type: 'error',
+            detail: 'iframe-failure',
+        });
+
+        return;
+    }
+
+    // ignore messages from origin other then MessagePort (iframe)
+    const isMessagePort =
+        event.target instanceof MessagePort ||
+        (typeof BroadcastChannel !== 'undefined' && event.target instanceof BroadcastChannel);
+    if (!isMessagePort) return;
+
+    // catch first message from iframe
+    if (data.type === POPUP.HANDSHAKE) {
+        handshake(data, event.origin);
+        return;
+    }
+
+    const message = parseMessage(data);
+
+    analytics.report({ type: EventType.ViewChange, payload: { nextView: message.type } });
+
+    if (
+        message?.payload &&
+        typeof message.payload === 'object' &&
+        'analytics' in message.payload &&
+        message.payload.analytics
+    ) {
+        analytics.report(message.payload.analytics);
+    }
+
+    handleUIAffectingMessage(message);
+};
+
+const handleMessageInCoreMode = (
+    event: MessageEvent<
+        | PopupEvent
+        | UiEvent
+        | IFrameLogRequest
+        | IFrameCallMessage
+        | (Omit<MethodResponseMessage, 'payload'> & { payload?: { error: string; code?: string } })
+    >,
+) => {
+    const { data } = event;
+
+    if (!data) return;
+
+    if (disposed) return;
+
+    if (data.type === POPUP.HANDSHAKE) {
+        handshake(data, getState().settings?.origin || '');
+        const core = ensureCore();
+        const transport = core.getTransportInfo();
+        setState({
+            ...data,
+            transport,
+        });
+        reactEventBus.dispatch({ type: 'state-update', payload: getState() });
+        return;
+    }
+
+    if (data.type === IFRAME.CALL) {
+        const core = ensureCore();
+        core.handleMessage(data);
+
+        core.getCurrentMethod().then(method => {
+            log.debug('handling method in popup', method.name);
+            (method.initAsyncPromise ? method.initAsyncPromise : Promise.resolve()).finally(() => {
+                setState({
+                    method: method.name,
+                    info: method.info,
+                });
+                reactEventBus.dispatch({ type: 'state-update', payload: getState() });
+            });
+        });
+    }
+
+    const message = parseMessage(data);
+
+    handleUIAffectingMessage(message);
+};
+
+const handleLogMessage = (event: MessageEvent<IFrameLogRequest>) => {
+    const { data } = event;
+    if (!data) return;
+
+    if (data.type === IFRAME.LOG) {
+        proxyLogger.addMessage(
+            {
+                level: data.payload.level,
+                prefix: data.payload.prefix,
+                timestamp: data.payload.timestamp,
+            },
+            ...data.payload.message,
+        );
+    }
+};
+
+// handle POPUP.INIT message from window.opener
+const init = async (payload: PopupInit['payload']) => {
+    log.debug('popup init', payload);
+
+    if (!payload) return;
+
     // try to establish connection with iframe
     try {
+        if (!payload.systemInfo) {
+            payload.systemInfo = getSystemInfo(config.supportedBrowsers);
+        }
+
+        const isBrowserSupported = await view.initBrowserView(payload.systemInfo);
+        log.debug('browser supported: ', isBrowserSupported);
+        if (!isBrowserSupported) {
+            return;
+        }
+
         // render react view
-        await renderConnectUI();
-        reactEventBus.dispatch({ type: 'waiting-for-iframe-init' });
-        await initMessageChannel(payload, handleMessage);
-        reactEventBus.dispatch({ type: 'waiting-for-iframe-handshake' });
+        renderConnectUIPromise = renderConnectUI();
+        await renderConnectUIPromise;
+        log.debug('connect-ui rendered');
+
+        let logWriterFactory;
+        if (payload.settings.sharedLogger !== false) {
+            logWriterFactory = initLogWriterWithSrcPath('./workers/shared-logger-worker.js');
+            setLogWriter(logWriterFactory);
+        }
+
+        if (payload.useCore) {
+            addWindowEventListener('message', handleMessageInCoreMode, false);
+            await initCoreInPopup(payload, logWriterFactory);
+        } else {
+            addWindowEventListener('message', handleMessageInIframeMode, false);
+            await initCoreInIframe(payload);
+        }
     } catch (error) {
         postMessageToParent(createPopupMessage(POPUP.ERROR, { error: error.message }));
     }
 };
 
-// handle POPUP.HANDSHAKE message from iframe
-const handshake = (handshake: PopupHandshake) => {
+const initCoreInPopup = async (
+    payload: PopupInit['payload'],
+    logWriterFactory?: () => LogWriter | undefined,
+) => {
+    // dynamically load core module
+    reactEventBus.dispatch({ type: 'loading', message: 'loading core' });
+
+    // core is built in a separate build step.
+    const { initCore, initTransport } = await import(
+        // @ts-expect-error
+        // eslint-disable-next-line import/extensions
+        /* webpackIgnore: true */ './js/core.js'
+    ).catch(_err => {
+        fail({
+            type: 'error',
+            detail: 'core-failed-to-load',
+        });
+    });
+
+    if (!initCore || !initTransport) {
+        return;
+    }
+    if (disposed) return;
+
+    // init core
+    log.debug('initiating core with settings: ', payload.settings);
+    reactEventBus.dispatch({ type: 'loading', message: 'initiating core' });
+    const core: Core = await initCore(
+        { ...payload.settings, trustedHost: false },
+        logWriterFactory,
+    );
+    if (disposed) return;
+    core.on(CORE_EVENT, event => {
+        const message = parseMessage(event);
+        handleUIAffectingMessage(message);
+
+        handleResponseEvent(message);
+    });
+    setState({ core });
+    log.debug('initiated core');
+
+    // init transport
+    log.debug('initiating transport with settings: ', payload.settings);
+    reactEventBus.dispatch({ type: 'loading', message: 'initiating transport' });
+    await initTransport(payload.settings);
+    if (disposed) return;
+    log.debug('initiated transport');
+
+    // done, in popup, we are ready to handle incoming messages
+    // todo: would it make sense to unify this with IFRAME.LOADED?
+    postMessageToParent(createPopupMessage(POPUP.CORE_LOADED));
+    reactEventBus.dispatch({
+        type: 'loading',
+        message: `waiting for handshake from from a 3rd party application`,
+    });
+};
+
+const initCoreInIframe = async (payload: PopupInit['payload']) => {
+    reactEventBus.dispatch({ type: 'loading', message: 'waiting for iframe init' });
+    await initMessageChannelWithIframe(payload, handleMessageInIframeMode);
+    // done, popup is ready to handle incoming messages, waiting for handshake from iframe
+};
+
+// handle POPUP.HANDSHAKE message from iframe or npm-client
+const handshake = (handshake: PopupHandshake, origin: string) => {
     const { payload } = handshake;
+    log.debug('handshake with origin: ', origin, 'payload: ', payload);
+
     if (!payload) return;
 
     clearTimeout(handshakeTimeout);
 
-    // use trusted settings from iframe
-    setState({ settings: payload.settings });
+    let thirdPartyOrigin = origin;
+    // `origin` is empty string when using `BroadcastChannel` in iframe popup mode,
+    // so when that happens we use origin from settings and validate it with `parseConnectSettings`.
+    if (origin === '' && payload.settings.origin) {
+        thirdPartyOrigin = payload.settings.origin;
+    }
+    // when this message comes from iframe, settings is already validated.
+    // when there is no iframe, we must validate it here
+    const trustedSettings = parseConnectSettings(payload.settings, thirdPartyOrigin);
+    setState({ settings: trustedSettings });
 
-    reactEventBus.dispatch(handshake);
-
-    if (isPhishingDomain(payload.settings.origin || '')) {
+    if (isPhishingDomain(trustedSettings.origin || '')) {
         reactEventBus.dispatch({ type: 'phishing-domain' });
     }
+
+    if (getState().core) {
+        const core = ensureCore();
+        core.handleMessage(handshake);
+    }
+    reactEventBus.dispatch({ type: 'state-update', payload: handshake.payload });
+
+    log.debug('handshake done');
 };
 
+const ensureCore = () => {
+    const { core } = getState();
+    if (!core) {
+        fail({
+            type: 'error',
+            detail: 'core-missing',
+        });
+        throw new Error('connect core is missing');
+    }
+
+    return core;
+};
+
+// register onLoad event
 const onLoad = () => {
     postMessageToParent(createPopupMessage(POPUP.LOADED));
-
-    handshakeTimeout = setTimeout(
-        () =>
-            reactEventBus.dispatch({
-                type: 'error',
-                detail: 'handshake-timeout',
-            }),
-        // in theory, a user might have extremely slow internet connection and handshake
-        // could be done after this is fired. the question is, should we disallow communication
-        // after error screen has been rendered? maybe it would be better to keep loader loading
-        // and display some kind of modal instead
-        90 * 1000,
-    );
+    handshakeTimeout = setTimeout(() => {
+        fail({
+            type: 'error',
+            detail: 'handshake-timeout',
+        });
+    }, 90 * 1000);
 };
 
-window.addEventListener('load', onLoad, false);
-window.addEventListener('message', handleMessage, false);
+/**
+ * keep track of all window listeners
+ */
+const windowEventListeners: { type: keyof WindowEventMap; listener: (args: any) => void }[] = [];
+const addWindowEventListener = <K extends keyof WindowEventMap>(
+    type: K,
+    listener: (this: Window, ev: WindowEventMap[K]) => any,
+    options?: boolean | AddEventListenerOptions,
+) => {
+    windowEventListeners.push({ type, listener });
+    window.addEventListener(type, listener, options);
+};
+
+let disposed = false;
+const fail = (error: ErrorViewProps) => {
+    log.debug('fail: ', error);
+    renderConnectUIPromise?.then(() => {
+        reactEventBus.dispatch(error);
+    });
+    windowEventListeners.forEach(listener => {
+        window.removeEventListener(listener.type, listener.listener);
+    });
+
+    disposed = true;
+};
+
+addWindowEventListener('load', onLoad, false);
+addWindowEventListener('message', handleInitMessage, false);
+addWindowEventListener('message', handleLogMessage, false);
 
 // global method used in html-inline elements
 // @ts-expect-error not defined in window

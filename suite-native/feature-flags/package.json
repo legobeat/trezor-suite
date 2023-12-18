@@ -1,0 +1,19 @@
+{
+    "name": "@suite-native/feature-flags",
+    "version": "1.0.0",
+    "private": true,
+    "license": "See LICENSE.md in repo root",
+    "sideEffects": false,
+    "main": "src/index",
+    "scripts": {
+        "lint:js": "yarn g:eslint '**/*.{ts,tsx,js}'",
+        "test:unit": "jest -c ../../jest.config.base.js --passWithNoTests",
+        "type-check": "tsc --build"
+    },
+    "dependencies": {
+        "@reduxjs/toolkit": "1.9.5",
+        "@suite-native/config": "workspace:*",
+        "react-native": "0.71.8",
+        "react-redux": "8.0.7"
+    }
+}

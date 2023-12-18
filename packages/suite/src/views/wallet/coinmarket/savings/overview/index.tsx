@@ -1,12 +1,7 @@
-import React from 'react';
-import {
-    KYCError,
-    KYCFailed,
-    KYCInProgress,
-    withCoinmarket,
-    WithCoinmarketProps,
-} from 'src/components/wallet';
 import styled from 'styled-components';
+import { darken } from 'polished';
+
+import { KycError, KycFailed, KycInProgress } from 'src/views/wallet/coinmarket/common';
 import { Icon, variables } from '@trezor/components';
 import {
     FiatValue,
@@ -21,11 +16,11 @@ import {
 } from 'src/hooks/wallet/useCoinmarketSavingsOverview';
 import type { PaymentFrequency, SavingsKYCStatus, SavingsTrade } from 'invity-api';
 import { WaitingForFirstPayment } from './components/WaitingForFirstPayment';
-import { darken } from 'polished';
 import type { Account, NetworkSymbol } from 'src/types/wallet';
 import { AllFeesIncluded } from '../AllFeesIncluded';
 import { ProvidedBy } from '../ProvidedBy';
-import ReauthorizationCard from 'src/components/wallet/CoinmarketReauthorizationCard';
+import { CoinmarketReauthorizationCard } from '../CoinmarketReauthorizationCard';
+import { withCoinmarket, WithCoinmarketProps } from '../withCoinmarket';
 
 const Wrapper = styled.div`
     display: flex;
@@ -49,11 +44,9 @@ const Right = styled.div`
 
 const HeaderBlock = styled.div`
     display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: space-between;
+    flex-flow: row nowrap;
+    place-content: stretch space-between;
     align-items: stretch;
-    align-content: stretch;
     height: 120px;
 `;
 const Setup = styled(HeaderBlock)`
@@ -109,6 +102,7 @@ const Disclaimer = styled.div`
 
 const StyledIcon = styled(Icon)`
     cursor: pointer;
+
     & div {
         width: 26px;
         height: 26px;
@@ -143,11 +137,11 @@ function renderSavingsStatus(
 ) {
     switch (true) {
         case isWatchingKYCStatus:
-            return <KYCInProgress />;
+            return <KycInProgress />;
         case kycFinalStatus === 'Error':
-            return <KYCError />;
+            return <KycError />;
         case kycFinalStatus === 'Failed':
-            return <KYCFailed providerName={selectedProviderCompanyName} />;
+            return <KycFailed providerName={selectedProviderCompanyName} />;
         case !savingsTradeItemCompletedExists:
             return (
                 <WaitingForFirstPayment
@@ -216,7 +210,7 @@ const Overview = (props: WithCoinmarketProps) => {
         <SavingsOverviewContext.Provider value={contextValues}>
             <Wrapper>
                 {reauthorizationUrl && (
-                    <ReauthorizationCard reauthorizationUrl={reauthorizationUrl} />
+                    <CoinmarketReauthorizationCard reauthorizationUrl={reauthorizationUrl} />
                 )}
                 <HeaderWrapper>
                     <Left>

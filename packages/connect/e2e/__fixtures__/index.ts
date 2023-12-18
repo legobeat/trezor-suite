@@ -19,6 +19,7 @@ import ethereumSignTransactionEip155 from './ethereumSignTransactionEip155';
 import ethereumSignTransactionEip1559 from './ethereumSignTransactionEip1559';
 import ethereumSignTypedData from './ethereumSignTypedData';
 import ethereumVerifyMessage from './ethereumVerifyMessage';
+import getAccountDescriptor from './getAccountDescriptor';
 import getAccountInfo from './getAccountInfo';
 import getAddress from './getAddress';
 import getAddressMultisig from './getAddressMultisig';
@@ -54,6 +55,9 @@ import signTransactionReplace from './signTransactionReplace';
 import signTransactionSegwit from './signTransactionSegwit';
 import signTransactionTaproot from './signTransactionTaproot';
 import signTransactionZcash from './signTransactionZcash';
+import solanaGetAddress from './solanaGetAddress';
+import solanaGetPublicKey from './solanaGetPublicKey';
+import solanaSignTransaction from './solanaSignTransaction';
 import stellarGetAddress from './stellarGetAddress';
 import stellarSignTransaction from './stellarSignTransaction';
 import tezosGetAddress from './tezosGetAddress';
@@ -112,6 +116,7 @@ let fixtures = [
     ethereumSignTransactionEip1559,
     ethereumSignTypedData,
     ethereumVerifyMessage,
+    getAccountDescriptor,
     getAccountInfo,
     getAddress,
     getAddressMultisig,
@@ -147,6 +152,9 @@ let fixtures = [
     signTransactionSegwit,
     signTransactionTaproot,
     signTransactionZcash,
+    solanaGetAddress,
+    solanaGetPublicKey,
+    solanaSignTransaction,
     stellarGetAddress,
     stellarSignTransaction,
     tezosGetAddress,

@@ -8,78 +8,14 @@ describe('Onboarding - create wallet', () => {
         cy.prefixedVisit('/');
     });
 
-    // cypress open todo
-    it('Success (no shamir capability)', () => {
-        cy.task('startEmu', { wipe: true, version: '2.1.1' });
-
-        cy.getTestElement('@analytics/consent').should('have.css', 'opacity', '1');
-        cy.getTestElement('@welcome-layout/body').matchImageSnapshot('1-onboarding-create-wallet');
-        cy.getTestElement('@analytics/continue-button').click();
-
-        cy.getTestElement('@components/collapsible-box').should('have.css', 'opacity', '1');
-        cy.getTestElement('@welcome-layout/body').matchImageSnapshot('2-onboarding-create-wallet');
-        cy.getTestElement('@analytics/continue-button').click();
-
-        cy.getTestElement('@components/collapsible-box').should('have.css', 'opacity', '1');
-
-        cy.getTestElement('@onboarding-layout/body').matchImageSnapshot(
-            '3-onboarding-create-wallet',
-            {
-                blackout: ['[data-test="@firmware/offer-version/new"]'],
-            },
-        );
-        // todo: hover and make screenshot of "firmware tooltip"
-        // for some reason hoverTestElement does not work here
-        // cy.hoverTestElement('@firmware/offer-version/new');
-        cy.getTestElement('@firmware/skip-button').click();
-
-        cy.getTestElement('@components/collapsible-box').should('have.css', 'opacity', '1');
-        cy.getTestElement('@onboarding-layout/body').matchImageSnapshot(
-            '4-onboarding-create-wallet',
-        );
-        cy.getTestElement('@onboarding/path-create-button').click();
-
-        cy.getTestElement('@components/collapsible-box').should('have.css', 'opacity', '1');
-        cy.getTestElement('@onboarding-layout/body').matchImageSnapshot(
-            '5-onboarding-create-wallet',
-        );
-        cy.log('Performing standard backup');
-        cy.getTestElement('@onboarding/only-backup-option-button').click();
-
-        cy.getTestElement('@components/collapsible-box').should('have.css', 'opacity', '1');
-        cy.getTestElement('@prompts/confirm-on-device');
-        cy.getTestElement('@onboarding/confirm-on-device').should('be.visible');
-        cy.getTestElement('@onboarding-layout/body').matchImageSnapshot(
-            '6-onboarding-create-wallet',
-        );
-        cy.task('pressYes');
-        cy.getTestElement('@onboarding/create-backup-button').click();
-
-        cy.passThroughBackup();
-
-        cy.getTestElement('@components/collapsible-box').should('have.css', 'opacity', '1');
-        cy.getTestElement('@onboarding-layout/body').matchImageSnapshot(
-            '7-onboarding-create-wallet',
-        );
-        cy.getTestElement('@onboarding/set-pin-button').click();
-        cy.getTestElement('@components/collapsible-box').should('have.css', 'opacity', '1');
-        cy.getTestElement('@prompts/confirm-on-device');
-        cy.getTestElement('@onboarding-layout/body').matchImageSnapshot(
-            '8-onboarding-create-wallet',
-        );
-        cy.getTestElement('@onboarding/confirm-on-device');
-        cy.getTestElement('@components/collapsible-box').should('have.css', 'opacity', '1');
-        cy.task('pressYes');
-        cy.task('inputEmu', '1');
-        cy.task('inputEmu', '1');
-    });
-
-    // cypress open todo: re-enable
-    it.skip('Success (Shamir backup)', () => {
-        cy.task('startEmu', { wipe: true });
+    it('Success (Shamir backup)', () => {
+        // note: this is an example of test that can not be parametrized to be both integration (isolated) test and e2e test.
+        // the problem is that it always needs to run the newest possible emulator. If this was pinned to use emulator which is currently
+        // in production, and we locally bumped emulator version, we would get into a screen saying "update your firmware" and the test would fail.
+        cy.task('startEmu', { wipe: true, version: '2-master' });
         cy.getTestElement('@analytics/continue-button').click();
         cy.getTestElement('@analytics/continue-button').click();
-        cy.getTestElement('@firmware/skip-button').click();
+        cy.getTestElement('@firmware/continue-button').click();
         cy.getTestElement('@onboarding/path-create-button').click();
 
         cy.log('Will be clicking on Shamir backup button');
@@ -98,6 +34,9 @@ describe('Onboarding - create wallet', () => {
         cy.task('pressYes');
         cy.task('inputEmu', '12');
         cy.task('inputEmu', '12');
+        cy.getTestElement('@prompts/confirm-on-device');
+        cy.task('pressYes');
+        cy.getTestElement('@onboarding/pin/continue-button');
     });
 });
 

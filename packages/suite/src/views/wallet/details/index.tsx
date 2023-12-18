@@ -1,30 +1,31 @@
-import React from 'react';
 import styled from 'styled-components';
 
-import { P, variables } from '@trezor/components';
-import { HELP_CENTER_XPUB_URL } from '@trezor/urls';
-import { WalletLayout } from 'src/components/wallet';
-import { useDevice, useDispatch, useSelector } from 'src/hooks/suite';
-import { Card, Translation } from 'src/components/suite';
 import {
     getAccountTypeName,
     getAccountTypeTech,
     getAccountTypeUrl,
     getAccountTypeDesc,
 } from '@suite-common/wallet-utils';
-import { ActionColumn, Row, TextColumn, ActionButton } from 'src/components/suite/Settings';
-import { CARD_PADDING_SIZE } from 'src/constants/suite/layout';
+import { P, variables } from '@trezor/components';
+
+import { ActionButton, ActionColumn, Card, TextColumn, Translation } from 'src/components/suite';
+
+import { HELP_CENTER_BIP32_URL, HELP_CENTER_XPUB_URL } from '@trezor/urls';
 import { showXpub } from 'src/actions/wallet/publicKeyActions';
+import { WalletLayout } from 'src/components/wallet';
 import { NETWORKS } from 'src/config/wallet';
-import { CoinjoinLogs } from 'src/components/wallet/PrivacyAccount/CoinjoinLogs';
-import { CoinjoinSetup } from 'src/components/wallet/PrivacyAccount/CoinjoinSetup';
-import { RescanAccount } from 'src/components/wallet/PrivacyAccount/RescanAccount';
+import { CARD_PADDING_SIZE } from 'src/constants/suite/layout';
+import { useDevice, useDispatch, useSelector } from 'src/hooks/suite';
+import { CoinjoinLogs } from './CoinjoinLogs';
+import { CoinjoinSetup } from './CoinjoinSetup/CoinjoinSetup';
+import { RescanAccount } from './RescanAccount';
+import { Row } from './Row';
 
 const Heading = styled.h3`
     color: ${({ theme }) => theme.TYPE_LIGHT_GREY};
     font-size: ${variables.FONT_SIZE.SMALL};
     font-weight: ${variables.FONT_WEIGHT.DEMI_BOLD};
-    margin: 14px 0 4px 0;
+    margin: 14px 0 4px;
     text-transform: uppercase;
 `;
 
@@ -42,10 +43,7 @@ const AccountTypeLabel = styled.div`
     line-height: 20px;
     text-align: center;
     min-width: 170px;
-
-    div:first-child {
-        margin-bottom: 8px;
-    }
+    gap: 8px;
 `;
 
 const StyledCard = styled(Card)`
@@ -128,6 +126,18 @@ const Details = () => {
                             )}
                             <P size="tiny">
                                 (<Translation id={accountTypeTech} />)
+                            </P>
+                        </AccountTypeLabel>
+                    </Row>
+                    <Row>
+                        <TextColumn
+                            title={<Translation id="TR_ACCOUNT_DETAILS_PATH_HEADER" />}
+                            description={<Translation id="TR_ACCOUNT_DETAILS_PATH_DESC" />}
+                            buttonLink={HELP_CENTER_BIP32_URL}
+                        />
+                        <AccountTypeLabel>
+                            <P size="small" weight="medium">
+                                {account.path}
                             </P>
                         </AccountTypeLabel>
                     </Row>

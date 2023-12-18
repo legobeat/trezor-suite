@@ -1,17 +1,11 @@
-import {
-    KYCError,
-    KYCFailed,
-    KYCInProgress,
-    withCoinmarket,
-    WithCoinmarketProps,
-} from 'src/components/wallet';
+import { KycError, KycFailed, KycInProgress } from 'src/views/wallet/coinmarket/common';
 import { useSavingsPaymentInfo } from 'src/hooks/wallet/useCoinmarketSavingsPaymentInfo';
 import { Button } from '@trezor/components';
-import React from 'react';
 import styled from 'styled-components';
 import { Translation } from 'src/components/suite';
 import { useFormatters } from '@suite-common/formatters';
-import ReauthorizationCard from 'src/components/wallet/CoinmarketReauthorizationCard';
+import { CoinmarketReauthorizationCard } from '../CoinmarketReauthorizationCard';
+import { withCoinmarket, WithCoinmarketProps } from '../withCoinmarket';
 
 const Header = styled.div`
     font-size: 24px;
@@ -34,11 +28,9 @@ const Divider = styled.div`
 const Setup = styled.div`
     margin: 9px 0;
     display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: space-between;
+    flex-flow: row nowrap;
+    place-content: stretch space-between;
     align-items: stretch;
-    align-content: stretch;
 `;
 const Values = styled.div`
     font-size: 16px;
@@ -49,11 +41,9 @@ const Values = styled.div`
 const PaymentInfoOverview = styled.div`
     margin: 15px 0;
     display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: space-between;
+    flex-flow: row nowrap;
+    place-content: stretch space-between;
     align-items: stretch;
-    align-content: stretch;
 `;
 
 const PaymentInfoItem = styled.div`
@@ -97,12 +87,14 @@ const PaymentInfo = (props: WithCoinmarketProps) => {
 
     return (
         <>
-            {reauthorizationUrl && <ReauthorizationCard reauthorizationUrl={reauthorizationUrl} />}
-            {isWatchingKYCStatus && <KYCInProgress />}
-            {!isWatchingKYCStatus && kycFinalStatus === 'Failed' && (
-                <KYCFailed providerName={selectedProviderName} />
+            {reauthorizationUrl && (
+                <CoinmarketReauthorizationCard reauthorizationUrl={reauthorizationUrl} />
             )}
-            {!isWatchingKYCStatus && kycFinalStatus === 'Error' && <KYCError />}
+            {isWatchingKYCStatus && <KycInProgress />}
+            {!isWatchingKYCStatus && kycFinalStatus === 'Failed' && (
+                <KycFailed providerName={selectedProviderName} />
+            )}
+            {!isWatchingKYCStatus && kycFinalStatus === 'Error' && <KycError />}
             <Header>
                 <Translation id="TR_SAVINGS_PAYMENT_INFO_HEADER" />
             </Header>

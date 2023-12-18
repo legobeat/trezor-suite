@@ -1,0 +1,10 @@
+{
+    "customSyntax": "postcss-styled-syntax",
+    "extends": ["stylelint-config-standard"],
+    "rules": {
+        "declaration-empty-line-before": null,
+        "media-query-no-invalid": null,
+        "media-feature-range-notation": null,
+        "no-empty-source": null
+    }
+}

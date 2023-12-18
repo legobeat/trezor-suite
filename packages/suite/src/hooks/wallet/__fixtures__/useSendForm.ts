@@ -1,10 +1,11 @@
+import { combineReducers, createReducer } from '@reduxjs/toolkit';
+
 import { notificationsActions } from '@suite-common/toast-notifications';
 import { DEFAULT_PAYMENT, DEFAULT_VALUES } from '@suite-common/wallet-constants';
 import { accountsActions } from '@suite-common/wallet-core';
 import { PROTO } from '@trezor/connect';
-
-import { combineReducers, createReducer } from '@reduxjs/toolkit';
 import { testMocks } from '@suite-common/test-utils';
+
 import sendFormReducer from 'src/reducers/wallet/sendFormReducer';
 
 const UTXO = {
@@ -109,6 +110,23 @@ export const XRP_ACCOUNT = {
     network: { networkType: 'ripple', symbol: 'xrp', decimals: 6 },
 };
 
+export const SOL_ACCOUNT = {
+    status: 'loaded',
+    account: {
+        symbol: 'sol',
+        networkType: 'solana',
+        descriptor: 'ETxHeBBcuw9Yu4dGuP3oXrD12V5RECvmi8ogQ9PkjyVF',
+        deviceState: 'deviceState',
+        key: 'ETxHeBBcuw9Yu4dGuP3oXrD12V5RECvmi8ogQ9PkjyVF-sol-deviceState',
+        balance: '10000000000', // 10 SOL
+        availableBalance: '10000000000', // 10 SOL
+        misc: {},
+        history: {},
+        tokens: [],
+    },
+    network: { networkType: 'solana', symbol: 'sol', decimals: 9, chainId: 1399811149 },
+};
+
 const DEVICE = testMocks.getSuiteDevice({
     state: 'deviceState',
     connected: true,
@@ -144,6 +162,13 @@ const DEFAULT_FEES = {
         blockTime: 1,
         levels: [{ label: 'normal', feePerUnit: '12', blocks: -1 }],
     },
+    sol: {
+        minFee: 5000,
+        maxFee: 5000,
+        blockHeight: 1,
+        blockTime: 1,
+        levels: [{ label: 'normal', feePerUnit: '5000', blocks: -1 }],
+    },
 };
 
 // - default selectedAccount needs to be explicitly passed from test. merging default with custom will override custom
@@ -154,15 +179,20 @@ export const getRootReducer = (selectedAccount = BTC_ACCOUNT, fees = DEFAULT_FEE
             {
                 locks: [],
                 online: true,
-                device: DEVICE,
                 settings: { debug: {}, theme: { variant: 'light' } },
             },
             () => ({}),
         ),
+        device: createReducer({ selectedDevice: DEVICE, devices: [DEVICE] }, () => {}),
         wallet: combineReducers({
             send: sendFormReducer,
             accounts: createReducer(
-                [BTC_ACCOUNT.account, ETH_ACCOUNT.account, XRP_ACCOUNT.account],
+                [
+                    BTC_ACCOUNT.account,
+                    ETH_ACCOUNT.account,
+                    XRP_ACCOUNT.account,
+                    SOL_ACCOUNT.account,
+                ],
                 () => ({}),
             ),
             selectedAccount: createReducer(selectedAccount, () => ({})),
@@ -182,6 +212,7 @@ export const getRootReducer = (selectedAccount = BTC_ACCOUNT, fees = DEFAULT_FEE
                     btc: {},
                     eth: {},
                     xrp: {},
+                    sol: { blockHash: 'BuKJXfBwb5BUXK7wACFCBpTHKyzcSfnAXG2NpyHJQhcX' },
                 },
                 () => ({}),
             ),
@@ -288,34 +319,20 @@ const getDraft = (draft?: any) => ({
         ],
         ...draft,
     },
+    'ETxHeBBcuw9Yu4dGuP3oXrD12V5RECvmi8ogQ9PkjyVF-sol-deviceState': {
+        ...DEFAULT_DRAFT,
+        outputs: [
+            {
+                ...DEFAULT_PAYMENT,
+                address: 'ETxHeBBcuw9Yu4dGuP3oXrD12V5RECvmi8ogQ9PkjyVF',
+                amount: '1',
+            },
+        ],
+        ...draft,
+    },
 });
 
 export const addingOutputs = [
-    // {
-    //     description: 'Add/Remove opreturn',
-    //     initial: {
-    //         outputs: [{ address: '' }],
-    //     },
-    //     actions: [
-    //         {
-    //             type: 'click',
-    //             element: '@send/header-dropdown',
-    //         },
-    //         {
-    //             type: 'click',
-    //             element: '@send/header-dropdown',
-    //         },
-    //         {
-    //             type: 'click',
-    //             element: '@send/header-dropdown/opreturn',
-    //             result: {
-    //                 formValues: {
-    //                     outputs: [{ type: 'opreturn' }],
-    //                 },
-    //             },
-    //         },
-    //     ],
-    // },
     {
         description: 'Add/Remove/Reset outputs without draft',
         initial: {
@@ -613,6 +630,10 @@ export const setMax = [
             },
         },
         actions: [
+            {
+                type: 'click',
+                element: 'coin-control-button',
+            },
             {
                 type: 'hover',
                 element: 'outputs.0.amount',
@@ -953,10 +974,10 @@ export const setMax = [
                     },
                     composeTransactionParams: {
                         outputs: [
-                            // corner-case: external was changed to noaddress
+                            // corner-case: payment was changed to payment-noaddress
                             // see sendFormUtils.getBitcoinComposeOutputs
                             {
-                                type: 'noaddress',
+                                type: 'payment-noaddress',
                                 address: '3AnYTd2FGxJLNKL1AzxfW3FJMntp9D2KKX',
                                 amount: '100000000',
                             },
@@ -987,12 +1008,12 @@ export const setMax = [
                     composeTransactionParams: {
                         outputs: [
                             {
-                                type: 'external',
+                                type: 'payment',
                                 address: '3AnYTd2FGxJLNKL1AzxfW3FJMntp9D2KKX',
                                 amount: '100000000',
                             },
                             {
-                                type: 'external',
+                                type: 'payment',
                                 address: '3AnYTd2FGxJLNKL1AzxfW3FJMntp9D2KKX',
                                 amount: '20000000',
                             },
@@ -1007,7 +1028,7 @@ export const setMax = [
             //     result: {
             //         composeTransactionParams: {
             //             outputs: [
-            //                 { type: 'external', address: '3AnYTd2FGxJLNKL1AzxfW3FJMntp9D2KKX', amount: '100000000' }
+            //                 { type: 'payment', address: '3AnYTd2FGxJLNKL1AzxfW3FJMntp9D2KKX', amount: '100000000' }
             //             ]
             //         },
             //     },
@@ -1134,6 +1155,31 @@ export const setMax = [
             },
         },
     },
+    {
+        description: 'SOL',
+        store: {
+            send: {
+                drafts: getDraft({
+                    setMaxOutputId: 0,
+                }),
+            },
+            selectedAccount: SOL_ACCOUNT,
+        },
+        finalResult: {
+            estimateFeeCalls: 1,
+            composedLevels: {
+                normal: {
+                    type: 'final',
+                    fee: '5000',
+                    totalSpent: '10000000000',
+                },
+                custom: undefined,
+            },
+            formValues: {
+                outputs: [{ amount: '9.999995' }],
+            },
+        },
+    },
 ];
 
 export const amountChange = [
@@ -1185,13 +1231,11 @@ const getComposeResponse = (resp?: any) => ({
             type: 'final',
             totalSpent: '2500000000',
             fee: '100',
-            transaction: {
-                inputs: [{ amount: '12500000000', prev_hash: UTXO.CC.txid, prev_index: 0 }],
-                outputs: [
-                    { address_n: [44, 0, 0, 1, 1], amount: '10000000000' },
-                    { address: 'A-external', amount: '2499999900' },
-                ],
-            },
+            inputs: [{ amount: '12500000000', prev_hash: UTXO.CC.txid, prev_index: 0 }],
+            outputs: [
+                { address_n: [44, 0, 0, 1, 1], amount: '10000000000' },
+                { address: 'A-external', amount: '2499999900' },
+            ],
         },
     ],
     ...resp,
@@ -1355,30 +1399,26 @@ export const signAndPush = [
                         type: 'final',
                         totalSpent: '2500000000',
                         fee: '200',
-                        transaction: {
-                            inputs: [],
-                            outputs: [],
-                        },
+                        inputs: [],
+                        outputs: [],
                     },
                     {
                         // custom fee level, used
                         type: 'final',
                         totalSpent: '2500000000', // 2200000000 are externals + fee
                         fee: '100',
-                        transaction: {
-                            inputs: [
-                                { amount: '0', prev_hash: 'should not be used', prev_index: 0 },
-                                { amount: '12500000000', prev_hash: UTXO.CC.txid, prev_index: 0 },
-                            ],
-                            outputs: [
-                                { address_n: [44, 0, 0, 1, 1], amount: '10000000000' },
-                                { address: 'A-external', amount: '2100000000' },
-                                { address: '1-unused', amount: '100000000' },
-                                { address: '2-used', amount: '100000000' },
-                                { address: '1-change', amount: '100000000' },
-                                { address: 'B-external', amount: '99999900' },
-                            ],
-                        },
+                        inputs: [
+                            { amount: '0', prev_hash: 'should not be used', prev_index: 0 },
+                            { amount: '12500000000', prev_hash: UTXO.CC.txid, prev_index: 0 },
+                        ],
+                        outputs: [
+                            { address_n: [44, 0, 0, 1, 1], amount: '10000000000' },
+                            { address: 'A-external', amount: '2100000000' },
+                            { address: '1-unused', amount: '100000000' },
+                            { address: '2-used', amount: '100000000' },
+                            { address: '1-change', amount: '100000000' },
+                            { address: 'B-external', amount: '99999900' },
+                        ],
                     },
                 ],
             }),

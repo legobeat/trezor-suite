@@ -1,6 +1,6 @@
 {
     "name": "@trezor/connect-analytics",
-    "version": "1.0.5",
+    "version": "1.0.10",
     "license": "See LICENSE.md in repo root",
     "sideEffects": false,
     "main": "lib/index",
@@ -17,6 +17,9 @@
         "@trezor/analytics": "workspace:*"
     },
     "devDependencies": {
-        "typescript": "4.9.5"
+        "typescript": "5.3.2"
+    },
+    "peerDependencies": {
+        "tslib": "^2.6.2"
     }
 }

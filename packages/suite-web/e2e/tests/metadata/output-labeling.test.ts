@@ -15,7 +15,7 @@ describe('Metadata - Output labeling', () => {
     providers.forEach(provider => {
         it(provider, () => {
             const targetEl1 =
-                '@metadata/outputLabel/9f472739fa7034dfb9736fa4d98915f2e8ddf70a86ee5e0a9ac0634f8c1d0007-0/add-label-button';
+                '@metadata/outputLabel/1d7a8556bb5bda4895596c52017b98c9af29eda10770865e845d3848aa222d1c-0/add-label-button';
             // prepare test
             cy.task('startEmu', { wipe: true });
             cy.task('setupEmu', {
@@ -70,7 +70,7 @@ describe('Metadata - Output labeling', () => {
             cy.getTestElement(`${sentToMyselfEl}/dropdown/edit-label`).click({ force: true });
             cy.getTestElement('@metadata/input').type(' edited{enter}');
 
-            // just check there is copy address button, as of cypress 12.17.1 there is some problem to click on it (breaks tests locally)
+            // just check there is copy address button, as of cypress 13.4.0 there is some problem to click on it (breaks tests locally)
             cy.getTestElement(`${sentToMyselfEl}`).click({ force: true });
             cy.getTestElement(`${sentToMyselfEl}/dropdown/copy-address`);
 

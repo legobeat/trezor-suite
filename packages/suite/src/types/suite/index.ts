@@ -1,12 +1,19 @@
 import type { ThunkDispatch, ThunkAction as TAction } from 'redux-thunk';
 import type { Store as ReduxStore } from 'redux';
 
-import { firmwareActions, discoveryActions, transactionsActions } from '@suite-common/wallet-core';
+import {
+    deviceActions,
+    firmwareActions,
+    discoveryActions,
+    transactionsActions,
+} from '@suite-common/wallet-core';
 import { analyticsActions } from '@suite-common/analytics';
 import type { ObjectValues } from '@trezor/type-utils';
 import type { UiEvent, DeviceEvent, TransportEvent, BlockchainEvent } from '@trezor/connect';
 import { notificationsActions } from '@suite-common/toast-notifications';
 import { messageSystemActions } from '@suite-common/message-system';
+import { deviceAuthenticityActions } from '@suite-common/device-authenticity';
+import type { Route } from '@suite-common/suite-types';
 
 import type { RouterAction } from 'src/actions/suite/routerActions';
 import type { AppState } from 'src/reducers/store';
@@ -24,10 +31,9 @@ import type { BackupAction } from 'src/actions/backup/backupActions';
 import type { RecoveryAction } from 'src/actions/recovery/recoveryActions';
 import type { SUITE } from 'src/actions/suite/constants';
 import type { GuideAction } from 'src/actions/suite/guideActions';
-import type { Route } from 'src/constants/suite/routes';
 
 // reexport
-export type { ExtendedMessageDescriptor } from 'src/components/suite/Translation/components/BaseTranslation';
+export type { ExtendedMessageDescriptor } from 'src/components/suite/Translation';
 export type { AppState } from 'src/reducers/store';
 export type { SuiteThemeColors } from '@trezor/components';
 export type { PrerequisiteType } from 'src/utils/suite/prerequisites';
@@ -54,8 +60,11 @@ export type MessageSystemAction = ReturnType<
 >;
 type AnalyticsAction = ReturnType<(typeof analyticsActions)[keyof typeof analyticsActions]>;
 type FirmwareAction = ReturnType<(typeof firmwareActions)[keyof typeof firmwareActions]>;
-
+type DeviceAction = ReturnType<(typeof deviceActions)[keyof typeof deviceActions]>;
 type DiscoveryAction = ReturnType<(typeof discoveryActions)[keyof typeof discoveryActions]>;
+type DeviceAuthenticityAction = ReturnType<
+    (typeof deviceAuthenticityActions)[keyof typeof deviceAuthenticityActions]
+>;
 
 // all actions from all apps used to properly type Dispatch.
 export type Action =
@@ -79,7 +88,9 @@ export type Action =
     | MessageSystemAction
     | GuideAction
     | ProtocolAction
-    | DiscoveryAction;
+    | DiscoveryAction
+    | DeviceAction
+    | DeviceAuthenticityAction;
 
 export type ThunkAction = TAction<any, AppState, any, Action>;
 

@@ -1,4 +1,5 @@
 import { analyticsActions, prepareAnalyticsReducer } from '@suite-common/analytics';
+import { prepareDeviceReducer } from '@suite-common/wallet-core';
 
 import { configureStore } from 'src/support/tests/configureStore';
 import { ROUTER } from 'src/actions/suite/constants';
@@ -14,6 +15,7 @@ type SuiteState = ReturnType<typeof suiteReducer>;
 type RouterState = ReturnType<typeof routerReducer>;
 
 const analyticsReducer = prepareAnalyticsReducer(extraDependencies);
+const deviceReducer = prepareDeviceReducer(extraDependencies);
 
 const getInitialState = (router?: RouterState, suite?: Partial<SuiteState>) => ({
     router: {
@@ -23,6 +25,9 @@ const getInitialState = (router?: RouterState, suite?: Partial<SuiteState>) => (
     suite: {
         ...suiteReducer(undefined, { type: 'foo' } as any),
         ...suite,
+    },
+    device: {
+        ...deviceReducer(undefined, { type: 'foo' } as any),
     },
     modal: modalReducer(undefined, { type: 'foo' } as any),
     analytics: analyticsReducer(undefined, {

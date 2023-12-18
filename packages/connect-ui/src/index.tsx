@@ -1,15 +1,8 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo, ReactNode } from 'react';
 
 import styled from 'styled-components';
 
-import {
-    PostMessage,
-    UI,
-    PopupHandshake,
-    UI_REQUEST,
-    POPUP,
-    createPopupMessage,
-} from '@trezor/connect';
+import { PostMessage, UI, UI_REQUEST, POPUP, createPopupMessage } from '@trezor/connect';
 
 // views
 import { Transport } from './views/Transport';
@@ -30,6 +23,10 @@ import {
     BridgeUpdateNotification,
     SuspiciousOriginNotification,
 } from './components/Notification';
+import { State, getDefaultState } from './types';
+
+export type { State } from './types';
+export { getDefaultState } from './types';
 
 const Layout = styled.div`
     display: flex;
@@ -49,12 +46,15 @@ export const ConnectUI = ({ postMessage, clearLegacyView }: ConnectUIProps) => {
     // we simply store all UI relevant messages here and use them to derive what should we render
     const [messages, setMessages] = useState<(ConnectUIEventProps | null)[]>([]);
     // flowInfo is the only exception to the rule outlined above
-    const [flowInfo, setFlowInfo] = useState<PopupHandshake['payload'] | undefined>(undefined);
+    const [state, setState] = useState<State>(getDefaultState());
 
     const listener = useCallback((message: ConnectUIEventProps | null) => {
-        if (message?.type === 'popup-handshake') {
-            setFlowInfo(message.payload);
+        // set state
+        if (message?.type === 'state-update') {
+            setState(message.payload);
         }
+
+        // set current view
         setMessages(prevMessages => [message, ...prevMessages]);
     }, []);
 
@@ -70,7 +70,7 @@ export const ConnectUI = ({ postMessage, clearLegacyView }: ConnectUIProps) => {
     }, []);
 
     const [Component, Notifications] = useMemo(() => {
-        let component: React.ReactNode | null;
+        let component: ReactNode | null;
 
         // component (main screen)
 
@@ -79,14 +79,8 @@ export const ConnectUI = ({ postMessage, clearLegacyView }: ConnectUIProps) => {
         } else {
             // messages[0] could be null. in that case, legacy view is rendered
             switch (messages[0]?.type) {
-                case 'waiting-for-iframe-init':
-                    component = <Loader message="waiting for host to load" />;
-                    break;
-                case 'waiting-for-iframe-handshake':
-                    component = <Loader message="waiting for handshake from host" />;
-                    break;
-                case 'popup-handshake':
-                    component = <Loader message="ready" />;
+                case 'loading':
+                    component = <Loader message={messages[0]?.message} />;
                     break;
                 case UI.TRANSPORT:
                     component = <Transport />;
@@ -102,15 +96,12 @@ export const ConnectUI = ({ postMessage, clearLegacyView }: ConnectUIProps) => {
         }
 
         // notifications
-        const notifications: { [key in ConnectUIEventProps['type']]?: JSX.Element } = {};
+        const notifications: { [key: string]: JSX.Element } = {};
+        if (state?.transport?.outdated) {
+            notifications['bridge-outdated'] = <BridgeUpdateNotification key="bridge-outdated" />;
+        }
         messages.forEach(message => {
-            if (message?.type === 'popup-handshake') {
-                if (message.payload?.transport?.outdated) {
-                    notifications[message.type] = (
-                        <BridgeUpdateNotification key="bridge-outdated" />
-                    );
-                }
-            } else if (message?.type === UI_REQUEST.FIRMWARE_OUTDATED) {
+            if (message?.type === UI_REQUEST.FIRMWARE_OUTDATED) {
                 notifications[message.type] = <FirmwareUpdateNotification key={message.type} />;
             } else if (message?.type === UI_REQUEST.DEVICE_NEEDS_BACKUP) {
                 notifications[message.type] = <BackupNotification key={message.type} />;
@@ -121,7 +112,7 @@ export const ConnectUI = ({ postMessage, clearLegacyView }: ConnectUIProps) => {
         });
 
         return [component, notifications];
-    }, [messages, postMessage]);
+    }, [messages, postMessage, state?.transport?.outdated]);
 
     useEffect(() => {
         if (Component) {
@@ -137,8 +128,9 @@ export const ConnectUI = ({ postMessage, clearLegacyView }: ConnectUIProps) => {
                 <IntlWrapper>
                     <Layout>
                         <InfoPanel
-                            method={flowInfo?.method}
-                            origin={flowInfo?.settings?.origin}
+                            method={state?.info}
+                            origin={state?.settings?.origin}
+                            hostLabel={state?.settings?.hostLabel}
                             topSlot={Object.values(Notifications)}
                         />
                         {Component && (

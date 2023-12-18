@@ -1,10 +1,14 @@
 import { versionUtils, createDeferred, Deferred, createTimeoutPromise } from '@trezor/utils';
-import { PROTOCOL_MALFORMED } from '@trezor/protocol';
+import { PROTOCOL_MALFORMED, bridge as bridgeProtocol } from '@trezor/protocol';
 import { bridgeApiCall } from '../utils/bridgeApiCall';
 import * as bridgeApiResult from '../utils/bridgeApiResult';
-import { buildOne } from '../utils/send';
-import { receiveOne } from '../utils/receive';
-import { AbstractTransport, AcquireInput, ReleaseInput } from './abstract';
+import { buildBuffers } from '../utils/send';
+import { receiveAndParse } from '../utils/receive';
+import {
+    AbstractTransport,
+    AbstractTransportParams,
+    AbstractTransportMethodParams,
+} from './abstract';
 
 import * as ERRORS from '../errors';
 import { AnyError, AsyncResultWithTypedError, Descriptor } from '../types';
@@ -44,7 +48,7 @@ type IncompleteRequestOptions = {
     signal?: AbortController['signal'];
 };
 
-type BridgeConstructorParameters = ConstructorParameters<typeof AbstractTransport>[0] & {
+type BridgeConstructorParameters = AbstractTransportParams & {
     // bridge url
     url?: string;
     latestVersion?: string;
@@ -64,11 +68,12 @@ export class BridgeTransport extends AbstractTransport {
      * means that /acquire call is in progress. this is used to postpone /listen call so that it can be
      * fired with updated descriptor
      */
-    protected acquirePromise?: Deferred<any>;
+    protected acquirePromise?: Deferred<void>;
 
     public name = 'BridgeTransport' as const;
 
-    constructor({ url = DEFAULT_URL, latestVersion, ...args }: BridgeConstructorParameters) {
+    constructor(params?: BridgeConstructorParameters) {
+        const { url = DEFAULT_URL, latestVersion, ...args } = params || {};
         super(args);
         this.url = url;
         this.latestVersion = latestVersion;
@@ -140,7 +145,7 @@ export class BridgeTransport extends AbstractTransport {
     }
 
     // https://github.dev/trezor/trezord-go/blob/f559ee5079679aeb5f897c65318d3310f78223ca/core/core.go#L420
-    public acquire({ input }: { input: AcquireInput }) {
+    public acquire({ input }: AbstractTransportMethodParams<'acquire'>) {
         return this.scheduleAction(
             async signal => {
                 const previous = input.previous == null ? 'null' : input.previous;
@@ -183,7 +188,7 @@ export class BridgeTransport extends AbstractTransport {
     }
 
     // https://github.dev/trezor/trezord-go/blob/f559ee5079679aeb5f897c65318d3310f78223ca/core/core.go#L354
-    public release({ path, session, onClose }: ReleaseInput) {
+    public release({ path, session, onClose }: AbstractTransportMethodParams<'release'>) {
         return this.scheduleAction(signal => {
             if (this.listening && !onClose) {
                 this.releasingSession = session;
@@ -216,51 +221,37 @@ export class BridgeTransport extends AbstractTransport {
     }
 
     // https://github.dev/trezor/trezord-go/blob/f559ee5079679aeb5f897c65318d3310f78223ca/core/core.go#L534
-    public call({
-        session,
-        name,
-        data,
-    }: {
-        session: string;
-        name: string;
-        data: Record<string, unknown>;
-    }) {
+    public call({ session, name, data, protocol }: AbstractTransportMethodParams<'call'>) {
         return this.scheduleAction(
             async signal => {
-                const { messages } = this;
-                const o = buildOne(messages, name, data);
-                const outData = o.toString('hex');
+                const { encode, decode } = protocol || bridgeProtocol;
+                const [bytes] = buildBuffers(this.messages, name, data, encode);
                 const response = await this._post(`/call`, {
                     params: session,
-                    body: outData,
+                    body: bytes.toString('hex'),
                     signal,
                 });
                 if (!response.success) {
                     return response;
                 }
-                const jsonData = receiveOne(this.messages, response.payload);
-                return this.success(jsonData);
+                const message = await receiveAndParse(
+                    this.messages,
+                    () => Promise.resolve(Buffer.from(response.payload, 'hex')),
+                    decode,
+                );
+                return this.success(message);
             },
             { timeout: undefined },
         );
     }
 
-    public send({
-        session,
-        name,
-        data,
-    }: {
-        session: string;
-        data: Record<string, unknown>;
-        name: string;
-    }) {
+    public send({ session, name, data, protocol }: AbstractTransportMethodParams<'send'>) {
         return this.scheduleAction(async signal => {
-            const { messages } = this;
-            const outData = buildOne(messages, name, data).toString('hex');
+            const { encode } = protocol || bridgeProtocol;
+            const [bytes] = buildBuffers(this.messages, name, data, encode);
             const response = await this._post('/post', {
                 params: session,
-                body: outData,
-
+                body: bytes.toString('hex'),
                 signal,
             });
             if (!response.success) {
@@ -270,20 +261,23 @@ export class BridgeTransport extends AbstractTransport {
         });
     }
 
-    public receive({ session }: { session: string }) {
+    public receive({ session, protocol }: AbstractTransportMethodParams<'receive'>) {
         return this.scheduleAction(async signal => {
             const response = await this._post('/read', {
                 params: session,
-
                 signal,
             });
 
             if (!response.success) {
                 return response;
             }
-            const jsonData = receiveOne(this.messages, response.payload);
-
-            return this.success(jsonData);
+            const { decode } = protocol || bridgeProtocol;
+            const message = await receiveAndParse(
+                this.messages,
+                () => Promise.resolve(Buffer.from(response.payload, 'hex')),
+                decode,
+            );
+            return this.success(message);
         });
     }
 

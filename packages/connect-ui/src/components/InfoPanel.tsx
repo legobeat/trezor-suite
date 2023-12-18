@@ -1,4 +1,4 @@
-import React from 'react';
+import { ReactNode } from 'react';
 
 import styled from 'styled-components';
 
@@ -22,6 +22,7 @@ const MainSlot = styled.div`
     display: flex;
     flex-direction: column;
     padding: 24px;
+
     @media (max-width: 639px) {
         flex-direction: row;
         padding: 12px;
@@ -54,23 +55,24 @@ const Info = styled.div`
 
 const MethodName = styled.h2`
     @media (max-width: 639px) {
-        margin: 0 0 4px 0;
+        margin: 0 0 4px;
     }
 `;
 
 const Origin = styled.p`
     @media (max-width: 639px) {
-        margin: 0px;
+        margin: 0;
     }
 `;
 
 interface InfoPanelProps {
     method?: string;
     origin?: string;
-    topSlot?: React.ReactNode;
+    hostLabel?: string;
+    topSlot?: ReactNode;
 }
 
-export const InfoPanel = ({ method, origin, topSlot }: InfoPanelProps) => (
+export const InfoPanel = ({ method, origin, hostLabel, topSlot }: InfoPanelProps) => (
     <>
         <Aside data-test="@info-panel">
             {/*  notifications appear hear */}
@@ -98,7 +100,7 @@ export const InfoPanel = ({ method, origin, topSlot }: InfoPanelProps) => (
                 </Header>
                 <Info>
                     <MethodName>{method}</MethodName>
-                    <Origin>{origin}</Origin>
+                    <Origin>{hostLabel || origin}</Origin>
                 </Info>
             </MainSlot>
         </Aside>

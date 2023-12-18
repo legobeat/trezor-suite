@@ -1,5 +1,5 @@
 import TrezorConnect, { AccountInfo, TokenInfo } from '@trezor/connect';
-import { Account } from '@suite-common/wallet-types';
+import { Account, AccountKey } from '@suite-common/wallet-types';
 import { networksCompatibility as NETWORKS } from '@suite-common/wallet-config';
 import {
     analyzeTransactions,
@@ -12,14 +12,14 @@ import {
     isPending,
     isTrezorConnectBackendType,
 } from '@suite-common/wallet-utils';
-import { settingsCommonConfig } from '@suite-common/suite-config';
+import { getTxsPerPage } from '@suite-common/suite-utils';
 import { createThunk } from '@suite-common/redux-utils';
 import { notificationsActions } from '@suite-common/toast-notifications';
 
 import { transactionsActions } from '../transactions/transactionsActions';
 import { selectTransactions } from '../transactions/transactionsReducer';
 import { accountsActions } from './accountsActions';
-import { selectAccounts } from './accountsReducer';
+import { selectAccountByKey, selectAccounts } from './accountsReducer';
 import { actionPrefix } from './constants';
 import { selectBlockchainHeightBySymbol } from '../blockchain/blockchainReducer';
 
@@ -56,6 +56,7 @@ const fetchAccountTokens = async (account: Account, payloadTokens: AccountInfo['
             descriptor: account.descriptor,
             details: 'tokenBalances',
             contractFilter: t.contract,
+            suppressBackupWarning: true,
         }),
     );
 
@@ -74,11 +75,13 @@ const fetchAccountTokens = async (account: Account, payloadTokens: AccountInfo['
 // as we usually want to update all accounts for a single coin at once
 export const fetchAndUpdateAccountThunk = createThunk(
     `${actionPrefix}/fetchAndUpdateAccountThunk`,
-    async (account: Account, { dispatch, extra, getState }) => {
+    async ({ accountKey }: { accountKey: AccountKey }, { dispatch, extra, getState }) => {
         const {
             selectors: { selectDevices, selectBitcoinAmountUnit },
         } = extra;
+        const account = selectAccountByKey(getState(), accountKey);
 
+        if (!account) return;
         if (!isTrezorConnectBackendType(account.backendType)) return; // skip unsupported backend type
         // first basic check, traffic optimization
         // basic check returns only small amount of data without full transaction history
@@ -86,6 +89,7 @@ export const fetchAndUpdateAccountThunk = createThunk(
             coin: account.symbol,
             descriptor: account.descriptor,
             details: 'basic',
+            suppressBackupWarning: true,
         });
         if (!basic.success) return;
 
@@ -97,9 +101,9 @@ export const fetchAndUpdateAccountThunk = createThunk(
 
         // we need to fetch at least the number of unconfirmed txs
         const pageSize =
-            (account.history.unconfirmed || 0) > settingsCommonConfig.TXS_PER_PAGE
+            (account.history.unconfirmed || 0) > getTxsPerPage(account.networkType)
                 ? account.history.unconfirmed
-                : settingsCommonConfig.TXS_PER_PAGE;
+                : getTxsPerPage(account.networkType);
 
         const response = await TrezorConnect.getAccountInfo({
             coin: account.symbol,
@@ -107,6 +111,7 @@ export const fetchAndUpdateAccountThunk = createThunk(
             details: 'txs',
             page: 1, // useful for every network except ripple
             pageSize,
+            suppressBackupWarning: true,
         });
 
         if (response.success) {

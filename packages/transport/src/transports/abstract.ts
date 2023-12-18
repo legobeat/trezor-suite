@@ -1,7 +1,7 @@
 import * as protobuf from 'protobufjs/light';
 import { scheduleAction, ScheduleActionParams, ScheduledAction, Deferred } from '@trezor/utils';
 import { TypedEmitter } from '@trezor/utils/lib/typedEventEmitter';
-import { PROTOCOL_MALFORMED } from '@trezor/protocol';
+import { PROTOCOL_MALFORMED, TransportProtocol } from '@trezor/protocol';
 import { MessageFromTrezor } from '@trezor/protobuf';
 
 import {
@@ -44,11 +44,11 @@ type DeviceDescriptorDiff = {
     releasedElsewhere: Descriptor[];
 };
 
-type ConstructorParams = {
-    messages: Record<string, any>;
+export interface AbstractTransportParams {
+    messages?: Record<string, any>;
     signal?: AbortSignal;
     logger?: Logger;
-};
+}
 
 export abstract class AbstractTransport extends TypedEmitter<{
     [TRANSPORT.UPDATE]: DeviceDescriptorDiff;
@@ -58,7 +58,11 @@ export abstract class AbstractTransport extends TypedEmitter<{
         | typeof ERRORS.WRONG_RESULT_TYPE
         | typeof ERRORS.UNEXPECTED_ERROR;
 }> {
-    public abstract name: 'BridgeTransport' | 'NodeUsbTransport' | 'WebUsbTransport';
+    public abstract name:
+        | 'BridgeTransport'
+        | 'NodeUsbTransport'
+        | 'WebUsbTransport'
+        | 'UdpTransport';
     /**
      * transports with "external element" such as bridge can be outdated.
      */
@@ -123,10 +127,12 @@ export abstract class AbstractTransport extends TypedEmitter<{
      */
     protected logger: Logger;
 
-    constructor({ messages, signal, logger }: ConstructorParams) {
+    constructor(params?: AbstractTransportParams) {
+        const { messages, signal, logger } = params || {};
+
         super();
         this.descriptors = [];
-        this.messages = protobuf.Root.fromJSON(messages as protobuf.INamespace);
+        this.messages = protobuf.Root.fromJSON(messages || {});
 
         this.abortController = new AbortController();
 
@@ -239,16 +245,12 @@ export abstract class AbstractTransport extends TypedEmitter<{
     /**
      * Encode data and write it to transport layer
      */
-    abstract send({
-        path,
-        session,
-        data,
-        name,
-    }: {
+    abstract send(params: {
         path?: string;
-        session?: string;
+        session: string;
         name: string;
         data: Record<string, unknown>;
+        protocol?: TransportProtocol;
     }): AbortableCall<
         undefined,
         | typeof ERRORS.DEVICE_DISCONNECTED_DURING_ACTION
@@ -268,7 +270,11 @@ export abstract class AbstractTransport extends TypedEmitter<{
     /**
      * Only read from transport
      */
-    abstract receive({ path, session }: { path?: string; session?: string }): AbortableCall<
+    abstract receive(params: {
+        path?: string;
+        session: string;
+        protocol?: TransportProtocol;
+    }): AbortableCall<
         MessageFromTrezor,
         // bridge
         | typeof ERRORS.HTTP_ERROR
@@ -287,14 +293,11 @@ export abstract class AbstractTransport extends TypedEmitter<{
     /**
      * Send and read after that
      */
-    abstract call({
-        session,
-        name,
-        data,
-    }: {
+    abstract call(params: {
         session: string;
         name: string;
         data: Record<string, unknown>;
+        protocol?: TransportProtocol;
     }): AbortableCall<
         MessageFromTrezor,
         // bridge
@@ -429,6 +432,18 @@ export abstract class AbstractTransport extends TypedEmitter<{
         this.releasingSession = undefined;
     }
 
+    /**
+     * Check if protobuf message is present in protobuf.Root
+     * default: GetFeatures - this message should be always present.
+     */
+    public getMessage(message = 'GetFeatures') {
+        return !!this.messages.get(message);
+    }
+
+    public updateMessages(messages: Record<string, any>) {
+        this.messages = protobuf.Root.fromJSON(messages);
+    }
+
     protected success<T>(payload: T): Success<T> {
         return success(payload);
     }
@@ -481,3 +496,8 @@ export abstract class AbstractTransport extends TypedEmitter<{
         };
     };
 }
+
+export type AbstractTransportMethodParams<K extends keyof AbstractTransport> =
+    AbstractTransport[K] extends (...args: any[]) => any
+        ? Parameters<AbstractTransport[K]>[0]
+        : never;

@@ -1,4 +1,3 @@
-import React from 'react';
 import styled from 'styled-components';
 import { H1, P, Button, variables } from '@trezor/components';
 import { db } from 'src/storage';
@@ -28,7 +27,7 @@ const Buttons = styled.div`
 const Separator = styled.div`
     background: ${({ theme }) => theme.STROKE_GREY};
     height: 1px;
-    margin: 30px 0px;
+    margin: 30px 0;
     width: 80%;
     min-width: 320px;
     max-width: 800px;

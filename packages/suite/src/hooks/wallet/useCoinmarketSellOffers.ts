@@ -1,8 +1,14 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+
+import type { BankAccount, SellFiatTrade } from 'invity-api';
+
+import { useTimer } from '@trezor/react-utils';
+import { notificationsActions } from '@suite-common/toast-notifications';
+import { amountToSatoshi } from '@suite-common/wallet-utils';
+import { selectDevice } from '@suite-common/wallet-core';
+
 import invityAPI from 'src/services/suite/invityAPI';
 import { useDispatch, useSelector } from 'src/hooks/suite';
-import { useTimer } from '@trezor/react-utils';
-import type { BankAccount, SellFiatTrade } from 'invity-api';
 import { processQuotes, createQuoteLink } from 'src/utils/wallet/coinmarket/sellUtils';
 import {
     loadInvityData,
@@ -16,14 +22,13 @@ import {
 } from 'src/actions/wallet/coinmarketSellActions';
 import { goto } from 'src/actions/suite/routerActions';
 import { UseOffersProps, ContextValues, SellStep } from 'src/types/wallet/coinmarketSellOffers';
-import { notificationsActions } from '@suite-common/toast-notifications';
-import { useCoinmarketRecomposeAndSign } from './useCoinmarketRecomposeAndSign ';
 import { useCoinmarketNavigation } from 'src/hooks/wallet/useCoinmarketNavigation';
 import { InvityAPIReloadQuotesAfterSeconds } from 'src/constants/wallet/coinmarket/metadata';
 import { getUnusedAddressFromAccount } from 'src/utils/wallet/coinmarket/coinmarketUtils';
 import type { TradeSell } from 'src/types/wallet/coinmarketCommonTypes';
 import { useBitcoinAmountUnit } from 'src/hooks/wallet/useBitcoinAmountUnit';
-import { amountToSatoshi } from '@suite-common/wallet-utils';
+
+import { useCoinmarketRecomposeAndSign } from './useCoinmarketRecomposeAndSign';
 
 export const useOffers = ({ selectedAccount }: UseOffersProps) => {
     const timer = useTimer();
@@ -40,7 +45,7 @@ export const useOffers = ({ selectedAccount }: UseOffersProps) => {
     );
     const { alternativeQuotes, isFromRedirect, quotes, quotesRequest, sellInfo, transactionId } =
         useSelector(state => state.wallet.coinmarket.sell);
-    const device = useSelector(state => state.suite.device);
+    const device = useSelector(selectDevice);
     const trades = useSelector(state => state.wallet.coinmarket.trades);
     const dispatch = useDispatch();
 
@@ -241,10 +246,13 @@ export const useOffers = ({ selectedAccount }: UseOffersProps) => {
             const cryptoStringAmount = shouldSendInSats
                 ? amountToSatoshi(selectedQuote.cryptoStringAmount, network.decimals)
                 : selectedQuote.cryptoStringAmount;
+            const destinationPaymentExtraId =
+                selectedQuote.destinationPaymentExtraId || trade?.data?.destinationPaymentExtraId;
             const result = await recomposeAndSign(
                 selectedAccount,
                 destinationAddress,
                 cryptoStringAmount,
+                destinationPaymentExtraId,
             );
             if (result?.success) {
                 // send txid to the server as confirmation
@@ -253,9 +261,7 @@ export const useOffers = ({ selectedAccount }: UseOffersProps) => {
                     ...selectedQuote,
                     txid,
                     destinationAddress,
-                    destinationPaymentExtraId:
-                        selectedQuote?.destinationPaymentExtraId ||
-                        trade?.data?.destinationPaymentExtraId,
+                    destinationPaymentExtraId,
                 };
                 const response = await invityAPI.doSellConfirm(quote);
                 if (!response) {

@@ -19,6 +19,9 @@
             "path": "../../suite-common/connect-init"
         },
         {
+            "path": "../../suite-common/device-authenticity"
+        },
+        {
             "path": "../../suite-common/fiat-services"
         },
         {
@@ -74,6 +77,8 @@
         },
         { "path": "../analytics" },
         { "path": "../blockchain-link" },
+        { "path": "../blockchain-link-types" },
+        { "path": "../blockchain-link-utils" },
         { "path": "../coinjoin" },
         { "path": "../components" },
         { "path": "../connect" },

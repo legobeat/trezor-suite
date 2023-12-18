@@ -1,4 +1,3 @@
-import * as http from '../../src/utils/http';
 import { CoinjoinBackendClient } from '../../src/backend/CoinjoinBackendClient';
 import { COINJOIN_BACKEND_SETTINGS } from '../fixtures/config.fixture';
 
@@ -61,7 +60,7 @@ describe('CoinjoinBackendClient', () => {
 
         expect(identities[0]).toBe('taxation');
         identities.slice(1, 3).forEach((id, i, arr) => {
-            expect(id).toMatch(/taxation:[a-z0-9]+/);
+            expect(id).toMatch(/taxation:[a-zA-Z0-9]+/);
             expect(arr.indexOf(id)).toBe(i);
         });
 
@@ -69,34 +68,9 @@ describe('CoinjoinBackendClient', () => {
 
         expect(identities[7]).toBe('theft');
         identities.slice(8, 9).forEach((id, i, arr) => {
-            expect(id).toMatch(/theft:[a-z0-9]+/);
+            expect(id).toMatch(/theft:[a-zA-Z0-9]+/);
             expect(arr.indexOf(id)).toBe(i);
         });
-    });
-
-    it('Wabisabi switch identities on 403', async () => {
-        const identities: string[] = [];
-        jest.spyOn(http, 'httpGet').mockImplementation((_, __, { identity } = {}) => {
-            identities.push(identity!);
-            return Promise.resolve({ status: identity === 'bar' ? 404 : 403 } as Response);
-        });
-
-        await expect(() =>
-            client.fetchFilters('abc', 123, { identity: 'foo', attempts: 4, gap: 0 }),
-        ).rejects.toThrow();
-        await expect(() =>
-            client.fetchMempoolTxids({ identity: 'bar', /* default attempts: 3 */ gap: 0 }),
-        ).rejects.toThrow();
-
-        expect(identities.length).toBe(7);
-
-        expect(identities[0]).toBe('foo');
-        identities.slice(1, 4).forEach((id, i, arr) => {
-            expect(id).toMatch(/foo:[a-z0-9]+/);
-            expect(arr.indexOf(id)).toBe(i);
-        });
-
-        identities.slice(4, 7).forEach(id => expect(id).toBe('bar'));
     });
 
     it('Blockbook onion with fallback', async () => {
@@ -130,8 +104,8 @@ describe('CoinjoinBackendClient', () => {
 
         const [idA, idB, idC, idD] = identities;
         expect([idA, idB]).toStrictEqual(['id', 'id']);
-        expect(idC).toMatch(/id:[a-z0-9]+/);
-        expect(idD).toMatch(/id:[a-z0-9]+/);
+        expect(idC).toMatch(/id:[a-zA-Z0-9]+/);
+        expect(idD).toMatch(/id:[a-zA-Z0-9]+/);
         expect(idC).not.toBe(idD);
     });
 });

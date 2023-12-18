@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+
 import styled from 'styled-components';
+
 import { Image } from '@trezor/components';
+import { selectDevice } from '@suite-common/wallet-core';
 
 import {
     OnboardingButtonCta,
@@ -26,16 +29,10 @@ const StyledImage = styled(Image)`
 export const BackupStep = () => {
     const [showSkipConfirmation, setShowSkipConfirmation] = useState(false);
     const backup = useSelector(state => state.backup);
-    const device = useSelector(state => state.suite.device);
+    const device = useSelector(selectDevice);
     const locks = useSelector(state => state.suite.locks);
     const isActionAbortable = useSelector(selectIsActionAbortable);
     const dispatch = useDispatch();
-
-    const deviceModelInternal = device?.features?.internal_model;
-
-    if (!deviceModelInternal) {
-        return null;
-    }
 
     return (
         <>
@@ -53,7 +50,7 @@ export const BackupStep = () => {
                             data-test="@backup/start-button"
                             onClick={() => {
                                 dispatch(updateAnalytics({ backup: 'create' }));
-                                dispatch(backupDevice());
+                                dispatch(backupDevice({}, true));
                             }}
                             isDisabled={!canContinue(backup.userConfirmed, locks)}
                         >
@@ -83,7 +80,7 @@ export const BackupStep = () => {
                     image="BACKUP"
                     heading={<Translation id="TR_CREATE_BACKUP" />}
                     description={<Translation id="TR_BACKUP_SUBHEADING_1" />}
-                    deviceModelInternal={deviceModelInternal}
+                    device={device}
                     isActionAbortable={isActionAbortable}
                 />
             )}

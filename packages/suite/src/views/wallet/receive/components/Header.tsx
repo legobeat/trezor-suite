@@ -1,11 +1,10 @@
-import React from 'react';
 import { H2, P } from '@trezor/components';
 import { Account } from 'src/types/wallet';
 import styled from 'styled-components';
 import { Translation } from 'src/components/suite';
 
 const Content = styled.div`
-    margin: 0 0 24px 0;
+    margin: 0 0 24px;
 `;
 
 interface HeaderProps {

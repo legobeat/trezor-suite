@@ -1,4 +1,5 @@
 import { networks } from '@trezor/utxo-lib';
+import { getRandomNumberInRange } from '@trezor/utils';
 
 import { transactionSigning } from '../../src/client/round/transactionSigning';
 import { createServer } from '../mocks/server';
@@ -11,7 +12,7 @@ jest.mock('@trezor/utils', () => {
     return {
         __esModule: true,
         ...originalModule,
-        getRandomNumberInRange: () => 0,
+        getRandomNumberInRange: jest.fn(() => 0),
     };
 });
 
@@ -44,7 +45,7 @@ describe('transactionSigning', () => {
     it('getTransactionData: read affiliate-request and update-liquidity-clue', async () => {
         server?.addListener('test-request', ({ url, data, resolve }) => {
             if (url.endsWith('/update-liquidity-clue')) {
-                resolve({ rawLiquidityClue: data.externalAmounts[0] });
+                resolve({ RawLiquidityClue: data.ExternalAmounts[0] });
             }
             resolve();
         });
@@ -78,60 +79,60 @@ describe('transactionSigning', () => {
                         ],
                         coinjoinState: {
                             Type: '',
-                            events: [
+                            Events: [
                                 {
                                     Type: 'InputAdded',
-                                    coin: {
-                                        outpoint:
+                                    Coin: {
+                                        Outpoint:
                                             '1B5B1FEEA4DFED4253DB5F639011A744A337B25A67975310439233BD8A1DC49F00000000',
-                                        txOut: {
-                                            scriptPubKey:
+                                        TxOut: {
+                                            ScriptPubKey:
                                                 '1 6a6daebd9abae25cdd376b811190163eb00c58e87da1867ba8546229098231c3',
-                                            value: 12300000,
+                                            Value: 12300000,
                                         },
                                     },
-                                    ownershipProof: 'not-relevant',
+                                    OwnershipProof: 'not-relevant',
                                 },
                                 {
                                     Type: 'InputAdded', // external input
-                                    coin: {
-                                        outpoint:
+                                    Coin: {
+                                        Outpoint:
                                             '000000000000000000000000000000000000000000000000000000000000000001000000',
-                                        txOut: {
-                                            scriptPubKey:
+                                        TxOut: {
+                                            ScriptPubKey:
                                                 '1 b899b1962f24757bf8f641d125a88944d1541272cc86da7815ff7899e368b2d4',
-                                            value: 12300000,
+                                            Value: 12300000,
                                         },
                                     },
-                                    ownershipProof: 'not-relevant',
+                                    OwnershipProof: 'not-relevant',
                                 },
                                 {
                                     Type: 'InputAdded',
-                                    coin: {
-                                        outpoint:
+                                    Coin: {
+                                        Outpoint:
                                             '1B5B1FEEA4DFED4253DB5F639011A744A337B25A67975310439233BD8A1DC49F00000000',
-                                        txOut: {
-                                            scriptPubKey:
+                                        TxOut: {
+                                            ScriptPubKey:
                                                 '1 6a6daebd9abae25cdd376b811190163eb00c58e87da1867ba8546229098231c3',
-                                            value: 12300000,
+                                            Value: 12300000,
                                         },
                                     },
-                                    ownershipProof: 'not-relevant',
+                                    OwnershipProof: 'not-relevant',
                                 },
                                 {
                                     Type: 'OutputAdded', // external output
-                                    output: {
-                                        scriptPubKey:
+                                    Output: {
+                                        ScriptPubKey:
                                             '1 b899b1962f24757bf8f641d125a88944d1541272cc86da7815ff7899e368b2d4',
-                                        value: 2000000,
+                                        Value: 2000000,
                                     },
                                 },
                                 {
                                     Type: 'OutputAdded',
-                                    output: {
-                                        scriptPubKey:
+                                    Output: {
+                                        ScriptPubKey:
                                             '1 b67b77a4cac9a32c463e5bbe0c6cbfbab3c86cb59518e5661766056e6a7e849c',
-                                        value: 12300000 - 5000000 - 2000000 - 11000,
+                                        Value: 12300000 - 5000000 - 2000000 - 11000,
                                     },
                                 },
                             ],
@@ -214,19 +215,19 @@ describe('transactionSigning', () => {
                         ],
                         coinjoinState: {
                             Type: '',
-                            events: [
+                            Events: [
                                 {
                                     Type: 'InputAdded',
-                                    coin: {
-                                        outpoint:
+                                    Coin: {
+                                        Outpoint:
                                             '1B5B1FEEA4DFED4253DB5F639011A744A337B25A67975310439233BD8A1DC49F00000000',
-                                        txOut: {
-                                            scriptPubKey:
+                                        TxOut: {
+                                            ScriptPubKey:
                                                 '1 6a6daebd9abae25cdd376b811190163eb00c58e87da1867ba8546229098231c3',
-                                            value: 12300000,
+                                            Value: 12300000,
                                         },
                                     },
-                                    ownershipProof: 'not-relevant',
+                                    OwnershipProof: 'not-relevant',
                                 },
                             ],
                         },
@@ -291,7 +292,7 @@ describe('transactionSigning', () => {
                         alreadyProvided = true;
                         reject(403); // Simulate cloudflare error. Enforce to repeat the request
                     } else {
-                        reject(500, { errorCode: 'WitnessAlreadyProvided' });
+                        reject(500, { ErrorCode: 'WitnessAlreadyProvided' });
                     }
                 }
             }
@@ -353,7 +354,7 @@ describe('transactionSigning', () => {
     it('failed to send signatures', async () => {
         server?.addListener('test-request', ({ url, resolve, reject }) => {
             if (url.endsWith('/transaction-signature')) {
-                reject(500, { errorCode: 'WrongPhase' });
+                reject(500, { ErrorCode: 'WrongPhase' });
             }
             resolve();
         });
@@ -474,5 +475,119 @@ describe('transactionSigning', () => {
         });
 
         expect(response.isSignedSuccessfully()).toBe(false);
+    });
+});
+
+describe('transactionSigning signature delay', () => {
+    let server: Awaited<ReturnType<typeof createServer>>;
+    let round: ReturnType<typeof createCoinjoinRound>;
+
+    beforeAll(async () => {
+        jest.spyOn(Date, 'now').mockImplementation(() => 0);
+        server = await createServer();
+        round = createCoinjoinRound([], {
+            ...server?.requestOptions,
+            round: {
+                phase: 3,
+                phaseDeadline: 60000 * 4, // 4 minutes
+                affiliateRequest: Buffer.from('0'.repeat(97 * 2 + 4), 'hex').toString('base64'),
+            },
+        });
+    });
+
+    beforeEach(() => {
+        server?.removeAllListeners('test-request');
+    });
+
+    afterAll(() => {
+        server?.close();
+        jest.clearAllMocks();
+    });
+
+    it('DelayTransactionSigning enabled, singing resolved after 33 sec.', async () => {
+        round.inputs = [
+            createInput(
+                'account-A',
+                'a00000000000000000000000000000000000000000000000000000000000000001000000',
+                {
+                    witness: 'aa',
+                    witnessIndex: 0,
+                    resolved: [
+                        {
+                            type: 'signature',
+                            timestamp: 33000,
+                        },
+                    ],
+                },
+            ),
+        ];
+        const response = await transactionSigning(
+            round,
+            [], // Account is not relevant for this test
+            server?.requestOptions,
+        );
+
+        // signature is sent in range 17-67 sec. (resolve time is less than 50 sec TX_SIGNING_DELAY)
+        expect(getRandomNumberInRange).toHaveBeenLastCalledWith(17000, 67000);
+        expect(response.isSignedSuccessfully()).toBe(true);
+    });
+
+    it('DelayTransactionSigning enabled, singing resolved after 53.79 sec.', async () => {
+        round.inputs = [
+            createInput(
+                'account-A',
+                'a00000000000000000000000000000000000000000000000000000000000000001000000',
+                {
+                    witness: 'aa',
+                    witnessIndex: 0,
+                    resolved: [
+                        {
+                            type: 'signature',
+                            timestamp: 53790,
+                        },
+                    ],
+                },
+            ),
+        ];
+
+        const response = await transactionSigning(
+            round,
+            [], // Account is not relevant for this test
+            server?.requestOptions,
+        );
+
+        // signature is sent in range 0-46.21 sec. (resolve time is greater than 50 sec of TX_SIGNING_DELAY)
+        expect(getRandomNumberInRange).toHaveBeenLastCalledWith(0, 46210);
+        expect(response.isSignedSuccessfully()).toBe(true);
+    });
+
+    it('DelayTransactionSigning disabled', async () => {
+        round.inputs = [
+            createInput(
+                'account-A',
+                'a00000000000000000000000000000000000000000000000000000000000000001000000',
+                {
+                    witness: 'aa',
+                    witnessIndex: 0,
+                    resolved: [
+                        {
+                            type: 'signature',
+                            timestamp: 51000,
+                        },
+                    ],
+                },
+            ),
+        ];
+        round.roundParameters.DelayTransactionSigning = false;
+
+        const response = await transactionSigning(
+            round,
+            [], // Account is not relevant for this test
+            server?.requestOptions,
+        );
+
+        // signature is sent in default range 0-1 sec.
+        expect(getRandomNumberInRange).toHaveBeenLastCalledWith(0, 1000);
+        expect(response.isSignedSuccessfully()).toBe(true);
     });
 });

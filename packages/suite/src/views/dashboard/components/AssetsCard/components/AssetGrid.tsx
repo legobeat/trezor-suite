@@ -1,16 +1,17 @@
-import React from 'react';
+import { memo } from 'react';
 import styled from 'styled-components';
 import { Network } from 'src/types/wallet';
 import { CoinLogo, Icon, variables, useTheme } from '@trezor/components';
 import {
-    FiatValue,
     AmountUnitSwitchWrapper,
+    CoinBalance,
+    FiatValue,
     SkeletonCircle,
     SkeletonRectangle,
     Ticker,
     Translation,
 } from 'src/components/suite';
-import { CoinBalance, CoinmarketBuyButton } from 'src/components/wallet';
+import { CoinmarketBuyButton } from 'src/views/dashboard/components/CoinmarketBuyButton';
 import { isTestnet } from '@suite-common/wallet-utils';
 import { goto } from 'src/actions/suite/routerActions';
 import { useAccountSearch, useDispatch, useLoadingSkeleton } from 'src/hooks/suite';
@@ -18,7 +19,7 @@ import { useAccountSearch, useDispatch, useLoadingSkeleton } from 'src/hooks/sui
 const Col = styled.div`
     display: flex;
     align-items: center;
-    padding: 16px 0px;
+    padding: 16px 0;
     color: ${({ theme }) => theme.TYPE_DARK_GREY};
     font-size: ${variables.FONT_SIZE.NORMAL};
     font-weight: ${variables.FONT_WEIGHT.MEDIUM};
@@ -93,7 +94,7 @@ interface AssetGridProps {
     cryptoValue: string;
 }
 
-export const AssetGrid = React.memo(({ network, failed, cryptoValue }: AssetGridProps) => {
+export const AssetGrid = memo(({ network, failed, cryptoValue }: AssetGridProps) => {
     const { symbol, name } = network;
     const dispatch = useDispatch();
     const theme = useTheme();

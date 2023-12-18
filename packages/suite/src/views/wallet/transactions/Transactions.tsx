@@ -1,19 +1,20 @@
-import React from 'react';
-import { WalletLayout, CoinjoinExplanation } from 'src/components/wallet';
+import { ReactNode } from 'react';
+
+import { WalletLayout, CoinjoinAccountDiscoveryProgress } from 'src/components/wallet';
 import { useSelector } from 'src/hooks/suite';
 import { AppState } from 'src/types/suite';
-import { CoinjoinSummary } from 'src/components/wallet/CoinjoinSummary';
 import { selectAccountTransactions, selectIsLoadingTransactions } from '@suite-common/wallet-core';
-
 import { NoTransactions } from './components/NoTransactions';
 import { AccountEmpty } from './components/AccountEmpty';
-import { TransactionList } from './components/TransactionList';
+import { TransactionList } from './TransactionList/TransactionList';
 import { TransactionSummary } from './components/TransactionSummary';
-import { CoinjoinAccountDiscoveryProgress } from 'src/components/wallet/WalletLayout/components/CoinjoinAccountDiscovery/CoinjoinAccountDiscoveryProgress';
+import { CoinjoinExplanation } from './CoinjoinExplanation/CoinjoinExplanation';
+import { CoinjoinSummary } from './CoinjoinSummary/CoinjoinSummary';
+import { TradeBox } from './TradeBox/TradeBox';
 
 interface LayoutProps {
     selectedAccount: AppState['wallet']['selectedAccount'];
-    children?: React.ReactNode;
+    children?: ReactNode;
     showEmptyHeaderPlaceholder?: boolean;
 }
 
@@ -69,9 +70,14 @@ export const Transactions = () => {
     }
 
     if (accountTransactions.length > 0 || transactionsIsLoading) {
+        const networksWithoutTxSummary = ['ripple', 'solana'];
         return (
             <Layout selectedAccount={selectedAccount}>
-                {account.networkType !== 'ripple' && <TransactionSummary account={account} />}
+                {!networksWithoutTxSummary.includes(account.networkType) && (
+                    <TransactionSummary account={account} />
+                )}
+
+                <TradeBox account={account} />
 
                 <TransactionList
                     account={account}

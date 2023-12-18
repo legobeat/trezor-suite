@@ -31,11 +31,13 @@ export enum EventType {
     AccountsTokensStatus = 'accounts/tokens-status',
     AccountsNonZeroBalance = 'accounts/non-zero-balance',
     AccountsNewAccount = 'accounts/new-account',
+    AccountsActions = 'accounts/actions',
     AddToken = 'add-token',
     AccountsEmptyAccountBuy = 'accounts/empty-account/buy',
     AccountsEmptyAccountReceive = 'accounts/empty-account/receive',
     AccountsTransactionsExport = 'accounts/transactions-export',
     AccountsDashboardBuy = 'accounts/dashboard/buy',
+    AccountsTradeboxButton = 'accounts/tradebox/button',
     TransactionCreated = 'transaction-created',
     SendRawTransaction = 'send-raw-transaction',
 
@@ -67,6 +69,7 @@ export enum EventType {
     SettingsDeviceChangePassphraseProtection = 'settings/device/change-passphrase-protection',
     SettingsGeneralChangeLanguage = 'settings/general/change-language',
     SettingsGeneralChangeTheme = 'settings/general/change-theme',
+    SettingsGeneralAddressDisplayType = 'settings/general/address-display-type',
     SettingsGeneralChangeFiat = 'settings/general/change-fiat',
     SettingsGeneralChangeBitcoinUnit = 'settings/general/change-bitcoin-unit',
     SettingsGeneralEarlyAccess = 'settings/general/early-access',
@@ -81,4 +84,5 @@ export enum EventType {
 
     GetDesktopApp = 'promo/desktop',
     GetMobileApp = 'promo/mobile',
+    T2B1DashboardPromo = 'promo/t2b1-dashboard',
 }

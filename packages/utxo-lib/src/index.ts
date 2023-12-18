@@ -29,11 +29,12 @@ export type { PaymentType } from './derivation';
 export type {
     ComposeInput,
     ComposeOutput,
+    ComposeChangeAddress,
     ComposeRequest,
     ComposeResult,
+    ComposeResultNonFinal,
+    ComposeResultError,
     ComposeResultFinal,
-    ComposedTxInput,
-    ComposedTxOutput,
     ComposedTransaction,
     CoinSelectPaymentType,
 } from './types';

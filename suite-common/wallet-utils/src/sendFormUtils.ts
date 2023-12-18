@@ -8,8 +8,6 @@ import {
 } from 'react-hook-form';
 
 import BigNumber from 'bignumber.js';
-import { Common, Chain, Hardfork } from '@ethereumjs/common';
-import { Transaction, TxData } from '@ethereumjs/tx';
 import { fromWei, padLeft, toHex, toWei } from 'web3-utils';
 
 import { fiatCurrencies } from '@suite-common/suite-config';
@@ -148,30 +146,6 @@ export const prepareEthereumTransaction = (txInfo: EthTransactionData) => {
     return result;
 };
 
-export const serializeEthereumTx = (tx: TxData & EthereumTransaction) => {
-    // @ethereumjs/tx doesn't support ETC (chain 61) by default
-    // and it needs to be declared as custom chain
-    // see: https://github.com/ethereumjs/ethereumjs-tx/blob/master/examples/custom-chain-tx.ts
-    const options =
-        tx.chainId === 61
-            ? {
-                  common: Common.custom(
-                      {
-                          name: 'ethereum-classic',
-                          networkId: 1,
-                          chainId: 61,
-                      },
-                      { baseChain: Chain.Mainnet, hardfork: Hardfork.Petersburg },
-                  ),
-              }
-            : {
-                  chain: tx.chainId,
-              };
-
-    const ethTx = new Transaction(tx, options);
-    return `0x${ethTx.serialize().toString('hex')}`;
-};
-
 export const getFeeLevels = (networkType: Network['networkType'], feeInfo: FeeInfo) => {
     const levels = feeInfo.levels.concat({
         label: 'custom',
@@ -224,6 +198,7 @@ export const getFeeUnits = (networkType: NetworkType) => {
     if (networkType === 'ethereum') return 'GWEI';
     if (networkType === 'ripple') return 'Drops';
     if (networkType === 'cardano') return 'Lovelaces/B';
+    if (networkType === 'solana') return 'Lamports';
     return 'sat/B';
 };
 
@@ -302,13 +277,13 @@ export const getBitcoinComposeOutputs = (
 
             if (address) {
                 result.push({
-                    type: 'external',
+                    type: 'payment',
                     address,
                     amount,
                 });
             } else {
                 result.push({
-                    type: 'noaddress',
+                    type: 'payment-noaddress',
                     amount,
                 });
             }
@@ -322,10 +297,11 @@ export const getBitcoinComposeOutputs = (
         (o, i) => setMaxOutputId !== i && o && o.address && !o.amount,
     );
     if (hasIncompleteOutput) {
-        const finalOutput = result.find(o => o.type === 'send-max' || o.type === 'external');
+        const finalOutput = result.find(o => o.type === 'send-max' || o.type === 'payment');
         if (finalOutput) {
-            // replace to noaddress
-            finalOutput.type = finalOutput.type === 'external' ? 'noaddress' : 'send-max-noaddress';
+            // replace to *-noaddress
+            finalOutput.type =
+                finalOutput.type === 'payment' ? 'payment-noaddress' : 'send-max-noaddress';
         }
     }
 
@@ -365,13 +341,13 @@ export const getExternalComposeOutput = (
         }
     } else if (address) {
         output = {
-            type: 'external',
+            type: 'payment',
             address,
             amount: amountInSatoshi,
         };
     } else {
         output = {
-            type: 'noaddress',
+            type: 'payment-noaddress',
             amount: amountInSatoshi,
         };
     }
@@ -474,3 +450,8 @@ export const getExcludedUtxos = ({
     });
     return excludedUtxos;
 };
+
+// SOL Specific
+
+export const getLamportsFromSol = (amountInSol: string) =>
+    BigInt(new BigNumber(amountInSol).times(10 ** 9).toString());

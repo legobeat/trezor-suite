@@ -1,4 +1,10 @@
 import { createContext, useCallback, useContext, useEffect } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+
+import useDebounce from 'react-use/lib/useDebounce';
+
+import { isChanged } from '@suite-common/suite-utils';
+
 import {
     FormState,
     P2pFormContextValues,
@@ -8,10 +14,7 @@ import { useDispatch, useSelector } from 'src/hooks/suite';
 import { saveQuotes, saveQuotesRequest } from 'src/actions/wallet/coinmarketP2pActions';
 import { loadInvityData } from 'src/actions/wallet/coinmarket/coinmarketCommonActions';
 import { useCoinmarketP2pFormDefaultValues } from 'src/hooks/wallet/useCoinmarketP2pFormDefaultValues';
-import { useForm, useWatch } from 'react-hook-form';
 import { useFormDraft } from 'src/hooks/wallet/useFormDraft';
-import useDebounce from 'react-use/lib/useDebounce';
-import { isChanged } from 'src/utils/suite/comparisonUtils';
 import { useCoinmarketNavigation } from 'src/hooks/wallet/useCoinmarketNavigation';
 import invityAPI from 'src/services/suite/invityAPI';
 
@@ -88,10 +91,10 @@ export const useCoinmarketP2pForm = ({
             currency: formValues.currencySelect.value.toUpperCase(),
             country: formValues.countrySelect.value,
         };
-        saveQuotesRequest(request);
+        dispatch(saveQuotesRequest(request));
 
         const response = await invityAPI.getP2pQuotes(request);
-        saveQuotes(response?.quotes || []);
+        dispatch(saveQuotes(response?.quotes || []));
 
         navigateToP2pOffers();
     };

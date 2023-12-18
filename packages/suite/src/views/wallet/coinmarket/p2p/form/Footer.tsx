@@ -1,4 +1,3 @@
-import React from 'react';
 import { Controller } from 'react-hook-form';
 import styled from 'styled-components';
 import { Translation } from 'src/components/suite';
@@ -43,6 +42,7 @@ const StyledButton = styled(Button)`
     display: flex;
     min-width: 200px;
     margin-top: 0;
+
     @media screen and (max-width: ${variables.SCREEN_SIZE.MD}) {
         margin-top: 20px;
         width: 100%;

@@ -1,16 +1,16 @@
-import React, { useMemo } from 'react';
+import { useMemo, ReactNode } from 'react';
 import styled from 'styled-components';
 
 import { TrezorLogo, Button, variables } from '@trezor/components';
 import { TREZOR_SUPPORT_URL } from '@trezor/urls';
 import { TrezorLink, Translation } from 'src/components/suite';
-import { ProgressBar } from 'src/components/onboarding';
+import { OnboardingProgressBar } from 'src/components/onboarding';
 import { useSelector, useOnboarding } from 'src/hooks/suite';
 import { MAX_WIDTH } from 'src/constants/suite/layout';
 import steps from 'src/config/onboarding/steps';
 import { GuideButton, GuidePanel } from 'src/components/guide';
 import { selectBannerMessage } from '@suite-common/message-system';
-import MessageSystemBanner from 'src/components/suite/Banners/MessageSystemBanner';
+import { MessageSystemBanner } from 'src/components/suite/banners';
 import { ModalContextProvider } from 'src/support/suite/ModalContext';
 
 const Wrapper = styled.div`
@@ -54,11 +54,12 @@ const Header = styled.div`
     flex-direction: column;
     max-width: ${MAX_WIDTH};
     background: ${({ theme }) => theme.BG_LIGHT_GREY};
-    box-shadow: 0px 14px 10px 4px ${({ theme }) => theme.BG_LIGHT_GREY};
+    box-shadow: 0 14px 10px 4px ${({ theme }) => theme.BG_LIGHT_GREY};
+    margin-bottom: 14px;
     z-index: ${variables.Z_INDEX.BASE};
 
     ${variables.SCREEN_QUERY.BELOW_LAPTOP} {
-        padding: 0px 20px;
+        padding: 0 20px;
     }
 
     ${variables.SCREEN_QUERY.MOBILE} {
@@ -68,7 +69,7 @@ const Header = styled.div`
 
     @media all and (max-height: ${variables.SCREEN_SIZE.SM}) {
         /* low height screen */
-        padding: 0px 20px;
+        padding: 0 20px;
         margin-bottom: 26px;
     }
 `;
@@ -106,8 +107,8 @@ const Content = styled.div`
 
 const progressBarSteps = [
     {
-        key: 'fw',
-        label: <Translation id="TR_ONBOARDING_STEP_FIRMWARE" />,
+        key: 'device',
+        label: <Translation id="TR_DEVICE" />,
     },
     {
         key: 'wallet',
@@ -115,11 +116,11 @@ const progressBarSteps = [
     },
     {
         key: 'pin',
-        label: <Translation id="TR_ONBOARDING_STEP_PIN" />,
+        label: <Translation id="TR_PIN" />,
     },
     {
         key: 'coins',
-        label: <Translation id="TR_ONBOARDING_STEP_COINS" />,
+        label: <Translation id="TR_COINS" />,
     },
     {
         key: 'final',
@@ -127,7 +128,7 @@ const progressBarSteps = [
 ];
 
 interface OnboardingLayoutProps {
-    children: React.ReactNode;
+    children: ReactNode;
 }
 
 export const OnboardingLayout = ({ children }: OnboardingLayoutProps) => {
@@ -164,7 +165,7 @@ export const OnboardingLayout = ({ children }: OnboardingLayoutProps) => {
                                 </LogoHeaderRow>
 
                                 <ProgressBarRow>
-                                    <ProgressBar
+                                    <OnboardingProgressBar
                                         steps={progressBarSteps}
                                         activeStep={activeStep.stepGroup}
                                     />

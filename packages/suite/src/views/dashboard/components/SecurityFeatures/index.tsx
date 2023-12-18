@@ -1,16 +1,18 @@
-import React from 'react';
 import styled from 'styled-components';
 
+import { selectDevice, createDeviceInstance } from '@suite-common/wallet-core';
 import { Button, variables } from '@trezor/components';
+
 import { Translation } from 'src/components/suite';
-import { Section } from 'src/components/dashboard';
+import { DashboardSection } from 'src/components/dashboard';
 import { AcquiredDevice } from 'src/types/suite';
 import { useDevice, useDiscovery, useDispatch, useSelector } from 'src/hooks/suite';
 import { setDiscreetMode } from 'src/actions/settings/walletSettingsActions';
-import { createDeviceInstance, setFlag } from 'src/actions/suite/suiteActions';
+import { setFlag } from 'src/actions/suite/suiteActions';
 import { applySettings, changePin } from 'src/actions/settings/deviceSettingsActions';
 import { goto } from 'src/actions/suite/routerActions';
 import { SettingsAnchor } from 'src/constants/suite/anchors';
+
 import { SecurityCard, SecurityCardProps } from '../SecurityCard';
 
 const Content = styled.div`
@@ -21,6 +23,7 @@ const Content = styled.div`
     @media only screen and (max-width: ${variables.SCREEN_SIZE.LG}) {
         grid-template-columns: 1fr 1fr;
     }
+
     @media only screen and (max-width: ${variables.SCREEN_SIZE.SM}) {
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     }
@@ -28,7 +31,7 @@ const Content = styled.div`
 
 const SecurityFeatures = () => {
     const discreetMode = useSelector(state => state.wallet.settings.discreetMode);
-    const device = useSelector(state => state.suite.device);
+    const device = useSelector(selectDevice);
     const flags = useSelector(state => state.suite.flags);
     const dispatch = useDispatch();
 
@@ -135,7 +138,8 @@ const SecurityFeatures = () => {
               heading: <Translation id="TR_PASSPHRASE_PROTECTION_ENABLED" />,
               cta: {
                   label: <Translation id="TR_CREATE_HIDDEN_WALLET" />,
-                  action: () => dispatch(createDeviceInstance(device as AcquiredDevice)),
+                  action: () =>
+                      dispatch(createDeviceInstance({ device: device as AcquiredDevice })),
                   dataTest: 'create-hidden-wallet',
                   isDisabled: isDeviceLocked,
               },
@@ -171,7 +175,7 @@ const SecurityFeatures = () => {
     const cards: SecurityCardProps[] = [backupData, pinData, hiddenWalletData, discreetModeData];
 
     return (
-        <Section
+        <DashboardSection
             heading={
                 <Translation
                     id="TR_SECURITY_FEATURES_COMPLETED_N"
@@ -213,7 +217,7 @@ const SecurityFeatures = () => {
                         );
                     })}
             </Content>
-        </Section>
+        </DashboardSection>
     );
 };
 

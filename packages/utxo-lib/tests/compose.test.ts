@@ -1,7 +1,4 @@
 import { composeTx } from '../src';
-import { convertFeeRate } from '../src/compose/composeUtils';
-import { Permutation } from '../src/compose/permutation';
-import { reverseBuffer } from '../src/bufferutils';
 import * as NETWORKS from '../src/networks';
 
 import { verifyTxBytes } from './compose.utils';
@@ -19,24 +16,6 @@ describe('composeTx', () => {
         const request = { ...f.request, network };
         const result: any = { ...f.result };
         it(f.description, () => {
-            if (result.transaction) {
-                result.transaction.inputs.forEach((oinput: any) => {
-                    const input = oinput;
-                    input.hash = reverseBuffer(Buffer.from(input.REV_hash, 'hex'));
-                    delete input.REV_hash;
-                });
-                const o = result.transaction.PERM_outputs;
-                const sorted = JSON.parse(JSON.stringify(o.sorted));
-                sorted.forEach((ss: any) => {
-                    const s = ss;
-                    if (s.opReturnData != null) {
-                        s.opReturnData = Buffer.from(s.opReturnData);
-                    }
-                });
-                result.transaction.outputs = new Permutation(sorted, o.permutation);
-                delete result.transaction.PERM_outputs;
-            }
-
             const tx = composeTx(request as any);
             expect(tx).toEqual(result);
 
@@ -80,10 +59,11 @@ describe('composeTx addresses cross-check', () => {
                         txType,
                         utxos: f.request.utxos.map(utxo => ({
                             ...utxo,
-                            value: utxo.value === 'replace-me' ? amounts[txType] : utxo.value,
+                            amount: utxo.amount === 'replace-me' ? amounts[txType] : utxo.amount,
                         })),
+                        changeAddress: { address: addrTypes[txType] },
                         outputs: f.request.outputs.map(o => {
-                            if (o.type === 'complete') {
+                            if (o.type === 'payment') {
                                 return {
                                     ...o,
                                     address:
@@ -101,38 +81,11 @@ describe('composeTx addresses cross-check', () => {
 
                     expect(tx).toMatchObject(f.result[key]);
 
-                    expect(tx.transaction.inputs.length).toEqual(f.request.utxos.length);
+                    expect(tx.inputs.length).toEqual(f.request.utxos.length);
 
                     verifyTxBytes(tx, txType);
                 });
             });
         });
-    });
-});
-
-describe('composeUtils', () => {
-    it('convertFeeRate', () => {
-        // valid
-        expect(convertFeeRate('1')).toEqual(1);
-        expect(convertFeeRate('1.1')).toEqual(1.1);
-        expect(convertFeeRate(1)).toEqual(1);
-        expect(convertFeeRate(1.1)).toEqual(1.1);
-
-        // invalid
-        expect(convertFeeRate(Number.MAX_SAFE_INTEGER + 1)).toBeUndefined();
-        expect(convertFeeRate('9007199254740992')).toBeUndefined(); // Number.MAX_SAFE_INTEGER + 1 as string
-        expect(convertFeeRate('-1')).toBeUndefined();
-        expect(convertFeeRate('-1')).toBeUndefined();
-        expect(convertFeeRate('aaa')).toBeUndefined();
-        expect(convertFeeRate('')).toBeUndefined();
-        expect(convertFeeRate(-1)).toBeUndefined();
-        expect(convertFeeRate(0)).toBeUndefined();
-        expect(convertFeeRate('0')).toBeUndefined();
-        expect(convertFeeRate(NaN)).toBeUndefined();
-        expect(convertFeeRate(Infinity)).toBeUndefined();
-        // @ts-expect-error invalid arg
-        expect(convertFeeRate()).toBeUndefined();
-        // @ts-expect-error invalid arg
-        expect(convertFeeRate(null)).toBeUndefined();
     });
 });

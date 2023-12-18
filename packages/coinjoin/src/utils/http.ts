@@ -1,6 +1,6 @@
 import fetch from 'cross-fetch';
 
-import { ScheduleActionParams } from '@trezor/utils';
+import { ScheduleActionParams, getWeakRandomId } from '@trezor/utils';
 
 export interface RequestOptions extends ScheduleActionParams {
     method?: 'POST' | 'GET';
@@ -9,6 +9,32 @@ export interface RequestOptions extends ScheduleActionParams {
     identity?: string;
     userAgent?: string;
 }
+
+const camelCaseToPascalCase = (key: string) => key.charAt(0).toUpperCase() + key.slice(1);
+
+export const patchResponse = (obj: any) => {
+    if (Array.isArray(obj)) {
+        for (let i = 0; i < obj.length; i++) {
+            patchResponse(obj[i]);
+        }
+    } else if (obj && typeof obj === 'object') {
+        Object.keys(obj).forEach(key => {
+            const newKey = camelCaseToPascalCase(key);
+            obj[newKey] = obj[key];
+            if (key !== newKey) {
+                delete obj[key];
+            }
+            // skip whole AffiliateData object because:
+            // - keys are Round.Id hash and should not be PascalCased
+            // - values contains affiliate flag "trezor" which is not in PascalCased
+            // AffiliateData: { abcd0123: { trezor: 'base64=' } };
+            if (newKey !== 'AffiliateData') {
+                patchResponse(obj[newKey]);
+            }
+        });
+    }
+    return obj;
+};
 
 const createHeaders = (options: RequestOptions) => {
     const headers: HeadersInit = {
@@ -47,3 +73,9 @@ export const httpPost = (url: string, body?: Record<string, any>, options: Reque
         signal: options.signal,
         headers: createHeaders(options),
     });
+
+// Randomize identity password to reset TOR circuit for this identity
+export const resetIdentityCircuit = (identity: string) => {
+    const [user] = identity.split(':');
+    return `${user}:${getWeakRandomId(16)}`;
+};

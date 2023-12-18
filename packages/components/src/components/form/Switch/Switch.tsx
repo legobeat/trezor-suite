@@ -1,4 +1,3 @@
-import React from 'react';
 import styled, { css } from 'styled-components';
 
 import { getInputColor } from '../../../utils/utils';
@@ -48,7 +47,9 @@ const Handle = styled.button<{ disabled?: boolean } & Pick<SwitchProps, 'isCheck
     box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.5);
     transform: ${({ isChecked, isSmall }) =>
         isChecked && `translateX(${isSmall ? '12px' : '18px'})`};
-    transition: transform 0.25s ease 0s, box-shadow 0.15s ease 0s;
+    transition:
+        transform 0.25s ease 0s,
+        box-shadow 0.15s ease 0s;
     cursor: ${({ disabled }) => !disabled && 'pointer'};
 
     ${({ disabled }) =>

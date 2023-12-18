@@ -20,6 +20,7 @@ const result = await TrezorConnect.cardanoGetAddress(params);
 -   `networkId` - _required_ `Integer` 1 for Mainnet, 0 for Testnet
 -   `showOnTrezor` — _optional_ `boolean` determines if address will be displayed on device. Default is set to `true`
 -   `derivationType` — _optional_ `CardanoDerivationType` enum. determines used derivation type. Default is set to ICARUS_TREZOR=2
+-   `chunkify` — _optional_ `boolean` determines if address will be displayed in chunks of 4 characters. Default is set to `false`
 
 #### Exporting bundle of addresses
 
@@ -284,8 +285,8 @@ Result with only one address
     payload: {
         addressParameters: {
             addressType: number,
-            path: Array<number>, // hardend path
-            stakingPath?: Array<number>, // hardend path
+            path: Array<number>, // hardened path
+            stakingPath?: Array<number>, // hardened path
             stakingKeyHash?: string,
             certificatePointer?: {
                 blockIndex: number,
@@ -313,8 +314,8 @@ Result with bundle of addresses
         {
             addressParameters: {
                 addressType: number,
-                path: Array<number>, // hardend path
-                stakingPath?: Array<number>, // hardend path
+                path: Array<number>, // hardened path
+                stakingPath?: Array<number>, // hardened path
                 stakingKeyHash?: string,
                 certificatePointer?: {
                     blockIndex: number,
@@ -333,8 +334,8 @@ Result with bundle of addresses
         {
             addressParameters: {
                 addressType: number,
-                path: Array<number>, // hardend path
-                stakingPath?: Array<number>, // hardend path
+                path: Array<number>, // hardened path
+                stakingPath?: Array<number>, // hardened path
                 stakingKeyHash?: string,
                 certificatePointer?: {
                     blockIndex: number,
@@ -353,8 +354,8 @@ Result with bundle of addresses
         {
             addressParameters: {
                 addressType: number,
-                path: Array<number>, // hardend path
-                stakingPath?: Array<number>, // hardend path
+                path: Array<number>, // hardened path
+                stakingPath?: Array<number>, // hardened path
                 stakingKeyHash?: string,
                 certificatePointer?: {
                     blockIndex: number,

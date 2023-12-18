@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { updateFiatRatesThunk } from '@suite-native/fiat-rates';
@@ -13,7 +13,6 @@ import {
 import TrezorConnect, { AccountInfo } from '@trezor/connect';
 import { TokenAddress } from '@suite-common/wallet-types';
 
-import { AccountImportHeader } from '../components/AccountImportHeader';
 import { AccountImportLoader } from '../components/AccountImportLoader';
 import { useShowImportError } from '../useShowImportError';
 
@@ -68,7 +67,8 @@ export const AccountImportLoadingScreen = ({
                 TrezorConnect.getAccountInfo({
                     coin: networkSymbol,
                     descriptor: xpubAddress,
-                    details: 'tokenBalances',
+                    details: 'txs',
+                    suppressBackupWarning: true,
                 }),
                 dispatch(
                     updateFiatRatesThunk({
@@ -117,7 +117,7 @@ export const AccountImportLoadingScreen = ({
     }, [xpubAddress, networkSymbol, dispatch, safelyShowImportError, fiatCurrency]);
 
     return (
-        <Screen header={<AccountImportHeader activeStep={3} />}>
+        <Screen isScrollable={false}>
             <AccountImportLoader />
         </Screen>
     );

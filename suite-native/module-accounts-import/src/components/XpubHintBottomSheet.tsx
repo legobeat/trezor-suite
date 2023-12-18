@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import { ReactNode } from 'react';
 
 import { BottomSheet, Box, Button, Text, VStack } from '@suite-native/atoms';
 import { Video, VideoName } from '@suite-native/video-assets';
@@ -59,6 +59,7 @@ export const networkToAssetsMap = {
         video: 'xpubImportETH',
     },
     cardano: undefined,
+    solana: undefined,
 } as const satisfies Record<NetworkType, NetworkAssets | undefined>;
 
 export const defaultAssets = networkToAssetsMap.bitcoin;
@@ -76,7 +77,7 @@ export const XpubHintBottomSheet = ({
             <Box paddingTop="small" justifyContent="space-between">
                 <Video name={video} aspectRatio={1} />
                 <VStack spacing="large" paddingTop="large">
-                    <Text color="textSubdued" align="center" variant="hint">
+                    <Text color="textSubdued" textAlign="center" variant="hint">
                         {text}
                     </Text>
                 </VStack>

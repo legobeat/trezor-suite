@@ -1,6 +1,8 @@
+import { Route } from '@suite-common/suite-types';
+
 import { MODAL } from 'src/actions/suite/constants';
 import { useSelector, useDiscovery } from 'src/hooks/suite';
-import type { Route, ForegroundAppRoute } from 'src/types/suite';
+import type { ForegroundAppRoute } from 'src/types/suite';
 import { ModalAppParams } from 'src/utils/suite/router';
 
 const isForegroundApp = (route: Route): route is ForegroundAppRoute =>
@@ -32,7 +34,7 @@ const getForegroundAppAction = (route: ForegroundAppRoute, params: Partial<Modal
             // params are undefined when the user goes directly to the URL
             cancelable: !!params?.cancelable,
         },
-    } as const);
+    }) as const;
 
 export const usePreferredModal = () => {
     const { getDiscoveryStatus } = useDiscovery();

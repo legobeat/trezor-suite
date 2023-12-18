@@ -1,20 +1,23 @@
 import { Middleware } from 'redux';
 
-import * as discoveryActions from '@suite-common/wallet-core';
+import { testMocks } from '@suite-common/test-utils';
 import {
+    prepareDeviceReducer,
+    selectDevices,
+    selectDevicesCount,
     prepareDiscoveryReducer,
     disableAccountsThunk,
     transactionsActions,
     createDiscoveryThunk,
+    deviceActions,
 } from '@suite-common/wallet-core';
+import * as discoveryActions from '@suite-common/wallet-core';
 import { getAccountTransactions, getAccountIdentifier } from '@suite-common/wallet-utils';
 
 import * as walletSettingsActions from 'src/actions/settings/walletSettingsActions';
-import * as SUITE from 'src/actions/suite/constants/suiteConstants';
 import { accountsReducer, fiatRatesReducer, transactionsReducer } from 'src/reducers/wallet';
 import walletSettingsReducer from 'src/reducers/wallet/settingsReducer';
 import suiteReducer from 'src/reducers/suite/suiteReducer';
-import deviceReducer from 'src/reducers/suite/deviceReducer';
 import sendFormReducer from 'src/reducers/wallet/sendFormReducer';
 import graphReducer from 'src/reducers/wallet/graphReducer';
 import storageMiddleware from 'src/middlewares/wallet/storageMiddleware';
@@ -28,9 +31,10 @@ import { extraDependencies } from 'src/support/extraDependencies';
 import * as suiteActions from '../suiteActions';
 import * as storageActions from '../storageActions';
 
-const { getSuiteDevice, getWalletAccount, getWalletTransaction } = global.JestMocks;
+const { getSuiteDevice, getWalletAccount, getWalletTransaction } = testMocks;
 
 const discoveryReducer = prepareDiscoveryReducer(extraDependencies);
+const deviceReducer = prepareDeviceReducer(extraDependencies);
 
 // TODO: add method in suite-storage for deleting all stored data (done as a static method on SuiteDB), call it after each test
 // TODO: test deleting device instances on parent device forget
@@ -87,7 +91,7 @@ const tx2 = getWalletTransaction({
     symbol: 'btc',
 });
 
-type PartialState = Pick<AppState, 'suite' | 'devices'> & {
+type PartialState = Pick<AppState, 'suite' | 'device'> & {
     wallet: Partial<
         Pick<
             AppState['wallet'],
@@ -108,8 +112,8 @@ export const getInitialState = (prevState?: Partial<PartialState>, action?: any)
         prevState ? prevState.suite : undefined,
         action || ({ type: 'foo' } as any),
     ),
-    devices: deviceReducer(
-        prevState ? prevState.devices : undefined,
+    device: deviceReducer(
+        prevState ? prevState.device : undefined,
         action || ({ type: 'foo' } as any),
     ),
     wallet: {
@@ -161,7 +165,7 @@ const updateStore = (store: mockStoreType) => {
         const action = store.getActions().pop();
         const prevState = store.getState();
         store.getState().suite = getInitialState(prevState, action).suite;
-        store.getState().devices = getInitialState(prevState, action).devices;
+        store.getState().device = getInitialState(prevState, action).device;
         store.getState().wallet = getInitialState(prevState, action).wallet;
         store.getActions().push(action);
     });
@@ -234,7 +238,7 @@ describe('Storage actions', () => {
     it('should store remembered device', async () => {
         let store = mockStore(
             getInitialState({
-                devices: [dev1, dev2, dev2Instance1],
+                device: { devices: [dev1, dev2, dev2Instance1] },
                 wallet: {
                     accounts: [acc1, acc2],
                     send: {
@@ -279,8 +283,9 @@ describe('Storage actions', () => {
 
         // stored devices
         const load1 = store.getState();
-        expect(load1.devices.length).toEqual(3);
-        expect(load1.devices[0]).toEqual({ ...dev1, path: '' });
+        const load1DevicesCount = selectDevicesCount(load1);
+        expect(load1DevicesCount).toEqual(3);
+        expect(load1.device.devices[0]).toEqual({ ...dev1, path: '' });
 
         // stored discoveries
         const storedDiscovery = load1.wallet.discovery;
@@ -294,7 +299,7 @@ describe('Storage actions', () => {
 
         // discovery updated synced
         expect(
-            storedDiscovery.find((d: any) => d.deviceState === dev2.state!)?.networks,
+            storedDiscovery.find((d: any) => d.deviceState === dev2.state)?.networks,
         ).toStrictEqual(['btc', 'ltc']);
 
         // stored txs
@@ -312,7 +317,7 @@ describe('Storage actions', () => {
         expect(load1.wallet.accounts[0]).toEqual(acc1);
 
         // stored device2
-        expect(load1.devices[1].state).toEqual(dev2.state);
+        expect(load1.device.devices[1].state).toEqual(dev2.state);
         // stored txs
         const acc2Txs = getAccountTransactions(acc2.key, load1.wallet.transactions.transactions);
 
@@ -329,8 +334,9 @@ describe('Storage actions', () => {
 
         const load2 = store.getState();
         // device deleted, dev2 and dev2Instance1 should still be there
-        expect(load2.devices.length).toEqual(2);
-        expect(load2.devices[0]).toEqual({ ...dev2, path: '' });
+        const load2DevicesCount = selectDevicesCount(load2);
+        expect(load2DevicesCount).toEqual(2);
+        expect(load2.device.devices[0]).toEqual({ ...dev2, path: '' });
 
         // discovery object for dev1 deleted
         expect(load2.wallet.discovery.length).toEqual(2);
@@ -353,13 +359,15 @@ describe('Storage actions', () => {
         await store.dispatch(storageActions.rememberDevice(dev2, false));
         await store.dispatch(storageActions.rememberDevice(dev2Instance1, false));
         store.dispatch(await preloadStore());
-        expect(store.getState().devices.length).toEqual(0);
+        expect(selectDevicesCount(store.getState())).toEqual(0);
     });
 
     it('should remove all txs for the acc', async () => {
         let store = mockStore(
             getInitialState({
-                devices: [dev1, dev2],
+                device: {
+                    devices: [dev1, dev2],
+                },
                 wallet: {
                     accounts: [acc1, acc2],
                 },
@@ -399,8 +407,9 @@ describe('Storage actions', () => {
         const dev1Connected = { ...dev1, connected: true } as const;
         const store = mockStore(
             getInitialState({
-                devices: [dev1Connected],
-
+                device: {
+                    devices: [dev1Connected],
+                },
                 wallet: {
                     accounts: [acc1],
                 },
@@ -412,16 +421,15 @@ describe('Storage actions', () => {
         await store.dispatch(storageActions.rememberDevice(dev1, true));
 
         // Change device label inside a reducer
-        await store.dispatch({
-            type: SUITE.UPDATE_SELECTED_DEVICE,
-            payload: {
+        await store.dispatch(
+            deviceActions.updateSelectedDevice({
                 ...dev1Connected,
                 label: 'New Label',
-            },
-        });
+            }),
+        );
 
         store.dispatch(await preloadStore());
-        expect(store.getState().devices[0].label).toBe('New Label');
+        expect(selectDevices(store.getState())[0].label).toBe('New Label');
     });
 
     it('should store graph data with the device and remove it on ACCOUNT.REMOVE (triggered by disabling the coin)', async () => {
@@ -435,7 +443,7 @@ describe('Storage actions', () => {
 
         const store = mockStore(
             getInitialState({
-                devices: [dev1],
+                device: { devices: [dev1] },
                 wallet: {
                     accounts: [acc1, accLtc],
                     graph: {
@@ -483,7 +491,9 @@ describe('Storage actions', () => {
     it('remember device with forceRemember', async () => {
         const store = mockStore(
             getInitialState({
-                devices: [devNotRemembered],
+                device: {
+                    devices: [devNotRemembered],
+                },
             }),
         );
         updateStore(store);
@@ -491,7 +501,7 @@ describe('Storage actions', () => {
         // store in db
         await store.dispatch(storageActions.rememberDevice(devNotRemembered, true, true));
         store.dispatch(await preloadStore());
-        expect(store.getState().devices[0].remember).toBe(true);
-        expect(store.getState().devices[0].forceRemember).toBe(true);
+        expect(selectDevices(store.getState())[0].remember).toBe(true);
+        expect(selectDevices(store.getState())[0].forceRemember).toBe(true);
     });
 });

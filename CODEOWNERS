@@ -1,5 +1,7 @@
 /ci @vdovhanych @mroz22
 
+/.github/workflows @vdovhanych
+
 /docker @vdovhanych @mroz22
 
 /scripts @Nodonisko
@@ -81,3 +83,5 @@
 /packages/suite/src/support/messages.ts @alex-jerechinsky
 
 /suite-common/graph @trezor/suite-mobile @Nodonisko
+
+/packages/connect/src/data/deviceAuthenticityConfig.ts @tsusanka

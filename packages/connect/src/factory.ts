@@ -100,6 +100,9 @@ export const factory = ({
 
         cardanoSignTransaction: params => call({ ...params, method: 'cardanoSignTransaction' }),
 
+        cardanoComposeTransaction: params =>
+            call({ ...params, method: 'cardanoComposeTransaction' }),
+
         cipherKeyValue: params => call({ ...params, method: 'cipherKeyValue' }),
 
         composeTransaction: params => call({ ...params, method: 'composeTransaction' }),
@@ -121,6 +124,8 @@ export const factory = ({
         ethereumSignTypedData: params => call({ ...params, method: 'ethereumSignTypedData' }),
 
         ethereumVerifyMessage: params => call({ ...params, method: 'ethereumVerifyMessage' }),
+
+        getAccountDescriptor: params => call({ ...params, method: 'getAccountDescriptor' }),
 
         getAccountInfo: params => call({ ...params, method: 'getAccountInfo' }),
 
@@ -166,6 +171,12 @@ export const factory = ({
         signMessage: params => call({ ...params, method: 'signMessage' }),
 
         signTransaction: params => call({ ...params, method: 'signTransaction' }),
+
+        solanaGetPublicKey: params => call({ ...params, method: 'solanaGetPublicKey' }),
+
+        solanaGetAddress: params => call({ ...params, method: 'solanaGetAddress' }),
+
+        solanaSignTransaction: params => call({ ...params, method: 'solanaSignTransaction' }),
 
         stellarGetAddress: params =>
             call({
@@ -216,6 +227,8 @@ export const factory = ({
         applyFlags: params => call({ ...params, method: 'applyFlags' }),
 
         applySettings: params => call({ ...params, method: 'applySettings' }),
+
+        authenticateDevice: params => call({ ...params, method: 'authenticateDevice' }),
 
         authorizeCoinjoin: params => call({ ...params, method: 'authorizeCoinjoin' }),
 

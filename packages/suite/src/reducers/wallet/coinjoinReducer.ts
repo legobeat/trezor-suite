@@ -1,13 +1,26 @@
 import produce from 'immer';
 import BigNumber from 'bignumber.js';
 
-import { getInputSize, getOutputSize } from '@trezor/coinjoin';
+import { getInputSize, getOutputSize, RoundPhase } from '@trezor/coinjoin';
 import { PartialRecord } from '@trezor/type-utils';
-import { STORAGE } from 'src/actions/suite/constants';
 import { Account, AccountKey } from '@suite-common/wallet-types';
 import {
+    accountsActions,
+    AccountsRootState,
+    selectAccountByKey,
+    DeviceRootState,
+    selectDeviceStatus,
+} from '@suite-common/wallet-core';
+import {
+    Feature,
+    MessageSystemRootState,
+    selectIsFeatureDisabled,
+    selectFeatureConfig,
+} from '@suite-common/message-system';
+
+import { STORAGE } from 'src/actions/suite/constants';
+import {
     CoinjoinAccount,
-    RoundPhase,
     CoinjoinDebugSettings,
     CoinjoinConfig,
     CoinjoinClientInstance,
@@ -15,7 +28,6 @@ import {
 import { COINJOIN } from 'src/actions/wallet/constants';
 import { Action } from 'src/types/suite';
 import {
-    selectDeviceState,
     selectIsDeviceLocked,
     selectTorState,
     SuiteRootState,
@@ -45,13 +57,7 @@ import {
     ZKSNACKS_LEGAL_DOCUMENTS_VERSION,
     TREZOR_LEGAL_DOCUMENTS_VERSION,
 } from 'src/services/coinjoin';
-import { accountsActions, AccountsRootState, selectAccountByKey } from '@suite-common/wallet-core';
-import {
-    Feature,
-    MessageSystemRootState,
-    selectIsFeatureDisabled,
-    selectFeatureConfig,
-} from '@suite-common/message-system';
+
 import { SelectedAccountRootState, selectSelectedAccount } from './selectedAccountReducer';
 
 export interface CoinjoinState {
@@ -810,13 +816,14 @@ export const selectWeightedAnonymityByAccountKey = (
     const anonymitySet = account?.addresses?.anonymitySet || {};
     const utxos = account?.utxo || [];
     const weightedAnonymitySum = BigNumber.sum(
+        0,
         ...utxos.map(utxo =>
             new BigNumber(utxo.amount).times(
                 Math.min(targetAnonymity, anonymitySet[utxo.address] || 1),
             ),
         ),
     );
-    const amountsSum = BigNumber.sum(...utxos.map(utxo => utxo.amount));
+    const amountsSum = BigNumber.sum(0, ...utxos.map(utxo => utxo.amount));
 
     return amountsSum.isZero() ? 1 : weightedAnonymitySum.div(amountsSum).toNumber();
 };
@@ -900,7 +907,7 @@ export const selectHasAnonymitySetError = (state: CoinjoinRootState) => {
 };
 
 export const selectCoinjoinSessionBlockerByAccountKey = (
-    state: CoinjoinRootState,
+    state: CoinjoinRootState & DeviceRootState,
     accountKey: AccountKey,
 ) => {
     if (selectSessionByAccountKey(state, accountKey)?.starting) {
@@ -918,7 +925,7 @@ export const selectCoinjoinSessionBlockerByAccountKey = (
     if (selectIsCoinjoinBlockedByTor(state)) {
         return 'TOR_DISABLED';
     }
-    if (!['connected', 'firmware-recommended'].includes(selectDeviceState(state) ?? '')) {
+    if (!['connected', 'firmware-recommended'].includes(selectDeviceStatus(state) ?? '')) {
         return 'DEVICE_DISCONNECTED';
     }
     const account = selectAccountByKey(state, accountKey);
@@ -933,7 +940,7 @@ export const selectCoinjoinSessionBlockerByAccountKey = (
     }
 };
 
-export const selectCurrentCoinjoinWheelStates = (state: CoinjoinRootState) => {
+export const selectCurrentCoinjoinWheelStates = (state: CoinjoinRootState & DeviceRootState) => {
     const { notAnonymized } = selectCurrentCoinjoinBalanceBreakdown(state);
     const { key, balance } = selectSelectedAccount(state) || {};
     const coinjoinAccount = selectCoinjoinAccountByKey(state, key || '');

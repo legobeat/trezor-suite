@@ -1,9 +1,8 @@
-import { firmwareUpdate, firmwareActions } from '@suite-common/wallet-core';
+import { testMocks } from '@suite-common/test-utils';
+import { firmwareUpdate, firmwareActions, deviceActions } from '@suite-common/wallet-core';
 import { UI, DeviceModelInternal, FirmwareType } from '@trezor/connect';
 
-import { SUITE } from 'src/actions/suite/constants';
-
-const { getSuiteDevice, getDeviceFeatures, getFirmwareRelease } = global.JestMocks;
+const { getSuiteDevice, getDeviceFeatures, getFirmwareRelease } = testMocks;
 
 const bootloaderDevice = getSuiteDevice({ mode: 'bootloader', connected: true });
 const bootloaderDeviceNeedsIntermediary = {
@@ -32,10 +31,11 @@ export const actions = [
             },
         },
         initialState: {
-            devices: [bootloaderDevice],
-            suite: {
-                device: bootloaderDevice,
+            device: {
+                devices: [bootloaderDevice],
+                selectedDevice: bootloaderDevice,
             },
+            suite: {},
         },
         result: {
             actions: [
@@ -57,10 +57,11 @@ export const actions = [
             },
         },
         initialState: {
-            devices: [bootloaderDevice],
-            suite: {
-                device: bootloaderDevice,
+            device: {
+                devices: [bootloaderDevice],
+                selectedDevice: bootloaderDevice,
             },
+            suite: {},
         },
         result: {
             actions: [
@@ -83,10 +84,11 @@ export const actions = [
             },
         },
         initialState: {
-            suite: {
-                device: bootloaderDeviceNeedsIntermediary,
+            device: {
+                selectedDevice: bootloaderDeviceNeedsIntermediary,
+                devices: [bootloaderDeviceNeedsIntermediary],
             },
-            devices: [bootloaderDeviceNeedsIntermediary],
+            suite: {},
         },
         result: {
             actions: [
@@ -108,8 +110,8 @@ export const actions = [
             },
         },
         initialState: {
-            suite: {
-                device: getSuiteDevice({
+            device: {
+                selectedDevice: getSuiteDevice({
                     connected: true,
                     mode: 'bootloader',
                     features: getDeviceFeatures({
@@ -117,17 +119,18 @@ export const actions = [
                         internal_model: DeviceModelInternal.T1B1,
                     }),
                 }),
+                devices: [
+                    getSuiteDevice({
+                        connected: true,
+                        mode: 'bootloader',
+                        features: getDeviceFeatures({
+                            major_version: 1,
+                            internal_model: DeviceModelInternal.T1B1,
+                        }),
+                    }),
+                ],
             },
-            devices: [
-                getSuiteDevice({
-                    connected: true,
-                    mode: 'bootloader',
-                    features: getDeviceFeatures({
-                        major_version: 1,
-                        internal_model: DeviceModelInternal.T1B1,
-                    }),
-                }),
-            ],
+            suite: {},
         },
         result: {
             actions: [
@@ -148,8 +151,8 @@ export const actions = [
             },
         },
         initialState: {
-            suite: {
-                device: getSuiteDevice({
+            device: {
+                selectedDevice: getSuiteDevice({
                     connected: true,
                     mode: 'bootloader',
                     features: getDeviceFeatures({
@@ -157,17 +160,18 @@ export const actions = [
                         internal_model: DeviceModelInternal.T1B1,
                     }),
                 }),
+                devices: [
+                    getSuiteDevice({
+                        connected: true,
+                        mode: 'bootloader',
+                        features: getDeviceFeatures({
+                            major_version: 1,
+                            internal_model: DeviceModelInternal.T1B1,
+                        }),
+                    }),
+                ],
             },
-            devices: [
-                getSuiteDevice({
-                    connected: true,
-                    mode: 'bootloader',
-                    features: getDeviceFeatures({
-                        major_version: 1,
-                        internal_model: DeviceModelInternal.T1B1,
-                    }),
-                }),
-            ],
+            suite: {},
         },
         result: {
             actions: [
@@ -183,9 +187,10 @@ export const actions = [
         description: 'Fails for missing device',
         action: () => firmwareUpdate(),
         initialState: {
-            suite: {
-                device: undefined,
+            device: {
+                selectedDevice: undefined,
             },
+            suite: {},
         },
         result: {
             state: { firmware: { status: 'error' } },
@@ -195,10 +200,11 @@ export const actions = [
         description: 'Fails for device not in bootloader',
         action: () => firmwareUpdate(),
         initialState: {
-            suite: {
-                device: getSuiteDevice({ connected: true, mode: 'normal' }),
+            device: {
+                selectedDevice: getSuiteDevice({ connected: true, mode: 'normal' }),
+                devices: [getSuiteDevice({ connected: true, mode: 'normal' })],
             },
-            devices: [getSuiteDevice({ connected: true, mode: 'normal' })],
+            suite: {},
         },
         result: {
             state: {
@@ -210,10 +216,11 @@ export const actions = [
         description: 'FirmwareUpdate call to connect fails',
         action: () => firmwareUpdate(),
         initialState: {
-            suite: {
-                device: bootloaderDevice,
+            device: {
+                selectedDevice: bootloaderDevice,
+                devices: [bootloaderDevice],
             },
-            devices: [bootloaderDevice],
+            suite: {},
         },
         mocks: {
             connect: {
@@ -234,10 +241,11 @@ export const actions = [
         description: 'FirmwareUpdate call to connect fails due to cancelling on device',
         action: () => firmwareUpdate(),
         initialState: {
-            suite: {
-                device: bootloaderDevice,
+            device: {
+                selectedDevice: bootloaderDevice,
+                devices: [bootloaderDevice],
             },
-            devices: [bootloaderDevice],
+            suite: {},
         },
         mocks: {
             connect: {
@@ -291,7 +299,7 @@ export const reducerActions = [
         description: 'SUITE.ADD_BUTTON_REQUEST, type=ButtonRequest_FirmwareUpdate',
         initialState: {},
         action: {
-            type: SUITE.ADD_BUTTON_REQUEST,
+            type: deviceActions.addButtonRequest.type,
             payload: { buttonRequest: { code: 'ButtonRequest_FirmwareUpdate' } },
         },
         result: {

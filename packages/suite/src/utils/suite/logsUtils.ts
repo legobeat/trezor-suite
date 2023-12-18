@@ -1,4 +1,9 @@
-import { discoveryActions, accountsActions } from '@suite-common/wallet-core';
+import {
+    deviceActions,
+    discoveryActions,
+    accountsActions,
+    selectDevices,
+} from '@suite-common/wallet-core';
 import {
     getEnvironment,
     getBrowserName,
@@ -24,14 +29,13 @@ import {
 } from '@trezor/device-utils';
 import { DeepPartial } from '@trezor/type-utils';
 import { Discovery } from '@suite-common/wallet-types';
+import { getPhysicalDeviceUniqueIds } from '@suite-common/suite-utils';
 
 import { getIsTorEnabled } from 'src/utils/suite/tor';
 import { AppState, TrezorDevice } from 'src/types/suite';
-import { SUITE } from 'src/actions/suite/constants';
+import { METADATA } from 'src/actions/suite/constants';
 import { Account } from 'src/types/wallet';
 import { selectLabelingDataForWallet } from 'src/reducers/suite/metadataReducer';
-
-import { getPhysicalDeviceUniqueIds } from './device';
 
 export const REDACTED_REPLACEMENT = '[redacted]';
 
@@ -95,6 +99,7 @@ export const redactDevice = (device: DeepPartial<TrezorDevice> | undefined) => {
             ? {
                   ...device.features,
                   device_id: REDACTED_REPLACEMENT,
+                  session_id: device.features.session_id ? REDACTED_REPLACEMENT : undefined,
                   label: device.features.label ? REDACTED_REPLACEMENT : undefined,
               }
             : undefined,
@@ -105,29 +110,31 @@ export const redactDevice = (device: DeepPartial<TrezorDevice> | undefined) => {
 export const redactAction = (action: LogEntry) => {
     let payload;
 
+    if (accountsActions.updateSelectedAccount.match(action)) {
+        payload = {
+            ...action.payload,
+            account: redactAccount(action.payload?.account),
+            network: undefined,
+            discovery: undefined,
+        };
+    }
+
+    if (deviceActions.authDevice.match(action)) {
+        payload = {
+            state: REDACTED_REPLACEMENT,
+            ...redactDevice(action.payload.device),
+        };
+    }
+
     switch (action.type) {
-        case accountsActions.updateSelectedAccount.type:
-            payload = {
-                ...action.payload,
-                account: redactAccount(action.payload?.account),
-                network: undefined,
-                discovery: undefined,
-            };
-            break;
         case accountsActions.createAccount.type:
         case accountsActions.updateAccount.type:
             payload = redactAccount(action.payload);
             break;
-        case SUITE.AUTH_DEVICE:
-            payload = {
-                state: REDACTED_REPLACEMENT,
-                ...redactDevice(action.payload),
-            };
-            break;
         case DEVICE.CONNECT:
         case DEVICE.DISCONNECT:
-        case SUITE.UPDATE_SELECTED_DEVICE:
-        case SUITE.REMEMBER_DEVICE:
+        case deviceActions.updateSelectedDevice.type:
+        case deviceActions.rememberDevice.type:
             payload = redactDevice(action.payload);
             break;
         case discoveryActions.completeDiscovery.type:
@@ -203,15 +210,17 @@ export const getApplicationInfo = (state: AppState, hideSensitiveInfo: boolean) 
     sessionId: hideSensitiveInfo ? REDACTED_REPLACEMENT : state.analytics.sessionId,
     transport: state.suite.transport?.type,
     transportVersion: state.suite.transport?.version,
-    rememberedStandardWallets: state.devices.filter(d => d.remember && d.useEmptyPassphrase).length,
-    rememberedHiddenWallets: state.devices.filter(d => d.remember && !d.useEmptyPassphrase).length,
+    rememberedStandardWallets: selectDevices(state).filter(d => d.remember && d.useEmptyPassphrase)
+        .length,
+    rememberedHiddenWallets: selectDevices(state).filter(d => d.remember && !d.useEmptyPassphrase)
+        .length,
     enabledNetworks: state.wallet.settings.enabledNetworks,
     customBackends: getCustomBackends(state.wallet.blockchain)
         .map(({ coin }) => coin)
         .filter(coin => state.wallet.settings.enabledNetworks.includes(coin)),
-    devices: getPhysicalDeviceUniqueIds(state.devices)
-        .map(id => state.devices.find(device => device.id === id) as TrezorDevice) // filter unique devices
-        .concat(state.devices.filter(device => device.id === null)) // add devices in bootloader mode
+    devices: getPhysicalDeviceUniqueIds(selectDevices(state))
+        .map(id => selectDevices(state).find(device => device.id === id) as TrezorDevice) // filter unique devices
+        .concat(selectDevices(state).filter(device => device.id === null)) // add devices in bootloader mode
         .map(device => ({
             id: hideSensitiveInfo ? REDACTED_REPLACEMENT : device.id,
             label: hideSensitiveInfo ? REDACTED_REPLACEMENT : device.label,
@@ -226,15 +235,15 @@ export const getApplicationInfo = (state: AppState, hideSensitiveInfo: boolean) 
             bootloaderHash: device.features ? getBootloaderHash(device) : '',
             numberOfWallets:
                 device.mode !== 'bootloader'
-                    ? state.devices.filter(d => d.id === device.id).length
+                    ? selectDevices(state).filter(d => d.id === device.id).length
                     : 1,
         })),
-    wallets: state.devices.map(device => ({
+    wallets: selectDevices(state).map(device => ({
         deviceId: hideSensitiveInfo ? REDACTED_REPLACEMENT : device.id,
         deviceLabel: hideSensitiveInfo ? REDACTED_REPLACEMENT : device.label,
         label:
             // eslint-disable-next-line no-nested-ternary
-            device.metadata.status === 'enabled'
+            device.metadata[METADATA.ENCRYPTION_VERSION]
                 ? hideSensitiveInfo
                     ? REDACTED_REPLACEMENT
                     : selectLabelingDataForWallet(state).walletLabel

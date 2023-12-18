@@ -1,4 +1,3 @@
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { Provider as ReduxProvider } from 'react-redux';
 import { Router as RouterProvider } from 'react-router-dom';
@@ -8,9 +7,7 @@ import { initStore } from 'src/reducers/store';
 import { preloadStore } from 'src/support/suite/preloadStore';
 import { SENTRY_CONFIG } from '@suite-common/sentry';
 
-import Metadata from 'src/components/suite/Metadata';
-import Preloader from 'src/components/suite/Preloader';
-import { ToastContainer } from 'src/components/suite';
+import { Metadata, Preloader, ToastContainer } from 'src/components/suite';
 import { ConnectedIntlProvider } from 'src/support/suite/ConnectedIntlProvider';
 import Resize from 'src/support/suite/Resize';
 import Protocol from 'src/support/suite/Protocol';

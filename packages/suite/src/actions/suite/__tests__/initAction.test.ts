@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 import {
     prepareMessageSystemReducer,
     messageSystemActions,
@@ -11,18 +10,20 @@ import {
 } from '@suite-common/message-system/src/__fixtures__/messageSystemActions';
 import { connectInitThunk } from '@suite-common/connect-init';
 import {
+    prepareDeviceReducer,
+    initDevices,
     blockchainActions,
     initBlockchainThunk,
     preloadFeeInfoThunk,
 } from '@suite-common/wallet-core';
 import { analyticsActions, prepareAnalyticsReducer } from '@suite-common/analytics';
+import TrezorConnect from '@trezor/connect';
 
 import { configureStore } from 'src/support/tests/configureStore';
 import { SUITE, ROUTER } from 'src/actions/suite/constants';
 import suiteReducer from 'src/reducers/suite/suiteReducer';
 import modalReducer from 'src/reducers/suite/modalReducer';
 import routerReducer from 'src/reducers/suite/routerReducer';
-import deviceReducer from 'src/reducers/suite/deviceReducer';
 import metadataReducer from 'src/reducers/suite/metadataReducer';
 import walletReducers from 'src/reducers/wallet';
 import { init } from 'src/actions/suite/initAction';
@@ -32,12 +33,11 @@ import { extraDependencies } from 'src/support/extraDependencies';
 
 import { appChanged } from '../suiteActions';
 
+const deviceReducer = prepareDeviceReducer(extraDependencies);
 const analyticsReducer = prepareAnalyticsReducer(extraDependencies);
 const messageSystemReducer = prepareMessageSystemReducer(extraDependencies);
 
 process.env.JWS_PUBLIC_KEY = DEV_JWS_PUBLIC_KEY;
-jest.mock('@trezor/connect', () => global.JestMocks.getTrezorConnect({}));
-const TrezorConnect = require('@trezor/connect').default;
 
 global.fetch = jest.fn().mockImplementation(() =>
     Promise.resolve({
@@ -58,7 +58,7 @@ const getInitialState = (initialRun?: boolean) => ({
     modal: modalReducer(undefined, EMPTY_ACTION),
     wallet: walletReducers(undefined, EMPTY_ACTION),
     messageSystem: messageSystemReducer(undefined, EMPTY_ACTION),
-    devices: deviceReducer(undefined, EMPTY_ACTION),
+    device: deviceReducer(undefined, EMPTY_ACTION),
     metadata: metadataReducer(undefined, EMPTY_ACTION),
 });
 
@@ -78,10 +78,11 @@ const fixtures: Fixture[] = [
         description: 'Successful initial run',
         options: {
             initialPath: '/accounts',
-            expectedApp: 'onboarding',
+            expectedApp: 'start',
         },
         actions: [
             SUITE.INIT,
+            initDevices.pending.type,
             analyticsActions.initAnalytics.type,
             SUITE.SET_LANGUAGE,
             initMessageSystemThunk.pending.type,
@@ -90,6 +91,7 @@ const fixtures: Fixture[] = [
             ROUTER.LOCATION_CHANGE,
             SUITE.LOCK_ROUTER,
             connectInitThunk.pending.type,
+            initDevices.fulfilled.type,
             connectInitThunk.fulfilled.type,
             initBlockchainThunk.pending.type,
             preloadFeeInfoThunk.pending.type,
@@ -111,11 +113,13 @@ const fixtures: Fixture[] = [
         },
         actions: [
             SUITE.INIT,
+            initDevices.pending.type,
             analyticsActions.initAnalytics.type,
             SUITE.SET_LANGUAGE,
             initMessageSystemThunk.pending.type,
             fetchConfigThunk.pending.type,
             connectInitThunk.pending.type,
+            initDevices.fulfilled.type,
             connectInitThunk.fulfilled.type,
             initBlockchainThunk.pending.type,
             preloadFeeInfoThunk.pending.type,
@@ -138,11 +142,13 @@ const fixtures: Fixture[] = [
         },
         actions: [
             SUITE.INIT,
+            initDevices.pending.type,
             analyticsActions.initAnalytics.type,
             SUITE.SET_LANGUAGE,
             initMessageSystemThunk.pending.type,
             fetchConfigThunk.pending.type,
             connectInitThunk.pending.type,
+            initDevices.fulfilled.type,
             connectInitThunk.fulfilled.type,
             initBlockchainThunk.pending.type,
             preloadFeeInfoThunk.pending.type,
@@ -165,6 +171,7 @@ const fixtures: Fixture[] = [
         },
         actions: [
             SUITE.INIT,
+            initDevices.pending.type,
             analyticsActions.initAnalytics.type,
             SUITE.SET_LANGUAGE,
             initMessageSystemThunk.pending.type,
@@ -173,6 +180,7 @@ const fixtures: Fixture[] = [
             ROUTER.LOCATION_CHANGE,
             SUITE.LOCK_ROUTER,
             connectInitThunk.pending.type,
+            initDevices.fulfilled.type,
             connectInitThunk.rejected.type,
             SUITE.ERROR,
         ],
@@ -199,7 +207,7 @@ describe('Suite init action', () => {
             const store = initStore(getInitialState(options.initialRun));
 
             if (options?.initialPath) {
-                // eslint-disable-next-line global-require
+                // eslint-disable-next-line global-require, @typescript-eslint/no-var-requires
                 require('src/support/history').default.location.pathname = options.initialPath;
             }
 

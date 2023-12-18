@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSelector } from 'react-redux';
 
 import { roundToNearestMinutes, subHours } from 'date-fns';
 import { A } from '@mobily/ts-belt';
 
 import { FiatCurrencyCode } from '@suite-common/suite-config';
+import { selectIsDeviceDiscoveryActive } from '@suite-common/wallet-core';
 
 import { getMultipleAccountBalanceHistoryWithFiat } from './graphDataFetching';
 import {
@@ -30,7 +32,7 @@ type CommonUseGraphReturnType = {
     graphEvents?: GroupedBalanceMovementEvent[];
     isLoading: boolean;
     error: string | null;
-    refetch: () => void;
+    refetch: () => Promise<void>;
 };
 
 // if start date is null we are fetching all data till first account movement
@@ -82,77 +84,78 @@ export function useGraphForAccounts(params: useGraphForAccountsParams): {
     const [graphEvents, setGraphEvents] = useState<GroupedBalanceMovementEvent[]>();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [refetchToken, setRefetchToken] = useState(0);
+    const isDiscoveryActive = useSelector(selectIsDeviceDiscoveryActive);
+    const lastFetchTimestamp = useRef<number | null>(null);
 
-    const refetch = useCallback(() => {
-        // this is used to trigger to force re-run of useEffect lower
-        setRefetchToken(previousRefetchToken => previousRefetchToken + 1);
-    }, []);
+    const fetchGraphValues = useCallback(
+        async ({ forceRefetch = false }: { forceRefetch?: boolean } = {}) => {
+            if (isPortfolioGraph && isDiscoveryActive) {
+                // The graph waits until the discovery is finished, before starting to fetch values.
+                setIsLoading(true);
+                setError(null);
+            } else if (A.isEmpty(accounts)) {
+                setIsLoading(false);
+                setError('Graph is not available for testnet coins.');
+            } else {
+                const fetchTimestamp = Date.now();
+                lastFetchTimestamp.current = fetchTimestamp;
 
-    useEffect(() => {
-        // if there are no accounts, that means that user has only testnets imported.
-        if (A.isEmpty(accounts)) {
-            setIsLoading(false);
-            setError('Graph is not available for testnet coins.');
-        }
-
-        let shouldSetValues = true;
-
-        const getGraphValues = async () => {
-            if (accounts.length === 0) return;
-
-            setIsLoading(true);
-
-            try {
-                const points = await getMultipleAccountBalanceHistoryWithFiat({
-                    accounts,
-                    fiatCurrency,
-                    startOfTimeFrameDate,
-                    endOfTimeFrameDate,
-                });
-
-                let events;
-
-                // Process transaction events only for the single account detail graph.
-                if (!isPortfolioGraph) {
-                    events = await getAccountMovementEvents({
-                        account: accounts[0],
+                setIsLoading(true);
+                try {
+                    const points = await getMultipleAccountBalanceHistoryWithFiat({
+                        accounts,
+                        fiatCurrency,
                         startOfTimeFrameDate,
                         endOfTimeFrameDate,
+                        forceRefetch,
                     });
 
-                    normalizeExtremeGraphEvents(
-                        events,
-                        startOfTimeFrameDate ?? points[0].date,
-                        endOfTimeFrameDate,
-                    );
-                }
+                    let events;
 
-                if (shouldSetValues) {
+                    // Process transaction events only for the single account detail graph.
+                    if (!isPortfolioGraph) {
+                        events = await getAccountMovementEvents({
+                            account: accounts[0],
+                            startOfTimeFrameDate,
+                            endOfTimeFrameDate,
+                        });
+
+                        normalizeExtremeGraphEvents(
+                            events,
+                            startOfTimeFrameDate ?? points[0].date,
+                            endOfTimeFrameDate,
+                        );
+                    }
+
+                    // If the fetch was interrupted by a new fetch, do not set the values.
+                    if (lastFetchTimestamp.current !== fetchTimestamp) return;
+
+                    setError(null);
                     setGraphPoints(points);
                     setGraphEvents(events);
-                    setError(null);
+                } catch (err) {
+                    // If the fetch was interrupted by a new fetch, do not set error.
+                    if (lastFetchTimestamp.current !== fetchTimestamp) return;
+                    setError(err.message);
                 }
-            } catch (err) {
-                setError(err?.message);
+                setIsLoading(false);
             }
+        },
+        [
+            accounts,
+            fiatCurrency,
+            endOfTimeFrameDate,
+            startOfTimeFrameDate,
+            isPortfolioGraph,
+            isDiscoveryActive,
+        ],
+    );
 
-            setIsLoading(false);
-        };
+    const refetch = useCallback(() => fetchGraphValues({ forceRefetch: true }), [fetchGraphValues]);
 
-        getGraphValues();
-
-        return () => {
-            shouldSetValues = false;
-        };
-    }, [
-        accounts,
-        fiatCurrency,
-        refetchToken,
-        endOfTimeFrameDate,
-        startOfTimeFrameDate,
-        isPortfolioGraph,
-    ]);
+    useEffect(() => {
+        fetchGraphValues();
+    }, [fetchGraphValues]);
 
     return { graphPoints, graphEvents, isLoading, error, refetch };
 }

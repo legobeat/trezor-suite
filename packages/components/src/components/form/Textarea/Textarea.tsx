@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import React, { useState } from 'react';
+import { useState, Ref, ReactNode, HTMLAttributes, TextareaHTMLAttributes } from 'react';
 
 import { FONT_SIZE } from '../../../config/variables';
 import { InputState } from '../../../support/types';
@@ -30,6 +30,14 @@ const StyledTextarea = styled.textarea<Pick<TextareaProps, 'inputState' | 'width
     white-space: pre-wrap;
 `;
 
+const CharacterCount = styled.div`
+    position: absolute;
+    bottom: 35px;
+    right: 15px;
+    font-size: ${FONT_SIZE.TINY};
+    color: ${({ theme }) => theme.TYPE_LIGHT_GREY};
+`;
+
 const BottomText = styled.span<Pick<TextareaProps, 'inputState'>>`
     padding: 6px 10px 0 10px;
     min-height: 27px;
@@ -37,24 +45,27 @@ const BottomText = styled.span<Pick<TextareaProps, 'inputState'>>`
     color: ${({ inputState, theme }) => getInputStateTextColor(inputState, theme)};
 `;
 
-export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
     isDisabled?: boolean;
-    label?: React.ReactNode;
-    labelAddon?: React.ReactNode;
-    labelRight?: React.ReactNode;
-    innerRef?: React.Ref<HTMLTextAreaElement>;
-    bottomText?: React.ReactNode;
+    label?: ReactNode;
+    labelAddon?: ReactNode;
+    labelRight?: ReactNode;
+    innerRef?: Ref<HTMLTextAreaElement>;
+    bottomText?: ReactNode;
     width?: number;
     inputState?: InputState;
     isMonospace?: boolean;
     maxRows?: number;
-    wrapperProps?: React.HTMLAttributes<HTMLDivElement> & { 'data-test'?: string };
+    wrapperProps?: HTMLAttributes<HTMLDivElement> & { 'data-test'?: string };
     noTopLabel?: boolean;
     noError?: boolean;
+    value?: string;
+    characterCount?: boolean | { current: number; max: number };
 }
 
 export const Textarea = ({
     className,
+    value,
     maxLength,
     labelAddon,
     isDisabled,
@@ -68,11 +79,25 @@ export const Textarea = ({
     isMonospace,
     noTopLabel,
     labelRight,
+    characterCount,
     noError,
     children,
     ...rest
 }: TextareaProps) => {
     const [isHovered, setIsHovered] = useState(false);
+
+    const getCharacterCount = () => {
+        // controlled component
+        if (characterCount === true && value !== undefined && maxLength !== undefined) {
+            return `${value.length} / ${maxLength}`;
+        }
+        // uncontrolled component
+        if (typeof characterCount === 'object') {
+            return `${characterCount.current} / ${characterCount.max}`;
+        }
+    };
+
+    const formattedCharacterCount = getCharacterCount();
 
     return (
         <Wrapper
@@ -104,6 +129,8 @@ export const Textarea = ({
                 isMonospace={isMonospace}
                 {...rest}
             />
+
+            {formattedCharacterCount && <CharacterCount>{formattedCharacterCount}</CharacterCount>}
 
             {children}
 

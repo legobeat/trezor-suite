@@ -1,5 +1,3 @@
-import React from 'react';
-
 import {
     AccountsImportStackParamList,
     AccountsImportStackRoutes,
@@ -8,7 +6,7 @@ import {
 } from '@suite-native/navigation';
 import { NetworkSymbol } from '@suite-common/wallet-config';
 
-import { AccountImportHeader } from '../components/AccountImportHeader';
+import { AccountImportSubHeader } from '../components/AccountImportSubHeader';
 import { SelectableNetworkList } from '../components/SelectableNetworkList';
 
 export const SelectNetworkScreen = ({
@@ -21,7 +19,7 @@ export const SelectNetworkScreen = ({
     };
 
     return (
-        <Screen header={<AccountImportHeader activeStep={1} />}>
+        <Screen screenHeader={<AccountImportSubHeader />}>
             <SelectableNetworkList onSelectItem={handleSelectNetworkSymbol} />
         </Screen>
     );

@@ -1,24 +1,16 @@
-import React from 'react';
+import { ImgHTMLAttributes } from 'react';
 import styled from 'styled-components';
 import { PngImage, SvgImage, PNG_IMAGES, SVG_IMAGES } from './images';
+import { resolveStaticPath } from '../../utils/resolveStaticPath';
 
-const PNG_PATH = 'images/png';
-const SVG_PATH = 'images/svg';
+export const PNG_PATH = 'images/png';
+export const SVG_PATH = 'images/svg';
 
 const StyledImage = styled.img`
     /* should not overflow it's container */
     max-width: 100%;
     filter: ${({ theme }) => theme.IMAGE_FILTER};
 `;
-
-// todo: this should be shared with resolveStaticPath in suite-common/suite-utils/src/resolveStaticPath
-// the problem is that @trezor scoped package must not import from @suite-common scoped package
-// followup: create SuiteImage component wrapper that will use resolveStaticPath util and pass it to Image component
-// https://github.com/trezor/trezor-suite/issues/8433
-export const resolveStaticPath = (
-    path: string,
-    pathPrefix: string | undefined = process.env.ASSET_PREFIX,
-) => `${pathPrefix || ''}/static/${path.replace(/^\/+/, '')}`;
 
 const buildSrcSet = <
     BasePath extends string,
@@ -44,7 +36,7 @@ const buildSrcSet = <
 
 export type ImageType = PngImage | SvgImage;
 
-export type ImageProps = React.ImgHTMLAttributes<Omit<HTMLImageElement, 'src'>> &
+export type ImageProps = ImgHTMLAttributes<Omit<HTMLImageElement, 'src'>> &
     (
         | {
               image: ImageType;

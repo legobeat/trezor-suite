@@ -1,9 +1,9 @@
 import TrezorConnect, { CommonParams } from '@trezor/connect';
 import { analytics, EventType } from '@trezor/suite-analytics';
-
 import { notificationsActions } from '@suite-common/toast-notifications';
-import { BACKUP } from 'src/actions/backup/constants';
+import { selectDevice } from '@suite-common/wallet-core';
 
+import { BACKUP } from 'src/actions/backup/constants';
 import type { Dispatch, GetState } from 'src/types/suite';
 
 export type ConfirmKey =
@@ -41,9 +41,9 @@ export const resetReducer = (): BackupAction => ({
 });
 
 export const backupDevice =
-    (params: CommonParams = {}) =>
+    (params: CommonParams = {}, skipSuccessToast?: boolean) =>
     async (dispatch: Dispatch, getState: GetState) => {
-        const { device } = getState().suite;
+        const device = selectDevice(getState());
         if (!device) {
             return dispatch(
                 notificationsActions.addToast({
@@ -78,7 +78,9 @@ export const backupDevice =
                 },
             });
         } else {
-            dispatch(notificationsActions.addToast({ type: 'backup-success' }));
+            if (!skipSuccessToast) {
+                dispatch(notificationsActions.addToast({ type: 'backup-success' }));
+            }
             dispatch({
                 type: BACKUP.SET_STATUS,
                 payload: 'finished',

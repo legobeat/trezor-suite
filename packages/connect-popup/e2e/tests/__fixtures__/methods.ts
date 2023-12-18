@@ -217,7 +217,7 @@ const ethereumSignTransaction = [
     {
         device: initializedDevice,
         url: 'ethereumSignTransaction',
-        views: [followDevice, followDevice, followDevice, followDevice],
+        views: [followDevice, followDevice, followDevice],
     },
 ];
 
@@ -335,15 +335,6 @@ const recoverDevice = [
                 selector: '.follow-device >> visible=true',
                 screenshot: {
                     name: 'follow-device-confirm-recovery',
-                },
-                nextEmu: {
-                    type: 'emulator-press-yes',
-                },
-            },
-            {
-                selector: '.follow-device >> visible=true',
-                screenshot: {
-                    name: 'follow-device-confirm-select-number-of-words',
                 },
                 nextEmu: {
                     type: 'emulator-press-yes',

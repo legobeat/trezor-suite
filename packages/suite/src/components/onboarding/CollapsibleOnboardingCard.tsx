@@ -1,4 +1,4 @@
-import React from 'react';
+import { ReactNode, HTMLAttributes } from 'react';
 import styled, { css } from 'styled-components';
 import { motion } from 'framer-motion';
 import { H1, Icon, Image, ImageType, motionEasing, variables } from '@trezor/components';
@@ -61,12 +61,9 @@ const CardWrapper = styled(
         !expanded &&
         css`
             background: ${theme.BG_GREY};
-            box-shadow: rgba(0, 0, 0, 0) 0px 2px 5px 0px;
+            box-shadow: rgb(0 0 0 / 0%) 0 2px 5px 0;
             border-radius: 10px;
-            padding-top: 16px;
-            padding-left: 26px;
-            padding-right: 26px;
-            padding-bottom: 16px;
+            padding: 16px 26px;
         `}
 
     ${({ expanded, expandable, theme, variant }) =>
@@ -79,11 +76,14 @@ const CardWrapper = styled(
         `}
 
     ${({ nested, theme }) =>
-        !nested &&
-        css`
-            box-shadow: 0 2px 5px 0 ${theme.BOX_SHADOW_BLACK_20};
-        `}
-
+        nested
+            ? css`
+                  padding: 0;
+              `
+            : css`
+                  box-shadow: 0 2px 5px 0 ${theme.BOX_SHADOW_BLACK_20};
+              `}
+              
     ${({ withImage }) =>
         withImage &&
         css`
@@ -133,11 +133,11 @@ const Heading = styled(H1)<{ withDescription?: boolean }>`
 `;
 
 const Description = styled.div<{ hasChildren?: boolean }>`
-    padding: 0px 60px 36px 60px;
+    padding: 0 60px 36px;
     text-align: center;
 
     ${variables.SCREEN_QUERY.BELOW_TABLET} {
-        padding: 0px 0px 36px 0px;
+        padding: 0 0 36px;
     }
 `;
 
@@ -170,18 +170,18 @@ const CloseIcon = styled(Icon)`
     background: transparent;
 `;
 
-export interface CollapsibleOnboardingCardProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface CollapsibleOnboardingCardProps extends HTMLAttributes<HTMLDivElement> {
     image?: ImageType;
     variant?: 'small' | 'large';
     expandable?: boolean;
     expanded?: boolean;
     nested?: boolean;
     onToggle?: () => void;
-    expandableIcon?: React.ReactNode;
-    heading?: React.ReactNode;
-    description?: React.ReactNode;
-    children?: React.ReactNode;
-    tag?: React.ReactNode;
+    expandableIcon?: ReactNode;
+    heading?: ReactNode;
+    description?: ReactNode;
+    children?: ReactNode;
+    tag?: ReactNode;
 }
 
 export const CollapsibleOnboardingCard = ({

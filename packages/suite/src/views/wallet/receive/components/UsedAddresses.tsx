@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import styled from 'styled-components';
 
 import { AccountAddress } from '@trezor/connect';
@@ -16,7 +16,7 @@ import { selectLabelingDataForSelectedAccount } from 'src/reducers/suite/metadat
 const StyledCard = styled(Card)`
     flex-direction: column;
     margin-bottom: 40px;
-    padding: 0px;
+    padding: 0;
     overflow: hidden;
 `;
 
@@ -34,7 +34,7 @@ const GridItem = styled.div<{ revealed?: boolean; onClick?: () => void }>`
     align-items: center;
     justify-content: space-between;
     white-space: nowrap;
-    padding: 16px 0px 12px 0px;
+    padding: 16px 0 12px;
     border-bottom: 1px solid ${({ theme }) => theme.STROKE_GREY};
     font-variant-numeric: tabular-nums;
     color: ${({ theme }) => theme.TYPE_DARK_GREY};
@@ -44,9 +44,11 @@ const GridItem = styled.div<{ revealed?: boolean; onClick?: () => void }>`
     :nth-child(1n) {
         padding-left: 25px;
     }
+
     :nth-child(3n) {
         padding-right: 25px;
     }
+
     :nth-last-child(-n + 3) {
         border: 0;
     }
@@ -73,14 +75,14 @@ const HeaderItem = styled(GridItem)`
     top: 0;
     color: ${({ theme }) => theme.TYPE_LIGHT_GREY};
     font-weight: 500;
-    padding: 12px 0px;
+    padding: 12px 0;
     background: ${({ theme }) => theme.BG_WHITE};
 `;
 
 const Actions = styled.div`
     display: flex;
     justify-content: center;
-    margin: 16px 0px;
+    margin: 16px 0;
 
     button + button {
         margin-left: 16px;
@@ -94,14 +96,11 @@ const AddressWrapper = styled.span`
 `;
 
 const Overlay = styled.div`
-    top: 0px;
-    right: 0px;
-    bottom: 0px;
-    left: 0px;
+    inset: 0;
     position: absolute;
     background-image: linear-gradient(
         to right,
-        rgba(0, 0, 0, 0) 0%,
+        rgb(0 0 0 / 0%) 0%,
         ${({ theme }) => theme.BG_WHITE} 120px
     );
 `;
@@ -120,7 +119,7 @@ interface ItemProps {
 const Item = ({ addr, locked, symbol, onClick, metadataPayload, index }: ItemProps) => {
     // Currently used addresses are always partially hidden
     // The only place where full address is shown is confirm-addr modal
-    const [isHovered, setIsHovered] = React.useState(false);
+    const [isHovered, setIsHovered] = useState(false);
     const amount = formatNetworkAmount(addr.received || '0', symbol);
     const fresh = !addr.transfers;
     const address = addr.address.substring(0, 20);
@@ -209,12 +208,15 @@ export const UsedAddresses = ({
 
     const { used, unused } = account.addresses;
     // find revealed addresses in `unused` list
-    const revealed = unused.reduce((result, addr) => {
-        const r = addresses.find(u => u.path === addr.path);
-        const p = pendingAddresses.find(u => u === addr.address);
-        const f = r || p;
-        return f ? result.concat(addr) : result;
-    }, [] as typeof unused);
+    const revealed = unused.reduce(
+        (result, addr) => {
+            const r = addresses.find(u => u.path === addr.path);
+            const p = pendingAddresses.find(u => u === addr.address);
+            const f = r || p;
+            return f ? result.concat(addr) : result;
+        },
+        [] as typeof unused,
+    );
     // TODO: add skipped addresses?
     // add revealed addresses to `used` list
     const list = revealed.concat(used.slice().reverse());
@@ -248,7 +250,7 @@ export const UsedAddresses = ({
                         locked={locked}
                         metadataPayload={{
                             type: 'addressLabel',
-                            accountKey: account.key,
+                            entityKey: account.key,
                             defaultValue: addr.address,
                             value: addressLabels[addr.address],
                         }}

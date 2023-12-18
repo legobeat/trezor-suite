@@ -1,50 +1,40 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable global-require */
 import fs from 'fs';
 import path from 'path';
-import { configureStore } from 'src/support/tests/configureStore';
 
+import { prepareDeviceReducer } from '@suite-common/wallet-core';
+import { testMocks } from '@suite-common/test-utils';
+
+import { configureStore } from 'src/support/tests/configureStore';
 import metadataReducer from 'src/reducers/suite/metadataReducer';
-import suiteReducer, { SuiteState } from 'src/reducers/suite/suiteReducer';
-import deviceReducer from 'src/reducers/suite/deviceReducer';
-import { STORAGE, MODAL } from '../constants';
-import * as metadataActions from '../metadataActions';
-import * as fixtures from '../__fixtures__/metadataActions';
+import { SuiteState } from 'src/reducers/suite/suiteReducer';
 import DropboxProvider from 'src/services/suite/metadata/DropboxProvider';
 import suiteMiddleware from 'src/middlewares/suite/suiteMiddleware';
 import { accountsReducer } from 'src/reducers/wallet';
+import { extraDependencies } from 'src/support/extraDependencies';
 
-jest.mock('@trezor/connect', () => {
-    let fixture: any;
+import { STORAGE, MODAL } from '../constants';
+import * as metadataActions from '../metadataActions';
+import * as fixtures from '../__fixtures__/metadataActions';
 
-    const { PROTO } = jest.requireActual('@trezor/connect');
+const deviceReducer = prepareDeviceReducer(extraDependencies);
 
-    return {
-        __esModule: true, // this property makes it work
-        default: {
-            cipherKeyValue: () =>
-                fixture || {
-                    success: true,
-                    payload: {
-                        value: '20c8bf0701213cdcf4c2f56fd0096c1772322d42fb9c4d0ddf6bb122d713d2f3',
-                    },
-                },
-        },
-        setTestFixtures: (f: any) => {
-            fixture = f;
-        },
-        DEVICE: {},
-        BLOCKCHAIN: {},
-        TRANSPORT: {},
-        UI: {},
-        PROTO,
-    };
-});
+const TrezorConnect = testMocks.getTrezorConnectMock();
 
-jest.mock('@trezor/suite-analytics', () => global.JestMocks.getAnalytics());
+jest.spyOn(TrezorConnect, 'cipherKeyValue').mockImplementation(() =>
+    Promise.resolve({
+        success: true,
+        payload: {
+            value: '20c8bf0701213cdcf4c2f56fd0096c1772322d42fb9c4d0ddf6bb122d713d2f3',
+        } as any, // typings expect bundle response
+    }),
+);
 
-// @ts-expect-error declare fetch (used in Dropbox constructor)
-global.fetch = () => {};
+jest.doMock('@trezor/suite-analytics', () => testMocks.getAnalytics());
+
+// use real package
+jest.unmock('dropbox');
+// use fetch mock (used in Dropbox constructor, requesting to https://api.dropboxapi.com/)
+jest.spyOn(global, 'fetch').mockImplementation(() => Promise.resolve<any>({}));
 
 type MetadataState = ReturnType<typeof metadataReducer>;
 interface InitialState {
@@ -65,16 +55,16 @@ export const getInitialState = (state?: InitialState) => {
     const settings = suite?.settings || { debug: {} };
     const debug = settings?.debug || {};
     const initAction: any = { type: STORAGE.LOAD, payload: { metadata } };
+
     return {
         metadata: metadataReducer(metadata, initAction),
-        devices: device ? [device] : [], // device is needed for notification/event
+        device: { devices: device ? [device] : [], selectedDevice: device },
         suite: {
             ...suite,
             settings: {
                 ...settings,
                 debug, // debug settings are needed for OAuth API
             },
-            device, // device is needed for notification/event
         },
         wallet: {
             accounts,
@@ -108,25 +98,59 @@ const initStore = (state: State) => {
                     action.payload.decision.resolve(true);
             }
         }
-        const { metadata, suite, devices, wallet } = store.getState();
+        const { metadata, device, wallet } = store.getState();
         store.getState().metadata = metadataReducer(metadata, action);
-        // @ts-expect-error
-        store.getState().suite = suiteReducer(suite, action);
         store.getState().wallet.accounts = accountsReducer(wallet.accounts, action);
-        store.getState().devices = deviceReducer(devices, action);
-        // store.
+        store.getState().device = deviceReducer(device, action) as any;
     });
     return store;
 };
 
 describe('Metadata Actions', () => {
+    beforeAll(() => {
+        jest.mock('src/services/suite/metadata/DropboxProvider');
+        DropboxProvider.prototype.connect = () =>
+            Promise.resolve({ success: true, payload: undefined });
+        DropboxProvider.prototype.getProviderDetails = () =>
+            Promise.resolve({
+                success: true,
+                payload: {
+                    type: 'dropbox',
+                    isCloud: true,
+                    tokens: {
+                        refreshToken: 'token',
+                    },
+                    user: 'power-user',
+                    clientId: 'meow',
+                },
+            });
+
+        // eslint-disable-next-line require-await
+        DropboxProvider.prototype.getFileContent = async (filename: string) => {
+            if (filename === '828652b66f2e6f919fbb7fe4c9609d4891ed531c6fac4c28441e53ebe577ac85') {
+                const file = fs.readFileSync(
+                    path.resolve(
+                        __dirname,
+                        '../../../utils/suite/__fixtures__/828652b66f2e6f919fbb7fe4c9609d4891ed531c6fac4c28441e53ebe577ac85.mtdt',
+                    ),
+                );
+                return { success: true, payload: file };
+            }
+            return { success: true, payload: undefined };
+        };
+        DropboxProvider.prototype.getFilesList = () =>
+            Promise.resolve({ success: true, payload: [] });
+        DropboxProvider.prototype.setFileContent = () =>
+            Promise.resolve({
+                success: true,
+                payload: undefined,
+            });
+    });
+
     fixtures.setDeviceMetadataKey.forEach(f => {
         it(`setDeviceMetadataKey - ${f.description}`, async () => {
-            // set fixtures in @trezor/connect
-            require('@trezor/connect').setTestFixtures(f.connect);
-            // @ts-expect-error
             const store = initStore(getInitialState(f.initialState));
-            await store.dispatch(metadataActions.setDeviceMetadataKey());
+            await store.dispatch(metadataActions.setDeviceMetadataKey(...f.params));
             if (!f.result) {
                 expect(store.getActions().length).toEqual(0);
             } else {
@@ -139,8 +163,10 @@ describe('Metadata Actions', () => {
         it(`setAccountMetadataKey - ${f.description}`, async () => {
             // @ts-expect-error
             const store = initStore(getInitialState(f.initialState));
-            // @ts-expect-error Account is not complete
-            const account = await store.dispatch(metadataActions.setAccountMetadataKey(f.account));
+            const account = await store.dispatch(
+                // @ts-expect-error Account is not complete
+                metadataActions.setAccountMetadataKey(...f.params),
+            );
             expect(account).toMatchObject(f.result);
         });
     });
@@ -175,10 +201,6 @@ describe('Metadata Actions', () => {
 
     fixtures.connectProvider.forEach(f => {
         it(`connectProvider - ${f.description}`, async () => {
-            jest.mock('src/services/suite/metadata/DropboxProvider');
-            DropboxProvider.prototype.connect = () =>
-                Promise.resolve({ success: true, payload: undefined });
-
             // @ts-expect-error
             const store = initStore(getInitialState(f.initialState));
             // @ts-expect-error, params
@@ -194,38 +216,6 @@ describe('Metadata Actions', () => {
 
     fixtures.addMetadata.forEach(f => {
         it(`add metadata - ${f.description}`, async () => {
-            jest.mock('src/services/suite/metadata/DropboxProvider');
-            DropboxProvider.prototype.connect = () =>
-                Promise.resolve({ success: true, payload: undefined });
-            DropboxProvider.prototype.getProviderDetails = () =>
-                Promise.resolve({
-                    success: true,
-                    payload: {
-                        type: 'dropbox',
-                        isCloud: true,
-                        tokens: {
-                            refreshToken: 'token',
-                        },
-                        user: 'power-user',
-                        clientId: 'meow',
-                    },
-                });
-
-            // eslint-disable-next-line require-await
-            DropboxProvider.prototype.getFileContent = async (filename: string) => {
-                if (
-                    filename === '828652b66f2e6f919fbb7fe4c9609d4891ed531c6fac4c28441e53ebe577ac85'
-                ) {
-                    const file = fs.readFileSync(
-                        path.resolve(
-                            __dirname,
-                            '../../../utils/suite/__fixtures__/828652b66f2e6f919fbb7fe4c9609d4891ed531c6fac4c28441e53ebe577ac85.mtdt',
-                        ),
-                    );
-                    return { success: true, payload: file };
-                }
-                return { success: true, payload: undefined };
-            };
             // @ts-expect-error
             const store = initStore(getInitialState(f.initialState));
 
@@ -270,15 +260,24 @@ describe('Metadata Actions', () => {
 
     fixtures.init.forEach(f => {
         it(`initMetadata - ${f.description}`, async () => {
-            jest.mock('src/services/suite/metadata/DropboxProvider');
             // @ts-expect-error
             const store = initStore(getInitialState(f.initialState));
-            // @ts-expect-error, params
-            const result = await store.dispatch(metadataActions.init(f.params));
+            await store.dispatch(metadataActions.init(false));
             if (!f.result) {
                 expect(store.getActions().length).toEqual(0);
             } else {
                 expect(store.getActions()).toMatchObject(f.result);
+            }
+        });
+    });
+
+    fixtures.disposeMetadata.forEach(f => {
+        it(`disposeMetadata - ${f.description}`, async () => {
+            // @ts-expect-error
+            const store = initStore(getInitialState(f.initialState));
+            await store.dispatch(metadataActions.disposeMetadata(...f.params));
+            if (f.result) {
+                expect(store.getState()).toMatchObject(f.result);
             }
         });
     });

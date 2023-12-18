@@ -1,17 +1,20 @@
-import React from 'react';
 import styled from 'styled-components';
-import { CoinmarketFooter, CoinmarketSellTopPanel } from 'src/components/wallet';
+
+import {
+    CoinmarketFooter,
+    CoinmarketSellTopPanel,
+    NoOffers,
+} from 'src/views/wallet/coinmarket/common';
 import { variables } from '@trezor/components';
 import { Translation } from 'src/components/suite';
 import { useLayout } from 'src/hooks/suite/useLayout';
 import { useCoinmarketSellOffersContext } from 'src/hooks/wallet/useCoinmarketSellOffers';
-import NoOffers from 'src/views/wallet/coinmarket/common/no-offers';
 import { useCoinmarketNavigation } from 'src/hooks/wallet/useCoinmarketNavigation';
 import List from './List';
 import { SelectedOffer } from './SelectedOffer';
 
 const Wrapper = styled.div`
-    padding: 16px 32px 32px 32px;
+    padding: 16px 32px 32px;
 
     @media screen and (max-width: ${variables.SCREEN_SIZE.LG}) {
         padding: 16px;

@@ -1,8 +1,13 @@
-import React from 'react';
 import styled from 'styled-components';
 
 import { variables } from '@trezor/components';
-import { Header, Content, ViewWrapper, GuideNode, GuideCategories } from 'src/components/guide';
+import {
+    GuideHeader,
+    GuideContent,
+    GuideViewWrapper,
+    GuideNode,
+    GuideCategories,
+} from 'src/components/guide';
 import { useDispatch, useSelector } from 'src/hooks/suite';
 import { Translation } from 'src/components/suite';
 import { setView } from 'src/actions/suite/guideActions';
@@ -20,7 +25,7 @@ const SectionHeading = styled.h3`
     font-size: ${variables.FONT_SIZE.SMALL};
     font-weight: ${variables.FONT_WEIGHT.DEMI_BOLD};
     color: ${({ theme }) => theme.TYPE_LIGHT_GREY};
-    padding: 8px 0 18px 0;
+    padding: 8px 0 18px;
 `;
 
 const Nodes = styled.div`
@@ -49,9 +54,9 @@ export const GuideCategory = () => {
     const goBack = () => dispatch(setView('GUIDE_DEFAULT'));
 
     return (
-        <ViewWrapper>
-            <Header back={goBack} label={title} />
-            <Content>
+        <GuideViewWrapper>
+            <GuideHeader back={goBack} label={title} />
+            <GuideContent>
                 {pages.length ? (
                     <Section>
                         <SectionHeading>
@@ -75,7 +80,7 @@ export const GuideCategory = () => {
                           ) : null,
                       )
                     : null}
-            </Content>
-        </ViewWrapper>
+            </GuideContent>
+        </GuideViewWrapper>
     );
 };

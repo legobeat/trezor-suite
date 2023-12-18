@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import styled from 'styled-components';
 import { QuestionTooltip, Translation } from 'src/components/suite';
 import { variables, Button, Select, Icon, useTheme } from '@trezor/components';
@@ -15,7 +15,7 @@ const Wrapper = styled.div`
 const CardContent = styled.div`
     display: flex;
     flex-direction: column;
-    padding: 24px 24px;
+    padding: 24px;
 `;
 
 const Label = styled.div`

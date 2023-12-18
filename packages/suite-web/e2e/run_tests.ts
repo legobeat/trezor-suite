@@ -46,8 +46,8 @@ const grepForValue = (word: string, path: string) => {
     return res.stdout.replace(`// ${word}=`, '');
 };
 
-const getTestFiles = (): string[] => {
-    const { group } = argv;
+const getTestFiles = async (): Promise<string[]> => {
+    const { group } = await argv;
     let command;
     if (group) {
         // for arrays
@@ -91,14 +91,16 @@ const runTests = async () => {
         throw new Error('CYPRESS_TEST_URLS is not set');
     }
 
-    const { group } = argv;
+    const { group } = await argv;
 
     if (!TRACK_SUITE_URL || CYPRESS_updateSnapshots) {
         console.log(
             '[run_tests.js] TRACK_SUITE_URL env not specified or CYPRESS_updateSnapshots is set. No logs will be uploaded',
         );
     }
-    const finalTestFiles = getTestFiles().sort((a: string, b: string) => a.localeCompare(b));
+    const finalTestFiles = (await getTestFiles()).sort((a: string, b: string) =>
+        a.localeCompare(b),
+    );
 
     if (!finalTestFiles.length) {
         console.log('[run_tests.js] nothing to test!');
@@ -140,9 +142,9 @@ const runTests = async () => {
         const retries = Number(grepForValue('@retry', testFile));
         const allowedRuns = !Number.isNaN(retries) && Number(ALLOW_RETRY) ? retries + 1 : 1;
 
-        const spec = path.join(__dirname, testFile.substr(testFile.lastIndexOf('/tests')));
+        const spec = path.join(__dirname, testFile.substring(testFile.lastIndexOf('/tests')));
         const testFileName = testFile
-            .substr(testFile.lastIndexOf('/tests/') + 7)
+            .substring(testFile.lastIndexOf('/tests/') + 7)
             .replace('.test.ts', '');
 
         console.log('');
@@ -193,51 +195,58 @@ const runTests = async () => {
                     config: config.e2e,
                 });
 
-                // test failed to run. this is some kind of setup problem
-                if (runResult.status === 'failed') {
+                if ('status' in runResult && runResult.status === 'failed') {
+                    // This block will only be entered if runResult is of type CypressFailedRunResult
                     throw new Error(runResult.message);
                 }
 
-                const { totalFailed, totalPending, totalDuration } = runResult;
+                if (
+                    'totalFailed' in runResult &&
+                    'totalPending' in runResult &&
+                    'totalDuration' in runResult
+                ) {
+                    // This block will only be entered if runResult is of type CypressRunResult
 
-                const { tests } = runResult.runs[0];
+                    const { totalFailed, totalPending, totalDuration } = runResult;
+                    const { tests } = runResult.runs[0];
 
-                console.log(`[run_tests.js] ${testFileName} duration: ${totalDuration}`);
-                log.duration += totalDuration;
+                    console.log(`[run_tests.js] ${testFileName} duration: ${totalDuration}`);
+                    log.duration += totalDuration;
 
-                if (totalFailed > 0) {
-                    // record failed tests if it is last run
-                    if (testRunNumber === allowedRuns) {
-                        failedTests += totalFailed;
-                        log.records[testFileName] = 'failed';
-                        log.tests.push(...tests);
+                    if (totalFailed > 0) {
+                        // record failed tests if it is the last run
+                        if (testRunNumber === allowedRuns) {
+                            failedTests += totalFailed;
+                            log.records[testFileName] = 'failed';
+                            log.tests.push(...tests);
+                            console.log(
+                                `[run_tests.js] test ${testFileName} finished failing after ${allowedRuns} run(s)`,
+                            );
+                            break;
+                        }
+                        // or continue
                         console.log(
-                            `[run_tests.js] test ${testFileName} finished failing after ${allowedRuns} run(s)`,
+                            `[run_tests.js] failed in run number ${testRunNumber} of ${allowedRuns}`,
                         );
+                        continue;
+                    }
+
+                    log.tests.push(...tests);
+
+                    if (totalPending > 0) {
+                        // log either success or retried (success after retry)
+                        log.records[testFileName] = 'skipped';
+                        console.log(`[run_tests.js] test ${testFileName} finished as skipped`);
                         break;
                     }
-                    // or continue
-                    console.log(
-                        `[run_tests.js] failed in run number ${testRunNumber} of ${allowedRuns}`,
-                    );
-                    continue;
-                }
 
-                log.tests.push(...tests);
-
-                if (totalPending > 0) {
                     // log either success or retried (success after retry)
-                    log.records[testFileName] = 'skipped';
-                    console.log(`[run_tests.js] test ${testFileName} finished as skipped`);
+                    log.records[testFileName] = testRunNumber === 1 ? 'success' : 'retried';
+                    console.log(
+                        `[run_tests.js] test ${testFileName} finished as successful after ${testRunNumber} run(s) (of ${allowedRuns})`,
+                    );
                     break;
                 }
-
-                // log either success or retried (success after retry)
-                log.records[testFileName] = testRunNumber === 1 ? 'success' : 'retried';
-                console.log(
-                    `[run_tests.js] test ${testFileName} finished as successful after ${testRunNumber} run(s) (of ${allowedRuns})`,
-                );
-                break;
             } catch (err) {
                 console.log('[run_tests.js] error');
                 console.log(err);

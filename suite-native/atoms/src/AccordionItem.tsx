@@ -1,4 +1,4 @@
-import React, { ReactNode, useState } from 'react';
+import { useState, ReactNode } from 'react';
 import { Pressable } from 'react-native';
 import Animated, {
     Easing,
@@ -81,7 +81,12 @@ export const AccordionItem = ({ title, content }: AccordionItemProps) => {
                 <Box>
                     <Box style={applyStyle(triggerStyle)}>
                         <Text style={applyStyle(titleStyle)}>{title}</Text>
-                        <IconButton iconName={icon} colorScheme="tertiaryElevation0" size="small" />
+                        <IconButton
+                            iconName={icon}
+                            colorScheme="tertiaryElevation0"
+                            size="small"
+                            onPress={toggleOpen}
+                        />
                     </Box>
                     <Box flexDirection="row">
                         <Animated.View style={accordionAnimationStyle}>

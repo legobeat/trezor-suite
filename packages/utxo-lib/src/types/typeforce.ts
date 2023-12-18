@@ -3,7 +3,7 @@
 // differences:
 // - Removed unused objects.
 
-import * as typeforce from 'typeforce';
+import typeforce from 'typeforce';
 
 const SATOSHI_MAX = 21 * 1e14;
 
@@ -34,3 +34,5 @@ export const {
     Nil,
     anyOf,
 } = typeforce;
+
+export { typeforce };

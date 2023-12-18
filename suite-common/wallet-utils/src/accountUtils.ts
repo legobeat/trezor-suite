@@ -6,6 +6,7 @@ import {
     AccountAddress,
     AccountTransaction,
     AccountUtxo,
+    PrecomposedTransactionFinalCardano,
 } from '@trezor/connect';
 import { arrayDistinct, bufferUtils } from '@trezor/utils';
 import {
@@ -19,7 +20,6 @@ import {
     CoinFiatRates,
     Discovery,
     PrecomposedTransactionFinal,
-    PrecomposedTransactionFinalCardano,
     ReceiveInfo,
     TxFinalCardano,
 } from '@suite-common/wallet-types';
@@ -146,6 +146,8 @@ export const getTitleForNetwork = (symbol: NetworkSymbol) => {
             return 'TR_NETWORK_ETHEREUM_SEPOLIA';
         case 'tgor':
             return 'TR_NETWORK_ETHEREUM_GOERLI';
+        case 'thol':
+            return 'TR_NETWORK_ETHEREUM_HOLESKY';
         case 'etc':
             return 'TR_NETWORK_ETHEREUM_CLASSIC';
         case 'xem':
@@ -162,8 +164,24 @@ export const getTitleForNetwork = (symbol: NetworkSymbol) => {
             return 'TR_NETWORK_XRP_TESTNET';
         case 'tada':
             return 'TR_NETWORK_CARDANO_TESTNET';
+        case 'sol':
+            return 'TR_NETWORK_SOLANA_MAINNET';
+        case 'dsol':
+            return 'TR_NETWORK_SOLANA_DEVNET';
         default:
             return 'TR_NETWORK_UNKNOWN';
+    }
+};
+
+export const getAccountTypePrefix = (path: string) => {
+    if (typeof path !== 'string') return null;
+    const coinType = path.split('/')[2];
+    switch (coinType) {
+        case `501'`: {
+            return 'TR_ACCOUNT_TYPE_SOLANA_BIP44_CHANGE';
+        }
+        default:
+            return null;
     }
 };
 
@@ -190,6 +208,8 @@ export const getBip43Type = (path: string) => {
 };
 
 export const getAccountTypeName = (path: string) => {
+    const accountTypePrefix = getAccountTypePrefix(path);
+    if (accountTypePrefix) return `${accountTypePrefix}_NAME` as const;
     const bip43 = getBip43Type(path);
     if (bip43 === 'bip86') return 'TR_ACCOUNT_TYPE_BIP86_NAME';
     if (bip43 === 'bip84') return 'TR_ACCOUNT_TYPE_BIP84_NAME';
@@ -200,6 +220,8 @@ export const getAccountTypeName = (path: string) => {
 };
 
 export const getAccountTypeTech = (path: string) => {
+    const accountTypePrefix = getAccountTypePrefix(path);
+    if (accountTypePrefix) return `${accountTypePrefix}_TECH` as const;
     const bip43 = getBip43Type(path);
     if (bip43 === 'bip86') return 'TR_ACCOUNT_TYPE_BIP86_TECH';
     if (bip43 === 'bip84') return 'TR_ACCOUNT_TYPE_BIP84_TECH';
@@ -210,6 +232,8 @@ export const getAccountTypeTech = (path: string) => {
 };
 
 export const getAccountTypeDesc = (path: string) => {
+    const accountTypePrefix = getAccountTypePrefix(path);
+    if (accountTypePrefix) return `${accountTypePrefix}_DESC` as const;
     const bip43 = getBip43Type(path);
     if (bip43 === 'bip86') return 'TR_ACCOUNT_TYPE_BIP86_DESC';
     if (bip43 === 'bip84') return 'TR_ACCOUNT_TYPE_BIP84_DESC';
@@ -582,7 +606,10 @@ export const isAccountOutdated = (account: Account, freshInfo: AccountInfo) => {
                 freshInfo.misc!.reserve !== account.misc.reserve
             );
         case 'ethereum':
-            return freshInfo.misc!.nonce !== account.misc.nonce;
+            return (
+                freshInfo.misc!.nonce !== account.misc.nonce ||
+                freshInfo.balance !== account.balance // balance can change because of beacon chain txs (staking)
+            );
         case 'cardano':
             return (
                 // stake address (de)registration
@@ -637,6 +664,15 @@ export const getAccountSpecific = (
                     poolId: misc && misc.staking ? misc.staking.poolId : null,
                 },
             },
+            marker: undefined,
+            page: accountInfo.page,
+        };
+    }
+
+    if (networkType === 'solana') {
+        return {
+            networkType,
+            misc: undefined,
             marker: undefined,
             page: accountInfo.page,
         };
@@ -758,11 +794,10 @@ export const getUtxoFromSignedTransaction = ({
     const findUtxo = (
         // this little func is needed in order to slightly change type inputs array to stop ts complaining
         // not sure how to do this in more elegant way
-        inputs:
-            | (
-                  | PrecomposedTransactionFinalCardano['transaction']['inputs'][number]
-                  | PrecomposedTransactionFinal['transaction']['inputs'][number]
-              )[],
+        inputs: (
+            | PrecomposedTransactionFinalCardano['inputs'][number]
+            | PrecomposedTransactionFinal['inputs'][number]
+        )[],
     ) =>
         account.utxo?.filter(
             u =>
@@ -770,7 +805,7 @@ export const getUtxoFromSignedTransaction = ({
                 u.txid !== prevTxid,
         ) || [];
 
-    const utxo = findUtxo(tx.transaction.inputs);
+    const utxo = findUtxo(tx.inputs);
 
     // join all account addresses
     const addresses = account.addresses
@@ -778,7 +813,7 @@ export const getUtxoFromSignedTransaction = ({
         : [];
 
     // append utxo created by this transaction
-    tx.transaction.outputs.forEach((output, vout) => {
+    tx.outputs.forEach((output, vout) => {
         let addr: AccountAddress | undefined;
         if (!receivingAccount && 'address_n' in output && output.address_n) {
             // find change address
@@ -851,7 +886,7 @@ export const getPendingAccount = ({
 
         const addresses = getAccountAddresses(account);
 
-        tx.transaction.outputs.forEach(output => {
+        tx.outputs.forEach(output => {
             if ('address' in output) {
                 // find self address
                 if (addresses.find(a => a.address === output.address)) {
@@ -920,7 +955,7 @@ export const getUtxoOutpoint = (utxo: { txid: string; vout: number }) => {
 // https://developer.bitcoin.org/reference/transactions.html#outpoint-the-specific-part-of-a-specific-output
 export const readUtxoOutpoint = (outpoint: string) => {
     const buffer = Buffer.from(outpoint, 'hex');
-    const txid = bufferUtils.reverseBuffer(buffer.slice(0, 32));
+    const txid = bufferUtils.reverseBuffer(buffer.subarray(0, 32));
     const vout = buffer.readUInt32LE(txid.length);
     return { txid: txid.toString('hex'), vout };
 };

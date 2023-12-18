@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { darken } from 'polished';
 import styled from 'styled-components';
 import { analytics, EventType } from '@trezor/suite-analytics';
@@ -7,7 +7,13 @@ import { Translation } from 'src/components/suite';
 import { setView } from 'src/actions/suite/guideActions';
 import { useDispatch, useSelector } from 'src/hooks/suite';
 import { Icon, variables, useTheme } from '@trezor/components';
-import { Header, Content, ViewWrapper, GuideCategories, GuideSearch } from 'src/components/guide';
+import {
+    GuideHeader,
+    GuideContent,
+    GuideViewWrapper,
+    GuideCategories,
+    GuideSearch,
+} from 'src/components/guide';
 
 const FeedbackLinkWrapper = styled.div`
     border-top: 1px solid ${({ theme }) => theme.STROKE_GREY};
@@ -27,6 +33,7 @@ const FeedbackButton = styled.button`
     background: none;
     transition: ${({ theme }) =>
         `background ${theme.HOVER_TRANSITION_TIME} ${theme.HOVER_TRANSITION_EFFECT}`};
+
     /* speficy position and z-index so that GuideButton does not interfere */
     position: relative;
     z-index: ${variables.Z_INDEX.GUIDE};
@@ -68,9 +75,9 @@ export const GuideDefault = () => {
     };
 
     return (
-        <ViewWrapper>
-            <Header label={<Translation id="TR_GUIDE_VIEW_HEADLINE_LEARN_AND_DISCOVER" />} />
-            <Content>
+        <GuideViewWrapper>
+            <GuideHeader label={<Translation id="TR_GUIDE_VIEW_HEADLINE_LEARN_AND_DISCOVER" />} />
+            <GuideContent>
                 <GuideSearch pageRoot={indexNode} setSearchActive={setSearchActive} />
                 {!searchActive && (
                     <GuideCategories
@@ -78,7 +85,7 @@ export const GuideDefault = () => {
                         label={<Translation id="TR_GUIDE_CATEGORIES" />}
                     />
                 )}
-            </Content>
+            </GuideContent>
             <FeedbackLinkWrapper>
                 <FeedbackButton
                     data-test="@guide/button-feedback"
@@ -95,6 +102,6 @@ export const GuideDefault = () => {
                     />
                 </FeedbackButton>
             </FeedbackLinkWrapper>
-        </ViewWrapper>
+        </GuideViewWrapper>
     );
 };

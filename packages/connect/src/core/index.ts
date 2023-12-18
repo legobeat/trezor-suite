@@ -2,13 +2,12 @@
 import EventEmitter from 'events';
 
 import { TRANSPORT, TRANSPORT_ERROR } from '@trezor/transport';
+import { createDeferred, Deferred } from '@trezor/utils';
 
 import { DataManager } from '../data/DataManager';
 import { DeviceList } from '../device/DeviceList';
 import { enhancePostMessageWithAnalytics } from '../data/analyticsInfo';
-
 import { ERRORS } from '../constants';
-
 import {
     CORE_EVENT,
     RESPONSE_EVENT,
@@ -24,31 +23,30 @@ import {
     TransportInfo,
     CoreMessage,
     UiPromise,
+    AnyUiPromise,
+    UiPromiseCreator,
     UiPromiseResponse,
 } from '../events';
 import { getMethod } from './method';
-
-import { create as createDeferred, Deferred } from '../utils/deferred';
+import { AbstractMethod } from './AbstractMethod';
 import { resolveAfter } from '../utils/promiseUtils';
-import { initLog, enableLog } from '../utils/debug';
+import { initLog, enableLog, setLogWriter, LogWriter } from '../utils/debug';
 import { dispose as disposeBackend } from '../backend/BlockchainLink';
 import { InteractionTimeout } from '../utils/interactionTimeout';
-
 import type { DeviceEvents, Device } from '../device/Device';
 import type { ConnectSettings, CommonParams, Device as DeviceTyped } from '../types';
-
-type AbstractMethod = ReturnType<typeof getMethod>;
 
 // Public variables
 let _core: Core; // Class with event emitter
 let _deviceList: DeviceList | undefined; // Instance of DeviceList
 let _popupPromise: Deferred<void> | undefined; // Waiting for popup handshake
-let _uiPromises: UiPromise<UiPromiseResponse['type']>[] = []; // Waiting for ui response
-const _callMethods: AbstractMethod[] = []; // generic type is irrelevant. only common functions are called at this level
+const _uiPromises: AnyUiPromise[] = []; // Waiting for ui response
 let _preferredDevice: CommonParams['device'];
+const _callMethods: AbstractMethod<any>[] = []; // generic type is irrelevant. only common functions are called at this level
 let _interactionTimeout: InteractionTimeout;
 let _deviceListInitTimeout: ReturnType<typeof setTimeout> | undefined;
 let _overridePromise: Promise<void> | undefined;
+let _getMethodPromise: Promise<AbstractMethod<any>> | undefined;
 
 // custom log
 const _log = initLog('Core');
@@ -103,9 +101,12 @@ const interactionTimeout = () =>
  * @returns {Deferred<UiPromise>}
  * @memberof Core
  */
-const createUiPromise = <T extends UiPromiseResponse['type']>(promiseEvent: T, device?: Device) => {
-    const uiPromise: UiPromise<T> = createDeferred(promiseEvent, device);
-    _uiPromises.push(uiPromise as any);
+const createUiPromise: UiPromiseCreator = (promiseEvent, device) => {
+    const uiPromise: UiPromise<typeof promiseEvent> = {
+        ...createDeferred(promiseEvent),
+        device,
+    };
+    _uiPromises.push(uiPromise as unknown as AnyUiPromise);
 
     // Interaction timeout
     interactionTimeout();
@@ -123,7 +124,7 @@ const findUiPromise = <T extends UiPromiseResponse['type']>(promiseEvent: T) =>
     _uiPromises.find(p => p.id === promiseEvent) as UiPromise<T> | undefined;
 
 const removeUiPromise = (promise: Deferred<any>) => {
-    _uiPromises = _uiPromises.filter(p => p !== promise);
+    _uiPromises.splice(0).push(..._uiPromises.filter(p => p !== promise));
 };
 
 /**
@@ -196,10 +197,15 @@ export const handleMessage = (message: CoreMessage) => {
  * @returns {Promise<Device>}
  * @memberof Core
  */
-const initDevice = async (method: AbstractMethod) => {
+const initDevice = async (method: AbstractMethod<any>) => {
     if (!_deviceList) {
         throw ERRORS.TypedError('Transport_Missing');
     }
+
+    // see initTransport.
+    // if transportReconnect: true, initTransport does not wait to be finished. if there are multiple requested transports
+    // in TrezorConnect.init, this method may emit UI.SELECT_DEVICE with wrong parameters (for example it thinks that it does not use weubsb although it should)
+    await _deviceList.transportFirstEventPromise;
 
     const isWebUsb = _deviceList.transportType() === 'WebUsbTransport';
     let device: Device | typeof undefined;
@@ -292,10 +298,13 @@ export const onCall = async (message: CoreMessage) => {
     }
 
     // find method and parse incoming params
-    let method: AbstractMethod;
+    let method: AbstractMethod<any>;
     let messageResponse: CoreMessage;
     try {
-        method = getMethod(message);
+        _log.debug('loading method...');
+        _getMethodPromise = getMethod(message);
+        method = await _getMethodPromise;
+        _log.debug('method selected', method.name);
         // bind callbacks
         method.postMessage = postMessage;
         method.getPopupPromise = getPopupPromise;
@@ -306,7 +315,8 @@ export const onCall = async (message: CoreMessage) => {
         _callMethods.push(method);
 
         if (method.initAsync) {
-            await method.initAsync();
+            method.initAsyncPromise = method.initAsync();
+            await method.initAsyncPromise;
         }
     } catch (error) {
         postMessage(createPopupMessage(POPUP.CANCEL_POPUP_REQUEST));
@@ -492,7 +502,7 @@ export const onCall = async (message: CoreMessage) => {
 
             const deviceNeedsBackup = device.features.needs_backup;
             if (deviceNeedsBackup && typeof method.noBackupConfirmation === 'function') {
-                const permitted = await method.noBackupConfirmation();
+                const permitted = await method.noBackupConfirmation(!isUsingPopup);
                 if (!permitted) {
                     // interrupt process and go to "final" block
                     return Promise.reject(ERRORS.TypedError('Method_PermissionsNotGranted'));
@@ -560,7 +570,7 @@ export const onCall = async (message: CoreMessage) => {
             } catch (error) {
                 // catch wrong pin error
                 // PinMatrixAck returns { code: "Failure_PinInvalid", message: "PIN invalid"}
-                if (error.message === 'PIN invalid' && PIN_TRIES < MAX_PIN_TRIES) {
+                if (error.message.includes('PIN invalid') && PIN_TRIES < MAX_PIN_TRIES) {
                     PIN_TRIES++;
                     postMessage(
                         createUiMessage(UI.INVALID_PIN, { device: device.toMessageObject() }),
@@ -644,7 +654,12 @@ export const onCall = async (message: CoreMessage) => {
                 await resolveAfter(1000).promise;
                 // call Device.run with empty function to fetch new Features
                 // (acquire > Initialize > nothing > release)
-                await device.run(() => Promise.resolve(), { skipFinalReload: true });
+                try {
+                    await device.run(() => Promise.resolve(), { skipFinalReload: true });
+                } catch (err) {
+                    // ignore. on model T, this block of code is probably not needed at all. but I am keeping it here for
+                    // backwards compatibility
+                }
             }
 
             await device.cleanup();
@@ -674,7 +689,7 @@ export const onCall = async (message: CoreMessage) => {
 const cleanup = () => {
     // closePopup(); // this causes problem when action is interrupted (example: bootloader mode)
     _popupPromise = undefined;
-    _uiPromises = []; // TODO: remove only promises with params callId
+    _uiPromises.splice(0);
     _interactionTimeout.stop();
     _log.debug('Cleanup...');
 };
@@ -699,7 +714,7 @@ const closePopup = () => {
  * @memberof Core
  */
 const onDeviceButtonHandler = async (
-    ...[device, request, method]: [...Parameters<DeviceEvents['button']>, AbstractMethod]
+    ...[device, request, method]: [...Parameters<DeviceEvents['button']>, AbstractMethod<any>]
 ) => {
     // wait for popup handshake
     const addressRequest = request.code === 'ButtonRequest_Address';
@@ -831,7 +846,7 @@ const onPopupClosed = (customErrorMessage?: string) => {
             _uiPromises.forEach(p => {
                 p.reject(error);
             });
-            _uiPromises = [];
+            _uiPromises.splice(0);
         }
         if (_popupPromise) {
             _popupPromise.reject(error);
@@ -880,7 +895,7 @@ const handleDeviceSelectionChanges = (interruptDevice?: DeviceTyped) => {
         const { path } = interruptDevice;
         let shouldClosePopup = false;
         _uiPromises.forEach(p => {
-            if (p.data && p.data.getDevicePath() === path) {
+            if (p.device && p.device.getDevicePath() === path) {
                 if (p.id === DEVICE.DISCONNECT) {
                     p.resolve({ type: DEVICE.DISCONNECT });
                 }
@@ -993,8 +1008,11 @@ export class Core extends EventEmitter {
         }
     }
 
-    getCurrentMethod() {
-        return _callMethods;
+    async getCurrentMethod() {
+        if (_getMethodPromise) {
+            await _getMethodPromise;
+        }
+        return _callMethods[0];
     }
 
     getTransportInfo(): TransportInfo | undefined {
@@ -1002,6 +1020,13 @@ export class Core extends EventEmitter {
             return undefined;
         }
         return _deviceList.getTransportInfo();
+    }
+
+    enumerate() {
+        if (!_deviceList) {
+            return;
+        }
+        _deviceList.enumerate();
     }
 }
 
@@ -1013,7 +1038,13 @@ export class Core extends EventEmitter {
  * @returns {Promise<Core>}
  * @memberof Core
  */
-export const initCore = async (settings: ConnectSettings) => {
+export const initCore = async (
+    settings: ConnectSettings,
+    logWriterFactory?: () => LogWriter | undefined,
+) => {
+    if (logWriterFactory) {
+        setLogWriter(logWriterFactory);
+    }
     try {
         await DataManager.load(settings);
         enableLog(DataManager.getSettings('debug'));

@@ -1,10 +1,9 @@
-import * as typeforce from 'typeforce';
 import { BufferWriter } from '../bufferutils';
 import * as bs58check from '../bs58check';
 import { decred as DECRED_NETWORK } from '../networks';
 import * as bscript from '../script';
 import * as lazy from './lazy';
-import { Payment, PaymentOpts, Stack } from '../types';
+import { Payment, PaymentOpts, Stack, typeforce } from '../types';
 
 const { OPS } = bscript;
 
@@ -38,7 +37,7 @@ export function sstxcommitment(a: Payment, opts?: PaymentOpts): Payment {
     });
 
     lazy.prop(o, 'hash', () => {
-        if (a.output) return a.output.slice(2, 22);
+        if (a.output) return a.output.subarray(2, 22);
         if (a.address) return _address().hash;
     });
 
@@ -72,7 +71,7 @@ export function sstxcommitment(a: Payment, opts?: PaymentOpts): Payment {
             if (a.output.length !== 32 || a.output[0] !== OPS.OP_RETURN)
                 throw new TypeError('sstxcommitment output is invalid');
 
-            const hash2 = a.output.slice(2, 22);
+            const hash2 = a.output.subarray(2, 22);
             if (hash.length > 0 && !hash.equals(hash2)) throw new TypeError('Hash mismatch');
         }
     }

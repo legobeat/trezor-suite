@@ -1,6 +1,8 @@
 /**
  * Use override for react-native (@trezor/suite-native/src/actions)
  */
+import { Route } from '@suite-common/suite-types';
+
 import * as suiteActions from 'src/actions/suite/suiteActions';
 import { SUITE, ROUTER } from 'src/actions/suite/constants';
 import { RouterAppWithParams, SettingsBackRoute } from 'src/constants/suite/routes';
@@ -13,9 +15,8 @@ import {
     findRouteByName,
     RouteParams,
 } from 'src/utils/suite/router';
-import { Dispatch, GetState, Route } from 'src/types/suite';
+import { Dispatch, GetState } from 'src/types/suite';
 import history from 'src/support/history';
-
 import type { AnchorType } from 'src/constants/suite/anchors';
 
 export type RouterAction =
@@ -169,13 +170,17 @@ export const closeModalApp =
  */
 export const initialRedirection = () => (dispatch: Dispatch, getState: GetState) => {
     const route = findRoute(history.location.pathname + history.location.hash);
-    const { initialRun } = getState().suite.flags;
 
-    if (route && route.isForegroundApp) {
-        dispatch(goto(route.name));
-    } else if (route && initialRun) {
-        // only do initial redirection of route is valid
-        dispatch(goto('onboarding-index'));
-    }
+    const { initialRun } = getState().suite.flags;
+    // only do initial redirection of route is valid
     // otherwise do nothing -> just show 404 page
+    if (!route) {
+        return;
+    }
+
+    if (route.isForegroundApp) {
+        dispatch(goto(route.name));
+    } else if (initialRun) {
+        dispatch(goto('suite-start'));
+    }
 };

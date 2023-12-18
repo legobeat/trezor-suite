@@ -1,10 +1,15 @@
-export const paramsError = (error: string, code?: string) => ({
-    success: false,
-    payload: {
-        error,
-        code,
-    },
-});
+import { testMocks } from '@suite-common/test-utils';
+
+const { getSuiteDevice } = testMocks;
+
+export const paramsError = (error: string, code?: string) =>
+    ({
+        success: false,
+        payload: {
+            error,
+            code,
+        },
+    }) as const;
 
 export const fixtures = [
     {
@@ -108,7 +113,7 @@ export const fixtures = [
             },
             success: true,
         },
-        device: global.JestMocks.getSuiteDevice({
+        device: getSuiteDevice({
             state: 'device-state',
             connected: true,
             unavailableCapabilities: { taproot: 'update-required' },
@@ -141,7 +146,7 @@ export const fixtures = [
             },
         },
         // this device is used only to cover missing unavailableCapabilities case
-        device: global.JestMocks.getSuiteDevice({
+        device: getSuiteDevice({
             type: 'unacquired',
         }),
     },
@@ -150,7 +155,7 @@ export const fixtures = [
         connect: {
             success: true,
         },
-        device: global.JestMocks.getSuiteDevice({
+        device: getSuiteDevice({
             state: 'device-state',
             connected: true,
             unavailableCapabilities: { xrp: 'no-capability' },
@@ -165,7 +170,7 @@ export const fixtures = [
         connect: {
             success: true,
         },
-        device: global.JestMocks.getSuiteDevice({
+        device: getSuiteDevice({
             state: 'device-state',
             connected: true,
             unavailableCapabilities: { xrp: 'no-capability' },
@@ -288,7 +293,7 @@ export const changeNetworksFixtures = [
 export const unavailableCapabilities = [
     {
         description: 'UnavailableCapability: Enable XRP',
-        device: global.JestMocks.getSuiteDevice({
+        device: getSuiteDevice({
             state: 'device-state',
             connected: true,
             unavailableCapabilities: { xrp: 'no-capability', taproot: 'no-support' },
@@ -298,7 +303,7 @@ export const unavailableCapabilities = [
     },
     {
         description: 'UnavailableCapability: Only LTC',
-        device: global.JestMocks.getSuiteDevice({
+        device: getSuiteDevice({
             state: 'device-state',
             connected: true,
             unavailableCapabilities: { ltc: 'no-capability' },
@@ -309,7 +314,7 @@ export const unavailableCapabilities = [
     {
         description: 'UnavailableCapability: Device without features',
         // this device is used only to cover missing unavailableCapabilities case
-        device: global.JestMocks.getSuiteDevice({
+        device: getSuiteDevice({
             type: 'unacquired',
         }),
         networks: ['xrp'],

@@ -1,8 +1,14 @@
 import { encodeDataToQueryString, getRandomId, getUrl, reportEvent } from './utils';
-import type { InitOptions, Event as AnalyticsEvent, App, ReportConfig } from './types';
+import type {
+    InitOptions,
+    Event as AnalyticsEvent,
+    App,
+    ReportConfig,
+    AnalyticsOptions,
+} from './types';
 
 export class Analytics<T extends AnalyticsEvent> {
-    private enabled = false;
+    private enabled?: boolean;
 
     private useQueue = false;
     private queue = new Array<T>();
@@ -17,12 +23,13 @@ export class Analytics<T extends AnalyticsEvent> {
 
     private callbacks?: InitOptions['callbacks'];
 
-    constructor(version: string, app: App) {
+    constructor({ version, app, useQueue = false }: AnalyticsOptions) {
         this.version = version;
         this.app = app;
+        this.useQueue = useQueue;
     }
 
-    public init = (enabled: boolean, options: InitOptions) => {
+    public init = (enabled: boolean | undefined, options: InitOptions) => {
         this.enabled = enabled;
 
         this.instanceId = options.instanceId || getRandomId();
@@ -31,8 +38,12 @@ export class Analytics<T extends AnalyticsEvent> {
         this.url = getUrl(this.app, options.isDev, options.environment);
         this.callbacks = options.callbacks;
 
-        // queue should not be used if analytics is enabled in initialization
-        this.useQueue = !enabled && !!options.useQueue;
+        // Call flushQueue only if 'enabled' is explicitly set (true or false).
+        // If 'enabled' is undefined, do not call flushQueue since the analytics
+        // status (enabled/disabled) will be determined later.
+        if (this.enabled !== undefined) {
+            this.flushQueue();
+        }
     };
 
     public enable = () => {
@@ -40,9 +51,13 @@ export class Analytics<T extends AnalyticsEvent> {
 
         this.callbacks?.onEnable?.();
 
+        this.flushQueue();
+    };
+
+    private flushQueue = () => {
         if (this.useQueue) {
-            this.queue.map(data => this.report(data));
             this.useQueue = false;
+            this.queue.map(data => this.report(data));
             this.queue = [];
         }
     };
@@ -58,10 +73,18 @@ export class Analytics<T extends AnalyticsEvent> {
         }
     };
 
-    public isEnabled = () => this.enabled;
+    public isEnabled = () => !!this.enabled;
 
     public report = (data: T, config?: ReportConfig) => {
-        if (!this.url || !this.instanceId || !this.sessionId || !this.commitId || !this.version) {
+        // Add a timestamp to each event to track its actual occurrence time, considering possible queuing delays.
+        if (!data.timestamp) {
+            data.timestamp = Date.now().toString();
+        }
+
+        const isMissingFields =
+            !this.url || !this.instanceId || !this.sessionId || !this.commitId || !this.version;
+
+        if (!this.useQueue && isMissingFields) {
             const listOfMissingFields =
                 `${!this.url ? 'url, ' : ''}` +
                 `${!this.instanceId ? 'instanceId, ' : ''}` +
@@ -77,19 +100,19 @@ export class Analytics<T extends AnalyticsEvent> {
 
         const { anonymize, force } = config ?? {};
 
-        if (this.useQueue && !this.enabled && !force) {
+        if (this.useQueue && this.enabled === undefined && !force) {
             this.queue.push(data);
         }
 
-        if (!this.enabled && !force) {
+        if ((!this.enabled && !force) || isMissingFields) {
             return;
         }
 
         const qs = encodeDataToQueryString(
             // Random ID is better than constant because it helps clean the data in case it is accidentally logged multiple times.
-            anonymize ? getRandomId() : this.instanceId,
-            anonymize ? getRandomId() : this.sessionId,
-            this.commitId,
+            anonymize ? getRandomId() : this.instanceId!,
+            anonymize ? getRandomId() : this.sessionId!,
+            this.commitId!,
             this.version,
             data,
         );

@@ -21,16 +21,22 @@
         {
             "path": "../../suite-common/wallet-core"
         },
+        { "path": "../accounts" },
+        { "path": "../blockchain" },
         { "path": "../config" },
+        { "path": "../device" },
+        { "path": "../discovery" },
+        { "path": "../feature-flags" },
         { "path": "../fiat-rates" },
         { "path": "../graph" },
-        { "path": "../logger" },
         { "path": "../message-system" },
-        { "path": "../module-devices" },
         { "path": "../module-settings" },
         { "path": "../storage" },
         { "path": "../toasts" },
         { "path": "../../packages/connect" },
+        {
+            "path": "../../packages/transport-native"
+        },
         { "path": "../../packages/utils" }
     ]
 }

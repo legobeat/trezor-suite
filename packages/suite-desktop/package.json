@@ -14,27 +14,27 @@
         "clean": "rimraf ./build-electron && yarn rimraf ./build && yarn rimraf ./dist",
         "build:ui": "yarn workspace @trezor/suite-build run build:desktop",
         "build:core": "yarn workspace @trezor/suite-desktop-core run build:core",
-        "build:app": "NODE_ENV=production yarn build:core && yarn build:app:electron",
+        "build:app": "NODE_ENV=production yarn build:core",
         "build:app:dev": "NODE_ENV=development yarn build:core",
         "build:app:electron": "yarn electron-builder --config electron-builder-config.js",
-        "build:linux": "yarn clean && yarn build:ui && yarn build:app --publish never --linux --x64 --arm64",
-        "build:mac": "yarn clean && yarn build:ui && yarn build:app --publish never --mac --x64 --arm64",
-        "build:win": "yarn clean && yarn build:ui && yarn build:app --publish never --win --x64",
+        "build:linux": "yarn clean && yarn build:ui && yarn build:app && yarn build:app:electron --publish never --linux --x64 --arm64",
+        "build:mac": "yarn clean && yarn build:ui && yarn build:app && yarn build:app:electron --publish never --mac --x64 --arm64",
+        "build:win": "yarn clean && yarn build:ui && yarn build:app && yarn build:app:electron --publish never --win --x64",
         "lint:js": "yarn g:eslint '**/*.{ts,tsx,js}'"
     },
     "dependencies": {
         "blake-hash": "^2.0.0",
         "electron-localshortcut": "^3.2.1",
         "electron-store": "^8.1.0",
-        "electron-updater": "6.1.1",
-        "usb": "^2.9.0"
+        "electron-updater": "6.1.4",
+        "usb": "^2.11.0"
     },
     "devDependencies": {
-        "@electron/notarize": "1.2.4",
-        "electron": "24.5.1",
-        "electron-builder": "23.6.0",
-        "glob": "^10.2.7",
-        "jest": "^26.6.3",
-        "rimraf": "^5.0.1"
+        "@electron/notarize": "2.1.0",
+        "electron": "27.0.4",
+        "electron-builder": "24.6.4",
+        "glob": "^10.3.10",
+        "jest": "29.5.0",
+        "rimraf": "^5.0.5"
     }
 }

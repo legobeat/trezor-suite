@@ -1,10 +1,14 @@
-import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 import { prepareNativeStyle, useNativeStyles } from '@trezor/styles';
 import { Box } from '@suite-native/atoms';
+import {
+    selectAreAllDevicesDisconnectedOrAccountless,
+    selectIsPortfolioTrackerEmpty,
+} from '@suite-common/wallet-core';
 
 import { TabBarItem } from './TabBarItem';
 import { TabsOptions } from '../types';
@@ -12,6 +16,7 @@ import { TabsOptions } from '../types';
 interface TabBarProps extends BottomTabBarProps {
     tabItemOptions: TabsOptions;
 }
+
 const tabBarStyle = prepareNativeStyle<{
     insetLeft: number;
     insetRight: number;
@@ -32,6 +37,12 @@ const tabBarStyle = prepareNativeStyle<{
 export const TabBar = ({ state, navigation, tabItemOptions }: TabBarProps) => {
     const { applyStyle } = useNativeStyles();
     const insets = useSafeAreaInsets();
+    const areAllDevicesDisconnectedOrAccountless = useSelector(
+        selectAreAllDevicesDisconnectedOrAccountless,
+    );
+    const isPortfolioTrackerEmpty = useSelector(selectIsPortfolioTrackerEmpty);
+
+    if (areAllDevicesDisconnectedOrAccountless || isPortfolioTrackerEmpty) return null;
 
     return (
         <Box

@@ -1,3 +1,5 @@
+/* eslint-disable no-underscore-dangle */
+
 import { AbstractMetadataProvider, OAuthServerEnvironment, Tokens } from 'src/types/suite/metadata';
 import GoogleClient from 'src/services/google';
 
@@ -38,7 +40,7 @@ class GoogleProvider extends AbstractMetadataProvider {
         }
     }
 
-    async getFileContent(file: string) {
+    private async _getFileContent(file: string) {
         try {
             const id = await GoogleClient.getIdByName(file);
             if (!id) {
@@ -66,7 +68,11 @@ class GoogleProvider extends AbstractMetadataProvider {
         }
     }
 
-    async setFileContent(file: string, content: Buffer) {
+    getFileContent(file: string) {
+        return this.scheduleApiRequest(() => this._getFileContent(file));
+    }
+
+    private async _setFileContent(file: string, content: Buffer) {
         try {
             // search for file by name with forceReload=true parameter to make sure that we do not save
             // two files with the same name but different ids
@@ -100,6 +106,10 @@ class GoogleProvider extends AbstractMetadataProvider {
         }
     }
 
+    setFileContent(file: string, content: Buffer) {
+        return this.scheduleApiRequest(() => this._setFileContent(file, content));
+    }
+
     async getFilesList() {
         try {
             const response = await GoogleClient.list({
@@ -111,6 +121,26 @@ class GoogleProvider extends AbstractMetadataProvider {
 
                 return this.ok(formattedList);
             }
+
+            return this.ok(undefined);
+        } catch (error) {
+            return this.handleProviderError(error);
+        }
+    }
+
+    async renameFile(from: string, to: string) {
+        try {
+            const id = await GoogleClient.getIdByName(from, true);
+
+            await GoogleClient.updateMetadata(
+                {
+                    body: {
+                        name: to,
+                        mimeType: 'text/plain;charset=UTF-8',
+                    },
+                },
+                id,
+            );
 
             return this.ok(undefined);
         } catch (error) {

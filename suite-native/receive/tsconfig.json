@@ -4,6 +4,9 @@
     "references": [
         { "path": "../../suite-common/icons" },
         {
+            "path": "../../suite-common/wallet-config"
+        },
+        {
             "path": "../../suite-common/wallet-core"
         },
         {
@@ -13,13 +16,22 @@
             "path": "../../suite-common/wallet-utils"
         },
         { "path": "../accounts" },
+        { "path": "../alerts" },
         { "path": "../analytics" },
         { "path": "../atoms" },
+        { "path": "../device-manager" },
+        { "path": "../device-mutex" },
         { "path": "../ethereum-tokens" },
         { "path": "../formatters" },
+        { "path": "../helpers" },
+        { "path": "../intl" },
         { "path": "../link" },
         { "path": "../navigation" },
         { "path": "../qr-code" },
-        { "path": "../../packages/styles" }
+        { "path": "../storage" },
+        { "path": "../toasts" },
+        { "path": "../../packages/connect" },
+        { "path": "../../packages/styles" },
+        { "path": "../../packages/theme" }
     ]
 }

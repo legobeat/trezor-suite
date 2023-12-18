@@ -1,8 +1,9 @@
+import { testMocks } from '@suite-common/test-utils';
 import type { TrezorDevice } from 'src/types/suite';
 import { DeviceModelInternal, type FirmwareRelease } from '@trezor/connect';
 import * as URLS from '@trezor/urls';
 
-const { getSuiteDevice } = global.JestMocks;
+const { getSuiteDevice } = testMocks;
 
 const SUITE_DEVICE = getSuiteDevice();
 const connected = { connected: true, available: true };
@@ -543,7 +544,7 @@ const getChangelogUrl = [
             },
         } as TrezorDevice,
         revision: 'ab12cd',
-        result: 'https://github.com/trezor/trezor-firmware/blob/ab12cd/core/CHANGELOG.md',
+        result: 'https://github.com/trezor/trezor-firmware/blob/ab12cd/core/CHANGELOG.T2B1.md',
     },
     {
         description: 'Missing revision, master/legacy firmware',
@@ -553,7 +554,7 @@ const getChangelogUrl = [
                 internal_model: DeviceModelInternal.T1B1,
             },
         } as TrezorDevice,
-        result: 'https://github.com/trezor/trezor-firmware/blob/master/legacy/firmware/CHANGELOG.md',
+        result: 'https://github.com/trezor/trezor-firmware/blob/main/legacy/firmware/CHANGELOG.md',
     },
     {
         description: 'Missing revision, core firmware',
@@ -563,7 +564,7 @@ const getChangelogUrl = [
                 internal_model: DeviceModelInternal.T2T1,
             },
         } as TrezorDevice,
-        result: 'https://github.com/trezor/trezor-firmware/blob/master/core/CHANGELOG.md',
+        result: 'https://github.com/trezor/trezor-firmware/blob/main/core/CHANGELOG.T2T1.md',
     },
 ];
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useMemo, useEffect } from 'react';
 import { Controller } from 'react-hook-form';
 import { Select, variables } from '@trezor/components';
 import { components } from 'react-select';
@@ -6,9 +6,12 @@ import styled from 'styled-components';
 import { useSendFormContext } from 'src/hooks/wallet';
 import { Account } from 'src/types/wallet';
 import { Output } from 'src/types/wallet/sendForm';
-import { getShortFingerprint } from 'src/utils/wallet/cardanoUtils';
+import {
+    getShortFingerprint,
+    enhanceTokensWithRates,
+    sortTokensWithRates,
+} from '@suite-common/wallet-utils';
 import { useSelector } from 'src/hooks/suite';
-import { enhanceTokensWithRates, sortTokensWithRates } from '@suite-common/wallet-utils';
 
 interface Option {
     label: string;
@@ -55,6 +58,7 @@ const OptionValueName = styled.div`
 
 const OptionWrapper = styled.div`
     max-width: 200px;
+
     @media (max-width: ${variables.SCREEN_SIZE.XL}) {
         max-width: 120px;
     }
@@ -120,7 +124,7 @@ export const TokenSelect = ({ output, outputId }: TokenSelectProps) => {
     } = useSendFormContext();
     const coins = useSelector(state => state.wallet.fiat.coins);
 
-    const sortedTokens = React.useMemo(() => {
+    const sortedTokens = useMemo(() => {
         const tokensWithRates = enhanceTokensWithRates(account.tokens, coins);
 
         return tokensWithRates.sort(sortTokensWithRates);

@@ -2,6 +2,12 @@ import webpack from 'webpack';
 import path from 'path';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import TerserPlugin from 'terser-webpack-plugin';
+import CopyPlugin from 'copy-webpack-plugin';
+import { execSync } from 'child_process';
+
+const commitHash = execSync('git rev-parse HEAD').toString().trim();
+
+const DIST = path.resolve(__dirname, '../build');
 
 const config: webpack.Configuration = {
     mode: 'production',
@@ -11,7 +17,7 @@ const config: webpack.Configuration = {
     output: {
         filename: '[name].[hash].js',
         publicPath: './',
-        path: path.resolve(__dirname, '../build'),
+        path: DIST,
     },
     module: {
         rules: [
@@ -22,7 +28,15 @@ const config: webpack.Configuration = {
                     loader: 'babel-loader',
                     options: {
                         cacheDirectory: true,
-                        presets: ['@babel/preset-react', '@babel/preset-typescript'],
+                        presets: [
+                            [
+                                '@babel/preset-react',
+                                {
+                                    runtime: 'automatic',
+                                },
+                            ],
+                            '@babel/preset-typescript',
+                        ],
                         plugins: [
                             [
                                 'babel-plugin-styled-components',
@@ -44,10 +58,15 @@ const config: webpack.Configuration = {
             },
         ],
     },
+    // todo: this block is identical in connect-web, connect-explorer, and connect-explorer-webextension
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.jsx'],
         modules: ['node_modules'],
         mainFields: ['browser', 'module', 'main'],
+        fallback: {
+            fs: false, // ignore "fs" import in markdown-it-imsize
+            path: false, // ignore "path" import in markdown-it-imsize
+        },
     },
     performance: {
         hints: false,
@@ -63,6 +82,19 @@ const config: webpack.Configuration = {
         new webpack.DefinePlugin({
             // eslint-disable-next-line no-underscore-dangle
             'process.env.__TREZOR_CONNECT_SRC': JSON.stringify(process.env.__TREZOR_CONNECT_SRC),
+            'process.env.COMMIT_HASH': JSON.stringify(commitHash),
+        }),
+        new CopyPlugin({
+            patterns: [
+                {
+                    from: path.resolve(__dirname, '../src/images'),
+                    to: path.resolve(DIST, 'images'),
+                },
+                {
+                    from: path.resolve(__dirname, '../../../docs/packages/connect'),
+                    to: path.resolve(DIST, 'docs'),
+                },
+            ],
         }),
     ],
     optimization: {

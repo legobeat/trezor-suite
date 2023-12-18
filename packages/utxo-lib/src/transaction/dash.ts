@@ -1,4 +1,4 @@
-import * as varuint from 'varuint-bitcoin';
+import varuint from 'varuint-bitcoin';
 import { BufferReader, BufferWriter } from '../bufferutils';
 import { TransactionBase, TransactionOptions, varSliceSize, vectorSize } from './base';
 
@@ -61,7 +61,7 @@ function toBuffer(
     if (tx.specific?.extraPayload) bufferWriter.writeVarSlice(tx.specific.extraPayload);
 
     // avoid slicing unless necessary
-    if (initialOffset !== undefined) return buffer.slice(initialOffset, bufferWriter.offset);
+    if (initialOffset !== undefined) return buffer.subarray(initialOffset, bufferWriter.offset);
     return buffer;
 }
 

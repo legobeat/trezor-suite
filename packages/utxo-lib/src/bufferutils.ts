@@ -6,11 +6,10 @@
 // - `BufferWritter.writeUInt64` is accepting string or number.
 
 // eslint-disable-next-line max-classes-per-file
-import * as BN from 'bn.js';
-import * as pushdata from 'pushdata-bitcoin';
-import * as varuint from 'varuint-bitcoin';
+import BN from 'bn.js';
+import pushdata from 'pushdata-bitcoin';
+import varuint from 'varuint-bitcoin';
 import { Int64LE } from 'int64-buffer';
-import * as typeforce from 'typeforce';
 import { bufferUtils } from '@trezor/utils';
 import * as types from './types';
 
@@ -99,12 +98,6 @@ export function cloneBuffer(buffer: Buffer): Buffer {
     return clone;
 }
 
-export function getChunkSize(n: number) {
-    const buf = Buffer.allocUnsafe(1);
-    buf.writeUInt8(n);
-    return buf;
-}
-
 // These types need to be defined here, otherwise
 // importing @trezor/utxo-lib/lib from blockchain-link fails
 // because of missing pushdata-bitcoin types
@@ -124,14 +117,17 @@ export const readPushDataInt: ReadPushDataInt = pushdata.decode;
 // export const varIntBuffer = varuint.encode; // TODO: not-used
 export const varIntSize = varuint.encodingLength;
 export const writePushDataInt: WritePushDataInt = pushdata.encode;
-export const { reverseBuffer } = bufferUtils;
+export const { reverseBuffer, getChunkSize } = bufferUtils;
 
 /**
  * Helper class for serialization of bitcoin data types into a pre-allocated buffer.
  */
 export class BufferWriter {
-    constructor(public buffer: Buffer, public offset: number = 0) {
-        typeforce(types.tuple(types.Buffer, types.UInt32), [buffer, offset]);
+    constructor(
+        public buffer: Buffer,
+        public offset: number = 0,
+    ) {
+        types.typeforce(types.tuple(types.Buffer, types.UInt32), [buffer, offset]);
     }
 
     writeUInt8(i: number): void {
@@ -188,8 +184,11 @@ export class BufferWriter {
  * Helper class for reading of bitcoin data types from a buffer.
  */
 export class BufferReader {
-    constructor(public buffer: Buffer, public offset: number = 0) {
-        typeforce(types.tuple(types.Buffer, types.UInt32), [buffer, offset]);
+    constructor(
+        public buffer: Buffer,
+        public offset: number = 0,
+    ) {
+        types.typeforce(types.tuple(types.Buffer, types.UInt32), [buffer, offset]);
     }
 
     readUInt8(): number {
@@ -244,7 +243,7 @@ export class BufferReader {
         if (this.buffer.length < this.offset + n) {
             throw new Error('Cannot read slice out of bounds');
         }
-        const result = this.buffer.slice(this.offset, this.offset + n);
+        const result = this.buffer.subarray(this.offset, this.offset + n);
         this.offset += n;
         return result;
     }

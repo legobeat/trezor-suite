@@ -10,8 +10,10 @@ import { getTestElement, getConfirmActionOnDeviceModal, hoverTestElement } from 
 import { resetDb } from './utils/test-env';
 import {
     toggleDeviceMenu,
+    enableDebugMode,
     toggleDebugModeInSettings,
     passThroughInitialRun,
+    passThroughAuthenticityCheck,
     passThroughBackup,
     passThroughBackupShamir,
     passThroughInitMetadata,
@@ -20,6 +22,7 @@ import {
     createAccountFromMyAccounts,
     interceptDataTrezorIo,
     findAnalyticsEventByType,
+    enterPinOnBlindMatrix,
 } from './utils/shortcuts';
 import { interceptInvityApi } from './utils/intercept-invity-api';
 import { SuiteAnalyticsEvent } from '@trezor/suite-analytics';
@@ -96,9 +99,11 @@ declare global {
             dashboardShouldLoad: () => Chainable<Subject>;
             discoveryShouldFinish: () => Chainable<Subject>;
             toggleDeviceMenu: () => Chainable<Subject>;
+            enableDebugMode: () => Chainable<Subject>;
             toggleDebugModeInSettings: () => Chainable<Subject>;
             text: () => Chainable<Subject>;
             passThroughInitialRun: () => Chainable<Subject>;
+            passThroughAuthenticityCheck: () => Chainable<Subject>;
             passThroughBackup: () => Chainable<Subject>;
             passThroughBackupShamir: (shares: number, threshold: number) => Chainable<Subject>;
             passThroughSetPin: () => Chainable<Subject>;
@@ -115,6 +120,7 @@ declare global {
                 requests: Requests,
                 eventType: T['type'],
             ) => Cypress.Chainable<NonNullable<EventPayload<T>>>;
+            enterPinOnBlindMatrix: (entryPinNumber: string) => Cypress.Chainable<null>;
         }
     }
 }
@@ -143,8 +149,10 @@ Cypress.Commands.add('hoverTestElement', hoverTestElement);
 
 // various shortcuts
 Cypress.Commands.add('toggleDeviceMenu', toggleDeviceMenu);
+Cypress.Commands.add('enableDebugMode', enableDebugMode);
 Cypress.Commands.add('toggleDebugModeInSettings', toggleDebugModeInSettings);
 Cypress.Commands.add('passThroughInitialRun', passThroughInitialRun);
+Cypress.Commands.add('passThroughAuthenticityCheck', passThroughAuthenticityCheck);
 Cypress.Commands.add('passThroughBackup', passThroughBackup);
 Cypress.Commands.add('passThroughBackupShamir', passThroughBackupShamir);
 Cypress.Commands.add('passThroughInitMetadata', passThroughInitMetadata);
@@ -158,3 +166,4 @@ Cypress.Commands.add('interceptInvityApi', interceptInvityApi);
 Cypress.Commands.add('interceptDataTrezorIo', interceptDataTrezorIo);
 
 Cypress.Commands.add('findAnalyticsEventByType', findAnalyticsEventByType);
+Cypress.Commands.add('enterPinOnBlindMatrix', enterPinOnBlindMatrix);

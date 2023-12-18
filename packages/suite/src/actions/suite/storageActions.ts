@@ -1,12 +1,14 @@
 import { FieldValues } from 'react-hook-form';
 
+import { cloneObject } from '@trezor/utils';
+
 import { Discovery, FormDraftKeyPrefix } from '@suite-common/wallet-types';
 import { notificationsActions } from '@suite-common/toast-notifications';
 import { getFormDraftKey } from '@suite-common/wallet-utils';
 import { FormDraftPrefixKeyValues } from '@suite-common/wallet-constants';
+import { selectDevices, deviceActions } from '@suite-common/wallet-core';
 
 import { db } from 'src/storage';
-import * as suiteActions from 'src/actions/suite/suiteActions';
 import {
     serializeDiscovery,
     serializeDevice,
@@ -22,6 +24,7 @@ import { deviceGraphDataFilterFn } from 'src/utils/wallet/graph';
 import { selectCoinjoinAccountByKey } from 'src/reducers/wallet/coinjoinReducer';
 
 import { STORAGE } from './constants';
+import { MetadataState } from '@suite-common/metadata-types';
 
 export type StorageAction = NonNullable<PreloadStoreAction>;
 export type StorageLoadAction = Extract<StorageAction, { type: typeof STORAGE.LOAD }>;
@@ -213,6 +216,8 @@ export const rememberDevice =
         if (!(await db.isAccessible())) return;
         if (!device || !device.features || !device.state) return;
         if (!remember) {
+            // eslint-disable-next-line @typescript-eslint/no-use-before-define
+            dispatch(forgetDeviceMetadataError(device));
             return dispatch(forgetDevice(device));
         }
 
@@ -244,6 +249,8 @@ export const rememberDevice =
                 saveAccounts(accounts),
                 saveGraph(graphData),
                 saveDiscovery(discovery),
+                // eslint-disable-next-line  @typescript-eslint/no-use-before-define
+                dispatch(saveDeviceMetadataError(device)),
                 ...accountPromises,
             ] as Promise<void | string | undefined>[]);
         } catch (error) {
@@ -320,24 +327,65 @@ export const saveAnalytics = () => async (_dispatch: Dispatch, getState: GetStat
     );
 };
 
+type MetadataPersistentKeys = 'providers' | 'enabled' | 'selectedProvider' | 'error';
+
+const saveMetadata = async (metadata: Partial<Pick<MetadataState, MetadataPersistentKeys>>) => {
+    if (!(await db.isAccessible())) return;
+
+    // remove undefined in metadata arg
+    (Object.keys as unknown as (args: any) => MetadataPersistentKeys[])(metadata).forEach(
+        (key: MetadataPersistentKeys) => {
+            if (typeof metadata[key] === 'undefined') {
+                delete metadata[key];
+            }
+        },
+    );
+    const savedMetadata = await db.getItemByPK('metadata', 'state');
+    const nextMetadata = { ...savedMetadata, ...metadata } as Pick<
+        MetadataState,
+        MetadataPersistentKeys
+    >;
+
+    await db.addItem('metadata', nextMetadata, 'state', true);
+};
+
 /**
  * save general metadata settings
  */
-export const saveMetadata = () => async (_dispatch: Dispatch, getState: GetState) => {
+export const saveMetadataSettings = () => async (_dispatch: Dispatch, getState: GetState) => {
     if (!(await db.isAccessible())) return;
 
     const { metadata } = getState();
-    db.addItem(
-        'metadata',
-        {
-            providers: metadata.providers,
-            enabled: metadata.enabled,
-            selectedProvider: metadata.selectedProvider,
-        },
-        'state',
-        true,
-    );
+
+    saveMetadata({
+        providers: metadata.providers,
+        enabled: metadata.enabled,
+        selectedProvider: metadata.selectedProvider,
+    });
 };
+
+export const saveDeviceMetadataError =
+    (device: TrezorDevice) => async (_dispatch: Dispatch, getState: GetState) => {
+        if (!(await db.isAccessible())) return;
+
+        const { metadata } = getState();
+        if (device.state && metadata?.error?.[device.state]) {
+            const { error } = metadata;
+            await saveMetadata({ error });
+        }
+    };
+
+export const forgetDeviceMetadataError =
+    (device: TrezorDevice) => async (_dispatch: Dispatch, getState: GetState) => {
+        if (!(await db.isAccessible())) return;
+
+        const { metadata } = getState();
+        if (device.state && metadata?.error) {
+            const next = cloneObject(metadata.error);
+            delete next[device.state];
+            saveMetadata({ error: next });
+        }
+    };
 
 export const saveMessageSystem = () => async (_dispatch: Dispatch, getState: GetState) => {
     if (!(await db.isAccessible())) return;
@@ -366,10 +414,11 @@ export const saveFirmware = () => async (_dispatch: Dispatch, getState: GetState
 export const removeDatabase = () => async (dispatch: Dispatch, getState: GetState) => {
     if (!(await db.isAccessible())) return;
 
-    const rememberedDevices = getState().devices.filter(d => d.remember);
+    const devices = selectDevices(getState());
+    const rememberedDevices = devices.filter(d => d.remember);
     // forget all remembered devices
     rememberedDevices.forEach(d => {
-        dispatch(suiteActions.forgetDevice(d));
+        dispatch(deviceActions.forgetDevice(d));
     });
     await db.removeDatabase();
     dispatch(

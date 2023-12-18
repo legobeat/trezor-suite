@@ -1,16 +1,65 @@
 {
     "name": "@trezor/connect-webextension",
-    "version": "1.0.0",
-    "private": true,
+    "version": "0.0.0-beta.0",
+    "author": "Trezor <info@trezor.io>",
+    "homepage": "https://github.com/trezor/trezor-suite/tree/develop/packages/connect-webextension",
+    "description": "High-level javascript interface for Trezor hardware wallet in webextension serviceworker environment.",
+    "npmPublishAccess": "public",
+    "license": "SEE LICENSE IN LICENSE.md",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/trezor/trezor-suite.git"
+    },
+    "bugs": {
+        "url": "https://github.com/trezor/trezor-suite/issues"
+    },
+    "keywords": [
+        "Trezor",
+        "trezor-connect",
+        "javascript",
+        "serviceworker",
+        "webextension"
+    ],
+    "main": "build/trezor-connect-webextension.js",
+    "files": [
+        "build/trezor-connect-webextension.js",
+        "build/trezor-connect-webextension.min.js"
+    ],
     "scripts": {
         "lint:js": "yarn g:eslint '**/*.{ts,tsx,js}'",
-        "test:e2e": "yarn xvfb-maybe -- playwright test --config=./e2e/playwright.config.ts"
+        "test:e2e": "yarn xvfb-maybe -- playwright test --config=./e2e/playwright.config.ts",
+        "build:lib": "rimraf ./lib && yarn tsc --build tsconfig.lib.json",
+        "build:content-script": "TS_NODE_PROJECT=\"tsconfig.lib.json\" webpack --config ./webpack/content-script.webpack.config.ts",
+        "build:inline": "TS_NODE_PROJECT=\"tsconfig.lib.json\" webpack --config ./webpack/inline.webpack.config.ts",
+        "build:webextension": "TS_NODE_PROJECT=\"tsconfig.lib.json\" yarn webpack --config ./webpack/prod.webpack.config.ts",
+        "build": "rimraf build && yarn build:content-script &&  yarn build:webextension && yarn build:inline && node ./webpack/inline-content-script.js"
+    },
+    "dependencies": {
+        "@trezor/connect": "workspace:*",
+        "@trezor/connect-common": "workspace:*",
+        "@trezor/utils": "workspace:*",
+        "events": "^3.3.0"
     },
     "devDependencies": {
-        "@playwright/test": "^1.35.1",
+        "@playwright/browser-chromium": "^1.39.0",
+        "@playwright/browser-firefox": "^1.39.0",
+        "@playwright/browser-webkit": "^1.39.0",
+        "@playwright/test": "^1.39.0",
         "@trezor/node-utils": "workspace:*",
         "@trezor/trezor-user-env-link": "workspace:*",
+        "@types/chrome": "latest",
+        "jest": "29.5.0",
+        "rimraf": "^5.0.1",
+        "terser-webpack-plugin": "^5.3.9",
+        "tsx": "^4.6.2",
         "typescript": "^4.9.5",
+        "webpack": "^5.87.0",
+        "webpack-cli": "^5.1.4",
+        "webpack-merge": "^5.9.0",
+        "webpack-plugin-serve": "^1.6.0",
         "xvfb-maybe": "^0.2.1"
+    },
+    "peerDependencies": {
+        "tslib": "^2.6.2"
     }
 }

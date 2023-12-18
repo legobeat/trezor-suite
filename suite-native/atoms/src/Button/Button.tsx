@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Pressable, PressableProps } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -202,10 +202,10 @@ export const Button = ({
                     style,
                 ]}
             >
-                <HStack>
+                <HStack alignItems="center">
                     {iconLeft && icon}
                     <Text
-                        align="center"
+                        textAlign="center"
                         variant={buttonToTextSizeMap[size]}
                         color={isDisabled ? disabledTextColor : textColor}
                     >

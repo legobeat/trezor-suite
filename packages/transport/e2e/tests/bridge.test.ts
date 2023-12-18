@@ -1,9 +1,9 @@
+import * as messages from '@trezor/protobuf/messages.json';
 // testing build. yarn workspace @trezor/transport build:lib is a required step therefore
 import { TrezorUserEnvLink } from '@trezor/trezor-user-env-link';
 
 // testing build. yarn workspace @trezor/transport build:lib is a required step therefore
 import { BridgeTransport } from '../../lib';
-import messages from '../../messages.json';
 
 // todo: introduce global jest config for e2e
 jest.setTimeout(60000);
@@ -18,7 +18,7 @@ const emulatorSetupOpts = {
     needs_backup: true,
 };
 
-const emulatorStartOpts = { version: '2-master', wipe: true };
+const emulatorStartOpts = { version: '2-main', wipe: true };
 
 describe('bridge', () => {
     beforeAll(async () => {

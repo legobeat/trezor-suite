@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button } from '@trezor/components';
 import { AccountExceptionLayout } from 'src/components/wallet';
 import { Translation, TrezorLink } from 'src/components/suite';
@@ -11,7 +10,7 @@ interface NoTransactionsProps {
 
 export const NoTransactions = ({ account }: NoTransactionsProps) => {
     const network = getNetwork(account.symbol)!;
-    const explorerUrl = `${network.explorer.account}${account.descriptor}`;
+    const explorerUrl = `${network.explorer.account}${account.descriptor}${network.explorer.queryString}`;
 
     return (
         <AccountExceptionLayout

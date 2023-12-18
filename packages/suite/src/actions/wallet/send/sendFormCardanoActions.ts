@@ -1,33 +1,32 @@
+import TrezorConnect, { PROTO } from '@trezor/connect';
 import {
-    getChangeAddressParameters,
-    getTtl,
+    isTestnet,
+    getDerivationType,
+    getUnusedChangeAddress,
+    getAddressParameters,
     getNetworkId,
     getProtocolMagic,
     transformUserOutputs,
-    transformUtxos,
     formatMaxOutputAmount,
-    loadCardanoLib,
-} from 'src/utils/wallet/cardanoUtils';
-import { Dispatch, GetState } from 'src/types/suite';
-
-import TrezorConnect, { PROTO } from '@trezor/connect';
-import { formatNetworkAmount, isTestnet, getDerivationType } from '@suite-common/wallet-utils';
+} from '@suite-common/wallet-utils';
 import { notificationsActions } from '@suite-common/toast-notifications';
 import {
     FormState,
     ComposeActionContext,
     PrecomposedLevelsCardano,
     PrecomposedTransactionFinalCardano,
+    PrecomposedTransactionCardano,
 } from '@suite-common/wallet-types';
+import { selectDevice } from '@suite-common/wallet-core';
+
+import { Dispatch, GetState } from 'src/types/suite';
 
 export const composeTransaction =
     (formValues: FormState, formState: ComposeActionContext) =>
     async (dispatch: Dispatch): Promise<PrecomposedLevelsCardano | undefined> => {
         const { account, feeInfo } = formState;
-        const changeAddress = getChangeAddressParameters(account);
-        if (!changeAddress || !account.utxo) return;
-
-        const { coinSelection, trezorUtils, CoinSelectionError } = await loadCardanoLib();
+        const changeAddress = getUnusedChangeAddress(account);
+        if (!changeAddress || !account.utxo || !account.addresses) return;
 
         const predefinedLevels = feeInfo.levels.filter(l => l.label !== 'custom');
         if (formValues.selectedFee === 'custom') {
@@ -38,7 +37,6 @@ export const composeTransaction =
             });
         }
 
-        const utxos = transformUtxos(account.utxo);
         const outputs = transformUserOutputs(
             formValues.outputs,
             account.tokens,
@@ -46,100 +44,74 @@ export const composeTransaction =
             formValues.setMaxOutputId,
         );
 
+        const addressParameters = getAddressParameters(account, changeAddress.path);
+
+        const response = await TrezorConnect.cardanoComposeTransaction({
+            feeLevels: predefinedLevels,
+            outputs,
+            account: {
+                descriptor: account.descriptor,
+                addresses: account.addresses,
+                utxo: account.utxo,
+            },
+            changeAddress,
+            addressParameters,
+            testnet: isTestnet(account.symbol),
+        });
+
+        if (!response.success) {
+            dispatch(
+                notificationsActions.addToast({
+                    type: 'sign-tx-error',
+                    error: response.payload.error,
+                }),
+            );
+            return;
+        }
+
         const wrappedResponse: PrecomposedLevelsCardano = {};
-        predefinedLevels.forEach(level => {
-            const options = {
-                ...(level.label === 'custom' ? { feeParams: { a: formValues.feePerUnit } } : {}),
-                // debug: true, // prints debug information
-            };
-
-            try {
-                const txPlan = coinSelection(
-                    {
-                        utxos,
-                        outputs,
-                        changeAddress: changeAddress.address,
-                        certificates: [],
-                        withdrawals: [],
-                        accountPubKey: account.descriptor,
-                        ttl: getTtl(isTestnet(account.symbol)),
-                    },
-                    options,
-                );
-
-                const tx =
-                    txPlan.type === 'final'
-                        ? {
-                              type: txPlan.type,
-                              fee: txPlan.fee,
-                              feePerByte: level.feePerUnit,
-                              bytes: txPlan.tx.size,
-                              totalSpent: txPlan.totalSpent,
-                              max: formatMaxOutputAmount(
-                                  txPlan.max,
-                                  outputs.find(o => o.setMax),
-                                  account,
-                              ), // convert from lovelace units to ADA
-                              ttl: txPlan.ttl,
-                              transaction: {
-                                  inputs: trezorUtils.transformToTrezorInputs(
-                                      txPlan.inputs,
-                                      account.utxo!, // for some reason TS still considers 'undefined' as possible value
-                                  ),
-                                  outputs: trezorUtils.transformToTrezorOutputs(
-                                      txPlan.outputs,
-                                      changeAddress.addressParameters,
-                                  ),
-                                  unsignedTx: txPlan.tx,
-                              },
-                          }
-                        : {
-                              type: txPlan.type,
-                              fee: txPlan.fee,
-                              feePerByte: level.feePerUnit,
-                              bytes: 0,
-                              totalSpent: txPlan.totalSpent,
-                              max:
-                                  txPlan.max && outputs.find(o => o.setMax && o.assets.length === 0)
-                                      ? formatNetworkAmount(txPlan.max, account.symbol)
-                                      : txPlan.max, // convert lovelace to ADA (for ADA outputs only)
-                          };
-
-                wrappedResponse[level.label] = tx;
-            } catch (error) {
-                if (
-                    error instanceof CoinSelectionError &&
-                    error.code === 'UTXO_BALANCE_INSUFFICIENT'
-                ) {
-                    wrappedResponse[level.label] = {
-                        type: 'error',
-                        error: 'AMOUNT_IS_NOT_ENOUGH',
-                        errorMessage: { id: 'AMOUNT_IS_NOT_ENOUGH' },
-                    };
-                } else if (
-                    error instanceof CoinSelectionError &&
-                    error.code === 'UTXO_VALUE_TOO_SMALL'
-                ) {
-                    wrappedResponse[level.label] = {
-                        type: 'error',
-                        error: 'AMOUNT_IS_TOO_LOW',
-                        errorMessage: { id: 'AMOUNT_IS_TOO_LOW' },
-                    };
-                } else {
-                    console.warn(error);
-                    // generic handling for the rest of CoinSelectionError and other unexpected errors
-                    wrappedResponse[level.label] = {
-                        type: 'error',
-                        error: error.message,
-                    };
-                    dispatch(
-                        notificationsActions.addToast({
-                            type: 'sign-tx-error',
-                            error: error.message,
-                        }),
+        response.payload.forEach((t, index) => {
+            const tx: PrecomposedTransactionCardano = t;
+            switch (tx.type) {
+                case 'final':
+                    // convert from lovelace units to ADA
+                    tx.max = formatMaxOutputAmount(
+                        tx.max,
+                        outputs.find(o => o.setMax),
+                        account,
                     );
-                }
+                    break;
+                case 'nonfinal':
+                    // convert lovelace to ADA (for ADA outputs only)
+                    tx.max = formatMaxOutputAmount(
+                        tx.max,
+                        outputs.find(o => o.setMax && o.assets.length === 0),
+                        account,
+                    );
+                    break;
+                case 'error':
+                    switch (tx.error) {
+                        case 'UTXO_BALANCE_INSUFFICIENT':
+                            tx.errorMessage = { id: 'AMOUNT_IS_NOT_ENOUGH' };
+                            break;
+                        case 'UTXO_VALUE_TOO_SMALL':
+                            tx.errorMessage = { id: 'AMOUNT_IS_TOO_LOW' };
+                            break;
+                        default:
+                            dispatch(
+                                notificationsActions.addToast({
+                                    type: 'sign-tx-error',
+                                    error: tx.error,
+                                }),
+                            );
+                            break;
+                    }
+                    break;
+                // no default
             }
+
+            const feeLabel = predefinedLevels[index].label;
+            wrappedResponse[feeLabel] = tx;
         });
 
         return wrappedResponse;
@@ -148,9 +120,8 @@ export const composeTransaction =
 export const signTransaction =
     (_formValues: FormState, transactionInfo: PrecomposedTransactionFinalCardano) =>
     async (dispatch: Dispatch, getState: GetState) => {
-        const { trezorUtils } = await loadCardanoLib();
         const { selectedAccount } = getState().wallet;
-        const { device } = getState().suite;
+        const device = selectDevice(getState());
 
         if (
             selectedAccount.status !== 'loaded' ||
@@ -164,8 +135,7 @@ export const signTransaction =
 
         if (account.networkType !== 'cardano') return;
 
-        const { transaction } = transactionInfo;
-
+        // todo: add chunkify once we allow it for Cardano
         const res = await TrezorConnect.cardanoSignTransaction({
             signingMode: PROTO.CardanoTxSigningMode.ORDINARY_TRANSACTION,
             device: {
@@ -174,8 +144,10 @@ export const signTransaction =
                 state: device.state,
             },
             useEmptyPassphrase: device.useEmptyPassphrase,
-            inputs: transaction.inputs,
-            outputs: transaction.outputs,
+            inputs: transactionInfo.inputs,
+            outputs: transactionInfo.outputs,
+            unsignedTx: transactionInfo.unsignedTx,
+            testnet: isTestnet(account.symbol),
             protocolMagic: getProtocolMagic(account.symbol),
             networkId: getNetworkId(account.symbol),
             fee: transactionInfo.fee,
@@ -184,7 +156,7 @@ export const signTransaction =
         });
 
         if (!res.success) {
-            // catch manual error from ReviewTransaction modal
+            // catch manual error from TransactionReviewModal
             if (res.payload.error === 'tx-cancelled') return;
             dispatch(
                 notificationsActions.addToast({
@@ -195,23 +167,5 @@ export const signTransaction =
             return;
         }
 
-        if (res.payload.hash !== transactionInfo.transaction.unsignedTx.hash) {
-            console.error("Constructed transaction doesn't match the hash returned by the device.");
-            dispatch(
-                notificationsActions.addToast({
-                    type: 'sign-tx-error',
-                    error: "Constructed transaction doesn't match the hash returned by the device.",
-                }),
-            );
-            return;
-        }
-
-        const signedTx = trezorUtils.signTransaction(
-            transactionInfo.transaction.unsignedTx.body,
-            res.payload.witnesses,
-            {
-                testnet: isTestnet(account.symbol),
-            },
-        );
-        return signedTx;
+        return res.payload.serializedTx;
     };

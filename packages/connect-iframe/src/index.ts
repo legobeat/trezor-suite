@@ -12,6 +12,7 @@ import {
     POPUP,
     IFRAME,
     UI,
+    DEVICE,
     parseMessage,
     createResponseMessage,
     createIFrameMessage,
@@ -24,18 +25,23 @@ import {
 import { Core, initCore, initTransport } from '@trezor/connect/src/core';
 import { DataManager } from '@trezor/connect/src/data/DataManager';
 import { config } from '@trezor/connect/src/data/config';
-import { initLog } from '@trezor/connect/src/utils/debug';
+import { initLog, LogWriter } from '@trezor/connect/src/utils/debug';
 import { getOrigin } from '@trezor/connect/src/utils/urlUtils';
 import { suggestBridgeInstaller } from '@trezor/connect/src/data/transportInfo';
 import { suggestUdevInstaller } from '@trezor/connect/src/data/udevInfo';
 import { storage, getSystemInfo, getInstallerPackage } from '@trezor/connect-common';
 import { parseConnectSettings, isOriginWhitelisted } from './connectSettings';
 import { analytics, EventType } from '@trezor/connect-analytics';
+// @ts-expect-error (typescript does not know this is worker constructor, this is done by webpack)
+import LogWorker from './sharedLoggerWorker';
+import { initLogWriterWithWorker } from './sharedLoggerUtils';
 
 let _core: Core | undefined;
 
 // custom log
 const _log = initLog('IFrame');
+let logWriterProxy: LogWriter | undefined;
+
 let _popupMessagePort: (MessagePort | BroadcastChannel) | undefined;
 
 // Wrapper which listens to events from Core
@@ -43,7 +49,7 @@ let _popupMessagePort: (MessagePort | BroadcastChannel) | undefined;
 // since iframe.html needs to send message via window.postMessage
 // we need to listen to events from Core and convert it to simple objects possible to send over window.postMessage
 
-const handleMessage = (event: PostMessageEvent) => {
+const handleMessage = async (event: PostMessageEvent) => {
     // ignore messages from myself (chrome bug?)
     if (event.source === window || !event.data) return;
     const { data } = event;
@@ -53,6 +59,13 @@ const handleMessage = (event: PostMessageEvent) => {
         postMessage(createResponseMessage(id, false, { error }));
         postMessage(createPopupMessage(POPUP.CANCEL_POPUP_REQUEST));
     };
+
+    if (data.type === IFRAME.LOG && data.payload.prefix === '@trezor/connect-web') {
+        if (logWriterProxy) {
+            logWriterProxy.add(data.payload);
+        }
+        return;
+    }
 
     // respond to call
     // TODO: instead of error _core should be initialized automatically
@@ -86,32 +99,36 @@ const handleMessage = (event: PostMessageEvent) => {
             return;
         }
 
-        const method = _core.getCurrentMethod()[0];
-        (method.initAsync ? method?.initAsync() : Promise.resolve()).finally(() => {
-            const transport = _core!.getTransportInfo();
-            const settings = DataManager.getSettings();
+        const transport = _core.getTransportInfo();
+        const settings = DataManager.getSettings();
 
-            postMessage(
-                createPopupMessage(POPUP.HANDSHAKE, {
-                    settings: DataManager.getSettings(),
-                    transport,
-                    method: method ? method.info : undefined, // method.info might change based on initAsync
-                }),
-            );
+        postMessage(
+            createPopupMessage(POPUP.HANDSHAKE, {
+                settings: DataManager.getSettings(),
+                transport,
+            }),
+        );
+        _log.debug('loading current method');
+        const method = await _core.getCurrentMethod();
+        (method.initAsyncPromise ? method.initAsyncPromise : Promise.resolve()).finally(() => {
+            if (method.info) {
+                postMessage(
+                    createPopupMessage(POPUP.METHOD_INFO, {
+                        method: method.name,
+                        info: method.info, // method.info might change based on initAsync
+                    }),
+                );
+            }
 
             // eslint-disable-next-line camelcase
             const { tracking_enabled, tracking_id } = storage.load();
 
-            // eslint-disable-next-line camelcase
-            analytics.init(tracking_enabled || false, {
+            analytics.init(tracking_enabled, {
                 // eslint-disable-next-line camelcase
                 instanceId: tracking_id,
                 commitId: process.env.COMMIT_HASH || '',
                 isDev: process.env.NODE_ENV === 'development',
-                useQueue: true,
             });
-
-            const { method: methodName, ...payload } = method.payload;
 
             analytics.report({
                 type: EventType.AppReady,
@@ -120,8 +137,8 @@ const handleMessage = (event: PostMessageEvent) => {
                     origin: settings?.origin,
                     referrerApp: settings?.manifest?.appUrl,
                     referrerEmail: settings?.manifest?.email,
-                    method: methodName,
-                    payload: method.payload ? Object.keys(payload) : undefined,
+                    method: method.name,
+                    payload: method.payload ? Object.keys(method.payload) : undefined,
                     transportType: transport?.type,
                     transportVersion: transport?.version,
                 },
@@ -237,6 +254,11 @@ const shouldUiEventBeSentToHost = (message: CoreMessage) => {
         UI.BUNDLE_PROGRESS,
         UI.ADDRESS_VALIDATION,
         RESPONSE_EVENT,
+        DEVICE.CONNECT,
+        DEVICE.CONNECT_UNACQUIRED,
+        DEVICE.CHANGED,
+        DEVICE.DISCONNECT,
+        DEVICE.BUTTON,
     ];
     return whitelistedMessages.includes(message.type);
 };
@@ -283,11 +305,20 @@ const init = async (payload: IFrameInit['payload'], origin: string) => {
         }
     }
 
+    let logWriterFactory;
+    if (parsedSettings.sharedLogger !== false) {
+        logWriterFactory = initLogWriterWithWorker(LogWorker);
+        // `logWriterProxy` is used here to pass to shared logger worker logs from
+        // environments that do not have access to it, like connect-web, webextension.
+        // It does not log anything in this environment, just used as proxy.
+        logWriterProxy = logWriterFactory();
+    }
+
     _log.enabled = !!parsedSettings.debug;
 
     try {
         // initialize core
-        _core = await initCore(parsedSettings);
+        _core = await initCore(parsedSettings, logWriterFactory);
         _core.on(CORE_EVENT, postMessage);
 
         // initialize transport and wait for the first transport event (start or error)

@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { Translation } from 'src/components/suite';
-import { PinMatrix } from 'src/components/suite/PinMatrix';
+import { useEffect, useState } from 'react';
+
+import { selectDevice } from '@suite-common/wallet-core';
+
+import { PinMatrix, Translation } from 'src/components/suite';
 import {
     OnboardingButtonCta,
     OnboardingButtonSkip,
@@ -16,21 +18,20 @@ const SetPinStep = () => {
     const [status, setStatus] = useState<'initial' | 'enter-pin' | 'repeat-pin' | 'success'>(
         'initial',
     );
-    const device = useSelector(state => state.suite.device);
+    const device = useSelector(selectDevice);
     const modal = useSelector(state => state.modal);
     const isActionAbortable = useSelector(selectIsActionAbortable);
     const dispatch = useDispatch();
 
     const { goToNextStep, showPinMatrix, updateAnalytics } = useOnboarding();
 
-    const deviceModelInternal = device?.features?.internal_model;
-
+    const setPinAndSkipSuccessToast = () => dispatch(changePin({}, true));
     const onTryAgain = () => {
         setStatus('initial');
-        dispatch(changePin({}));
+        setPinAndSkipSuccessToast();
     };
     const setPin = () => {
-        dispatch(changePin());
+        setPinAndSkipSuccessToast();
         updateAnalytics({ pin: 'create' });
     };
     const skipPin = () => {
@@ -151,7 +152,7 @@ const SetPinStep = () => {
                         </OnboardingButtonSkip>
                     ) : undefined
                 }
-                deviceModelInternal={showConfirmationPrompt ? deviceModelInternal : undefined}
+                device={showConfirmationPrompt ? device : undefined}
                 isActionAbortable={status === 'initial' ? isActionAbortable : true}
             >
                 {/* // device requested showing a pin matrix, show the matrix also on "repeat-pin" status until we get fail or success response from the device */}

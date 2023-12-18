@@ -1,5 +1,7 @@
 import produce from 'immer';
-import { SUITE } from 'src/actions/suite/constants';
+
+import { deviceActions } from '@suite-common/wallet-core';
+
 import { ACCOUNT_SEARCH } from 'src/actions/wallet/constants';
 import * as walletSettingsActions from 'src/actions/settings/walletSettingsActions';
 import { Action } from 'src/types/suite';
@@ -35,7 +37,7 @@ const accountSearchReducer = (state: State = initialState, action: Action): Stat
                 }
                 break;
             }
-            case SUITE.SELECT_DEVICE:
+            case deviceActions.selectDevice.type:
                 draft.coinFilter = undefined;
                 draft.searchString = undefined;
                 break;

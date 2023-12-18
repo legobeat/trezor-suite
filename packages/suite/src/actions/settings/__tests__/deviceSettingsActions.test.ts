@@ -1,67 +1,34 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable global-require */
+import { testMocks } from '@suite-common/test-utils';
+import { prepareDeviceReducer, deviceActions } from '@suite-common/wallet-core';
+import TrezorConnect from '@trezor/connect';
 
 import { configureStore } from 'src/support/tests/configureStore';
-import fixtures from '../__fixtures__/deviceSettings';
 import suiteReducer from 'src/reducers/suite/suiteReducer';
-import deviceReducer from 'src/reducers/suite/deviceReducer';
+import { extraDependencies } from 'src/support/extraDependencies';
 
-const { getSuiteDevice } = global.JestMocks;
+import fixtures from '../__fixtures__/deviceSettings';
 
-jest.mock('@trezor/connect', () => {
-    let fixture: { success: boolean; payload: any };
-    let deviceChangeEvent = () => {};
+const { getSuiteDevice } = testMocks;
 
-    return {
-        ...jest.requireActual('@trezor/connect'),
-        __esModule: true, // this property makes it work
-        default: {
-            blockchainSetCustomBackend: () => {},
-            applySettings: () =>
-                new Promise(resolve => {
-                    deviceChangeEvent();
-                    resolve(fixture);
-                }),
-            wipeDevice: () =>
-                new Promise(resolve => {
-                    deviceChangeEvent();
-                    resolve(fixture);
-                }),
-            changePin: () =>
-                new Promise(resolve => {
-                    deviceChangeEvent();
-                    resolve(fixture);
-                }),
-        },
-        setTestFixtures: (f: typeof fixture) => {
-            fixture = f;
-        },
-        setDeviceChangeEvent: (event: typeof deviceChangeEvent) => {
-            deviceChangeEvent = event;
-        },
-        DEVICE: {
-            CHANGED: 'device-changed',
-        },
-        TRANSPORT: {},
-        BLOCKCHAIN: {},
-    };
-});
+const deviceReducer = prepareDeviceReducer(extraDependencies);
 
-jest.mock('@trezor/suite-analytics', () => global.JestMocks.getAnalytics());
+jest.doMock('@trezor/suite-analytics', () => testMocks.getAnalytics());
 
 const DEVICE = getSuiteDevice({ path: '1', connected: true });
 
 type State = {
     suite: ReturnType<typeof suiteReducer>;
-    devices: ReturnType<typeof deviceReducer>;
+    device: ReturnType<typeof deviceReducer>;
 };
 
 export const getInitialState = (state: Partial<State> = {}) => ({
     suite: {
         ...suiteReducer(undefined, { type: '@suite/init' }),
-        device: DEVICE,
     },
-    devices: state.devices ?? [DEVICE],
+    device: {
+        devices: state.device?.devices ?? [DEVICE],
+        selectedDevice: DEVICE,
+    },
     router: {},
 });
 
@@ -71,10 +38,10 @@ const initStore = (state: State) => {
     const store = mockStore(state);
     store.subscribe(() => {
         const action = store.getActions().pop();
-        const { suite, devices } = store.getState();
+        const { suite, device } = store.getState();
         // process action in reducers
         store.getState().suite = suiteReducer(suite, action);
-        store.getState().devices = deviceReducer(devices, action);
+        store.getState().device = deviceReducer(device, action);
         // add action back to stack
         store.getActions().push(action);
     });
@@ -85,22 +52,21 @@ describe('DeviceSettings Actions', () => {
     fixtures.forEach(f => {
         it(f.description, async () => {
             const store = initStore(getInitialState(f.initialState));
-            if (f.mocks) {
-                require('@trezor/connect').setTestFixtures(f.mocks);
-            }
             // wipe device tests require "device-change" event from "@trezor/connect"
             // this action have influence on reducers and forget device process
-            if (f.deviceChange) {
-                require('@trezor/connect').setDeviceChangeEvent(() => {
-                    store.dispatch({ type: 'device-changed', payload: f.deviceChange });
-                    store.dispatch({
-                        type: '@suite/update-selected-device',
-                        payload: f.deviceChange,
-                    });
-                });
-            }
+            const mock = () => {
+                if (f.deviceChange) {
+                    store.dispatch(deviceActions.deviceChanged(f.deviceChange));
+                    store.dispatch(deviceActions.updateSelectedDevice(f.deviceChange));
+                }
+                return Promise.resolve(f.mocks) as any;
+            };
+            jest.spyOn(TrezorConnect, 'applySettings').mockImplementation(mock);
+            jest.spyOn(TrezorConnect, 'wipeDevice').mockImplementation(mock);
+            jest.spyOn(TrezorConnect, 'changePin').mockImplementation(mock);
 
             await store.dispatch(f.action());
+
             if (f.result) {
                 if (f.result.actions) {
                     expect(store.getActions()).toMatchObject(f.result.actions);

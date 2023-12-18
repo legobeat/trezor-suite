@@ -169,7 +169,8 @@ Structure of config, types and optionality of specific keys can be found in the 
                         {
                             // Possible values: "1" +  "T1B1", "T" + "T2T1", "T2B1"
                             // in case of targeting "T1B1" or "T2T1", for backwards compatibility use old (1, T) and new naming (T1B1, T2T1 together in a new object
-                            "model": "1",
+                            // in case of targeting "T2B1" in Suites before device release, please use all three "T2B1", "Safe 3" and empty string ""
+                            "model": "T1B1",
                             /*
                             Beware
                             - firmware version in bootloader mode is unavailable on T1B1
@@ -213,6 +214,12 @@ Structure of config, types and optionality of specific keys can be found in the 
                     "en-GB": "New Trezor firmware is available!",
                     "en": "New Trezor firmware is available!",
                     "de": "Neue Trezor Firmware ist verfügbar!"
+                },
+                // optional headline following the language structure of content
+                "headline": {
+                    "en-GB": "Update your Trezor",
+                    "en": "Update your Trezor",
+                    "de": "Neue"
                 },
                 // Call to action. Used only for banner and context.
                 "cta": {

@@ -1,19 +1,18 @@
+import { selectDevices, selectDevice, deviceActions } from '@suite-common/wallet-core';
+import * as deviceUtils from '@suite-common/suite-utils';
 import TrezorConnect from '@trezor/connect';
 import { analytics, EventType } from '@trezor/suite-analytics';
-
 import { notificationsActions } from '@suite-common/toast-notifications';
-import * as suiteActions from 'src/actions/suite/suiteActions';
-import * as deviceUtils from 'src/utils/suite/device';
+
 import * as modalActions from 'src/actions/suite/modalActions';
 import * as routerActions from 'src/actions/suite/routerActions';
 import { Dispatch, GetState } from 'src/types/suite';
 import * as DEVICE from 'src/constants/suite/device';
-import { SUITE } from 'src/actions/suite/constants';
 
 export const applySettings =
     (params: Parameters<typeof TrezorConnect.applySettings>[0]) =>
     async (dispatch: Dispatch, getState: GetState) => {
-        const { device } = getState().suite;
+        const device = selectDevice(getState());
         if (!device) return;
         const result = await TrezorConnect.applySettings({
             device: {
@@ -31,9 +30,9 @@ export const applySettings =
     };
 
 export const changePin =
-    (params: Parameters<typeof TrezorConnect.changePin>[0] = {}) =>
+    (params: Parameters<typeof TrezorConnect.changePin>[0] = {}, skipSuccessToast?: boolean) =>
     async (dispatch: Dispatch, getState: GetState) => {
-        const { device } = getState().suite;
+        const device = selectDevice(getState());
 
         if (!device) return;
 
@@ -44,7 +43,9 @@ export const changePin =
             ...params,
         });
         if (result.success) {
-            dispatch(notificationsActions.addToast({ type: 'pin-changed' }));
+            if (!skipSuccessToast) {
+                dispatch(notificationsActions.addToast({ type: 'pin-changed' }));
+            }
         } else if (result.payload.code === 'Failure_PinMismatch') {
             dispatch(modalActions.openModal({ type: 'pin-mismatch' }));
         } else if (result.payload.error.includes('string overflow')) {
@@ -62,12 +63,12 @@ export const changePin =
     };
 
 export const wipeDevice = () => async (dispatch: Dispatch, getState: GetState) => {
-    const { device } = getState().suite;
+    const device = selectDevice(getState());
     if (!device) return;
     const bootloaderMode = device.mode === 'bootloader';
-
+    const devices = selectDevices(getState());
     // collect devices with old "device.id" to be removed (see description below)
-    const deviceInstances = deviceUtils.getDeviceInstances(device, getState().devices);
+    const deviceInstances = deviceUtils.getDeviceInstances(device, devices);
 
     const result = await TrezorConnect.wipeDevice({
         device: {
@@ -83,10 +84,11 @@ export const wipeDevice = () => async (dispatch: Dispatch, getState: GetState) =
         // we need to retrieve device objects BEFORE and AFTER the wipe process.
         // and call SUITE.FORGET_DEVICE on ALL devices (with old and new device.id)
         const state = getState();
-        const newDevice = state.suite.device;
-        deviceInstances.push(...deviceUtils.getDeviceInstances(newDevice!, state.devices));
+        const newDevice = selectDevice(getState());
+        const newDevices = selectDevices(getState());
+        deviceInstances.push(...deviceUtils.getDeviceInstances(newDevice!, newDevices));
         deviceInstances.forEach(d => {
-            dispatch(suiteActions.forgetDevice(d));
+            dispatch(deviceActions.forgetDevice(d));
         });
         dispatch(notificationsActions.addToast({ type: 'device-wiped' }));
         analytics.report({
@@ -100,7 +102,7 @@ export const wipeDevice = () => async (dispatch: Dispatch, getState: GetState) =
         //
         // edit 1: disconnecting the device wiped from bootloader mode is also necessary
         // edit 2: encountered libusb error with bridge 2.0.27. so let's enforce disconnecting for all devices
-        dispatch(suiteActions.requestDeviceReconnect());
+        dispatch(deviceActions.requestDeviceReconnect());
         if (state.router.app === 'settings') {
             // redirect to index to close the settings and show initial device setup
             dispatch(routerActions.goto('suite-index'));
@@ -113,7 +115,7 @@ export const wipeDevice = () => async (dispatch: Dispatch, getState: GetState) =
 export const resetDevice =
     (params: Parameters<typeof TrezorConnect.resetDevice>[0] = {}) =>
     async (dispatch: Dispatch, getState: GetState) => {
-        const { device } = getState().suite;
+        const device = selectDevice(getState());
 
         if (!device || !device.features) return;
 
@@ -138,7 +140,7 @@ export const resetDevice =
             // It means that when user finished the onboarding process a standard wallet is automatically
             // discovered instead of asking for selecting between standard wallet and a passphrase.
             // This action takes cares of setting useEmptyPassphrase to false (handled by deviceReducer).
-            dispatch({ type: SUITE.UPDATE_PASSPHRASE_MODE, payload: device, hidden: true });
+            dispatch(deviceActions.updatePassphraseMode({ device, hidden: true }));
         }
 
         if (!result.success) {

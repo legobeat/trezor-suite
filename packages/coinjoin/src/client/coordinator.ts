@@ -1,4 +1,5 @@
-import { coordinatorRequest as request, RequestOptions } from './coordinatorRequest';
+import { coordinatorRequest, RequestOptions } from './coordinatorRequest';
+import { patchResponse } from '../utils/http';
 import {
     CoinjoinStatus,
     ZeroCredentials,
@@ -8,6 +9,9 @@ import {
     RegistrationData,
 } from '../types/coordinator';
 import { AFFILIATION_ID } from '../constants';
+
+const request = <T>(...args: Parameters<typeof coordinatorRequest>) =>
+    coordinatorRequest<T>(...args).then(patchResponse);
 
 export const getStatus = async (options: RequestOptions) => {
     const data = await request<CoinjoinStatus>(
@@ -34,8 +38,8 @@ export const inputRegistration = (
             RoundId,
             Input: input.toUpperCase(),
             OwnershipProof: ownershipProof.toUpperCase(),
-            ZeroAmountCredentialRequests: zeroAmountCredentials.credentialsRequest,
-            ZeroVsizeCredentialRequests: zeroVsizeCredentials.credentialsRequest,
+            ZeroAmountCredentialRequests: zeroAmountCredentials.CredentialsRequest,
+            ZeroVsizeCredentialRequests: zeroVsizeCredentials.CredentialsRequest,
         },
         options,
     );
@@ -64,10 +68,10 @@ export const connectionConfirmation = (
         {
             RoundId,
             AliceId,
-            ZeroAmountCredentialRequests: zeroAmountCredentials.credentialsRequest,
-            RealAmountCredentialRequests: realAmountCredentials.credentialsRequest,
-            ZeroVsizeCredentialRequests: zeroVsizeCredentials.credentialsRequest,
-            RealVsizeCredentialRequests: realVsizeCredentials.credentialsRequest,
+            ZeroAmountCredentialRequests: zeroAmountCredentials.CredentialsRequest,
+            RealAmountCredentialRequests: realAmountCredentials.CredentialsRequest,
+            ZeroVsizeCredentialRequests: zeroVsizeCredentials.CredentialsRequest,
+            RealVsizeCredentialRequests: realVsizeCredentials.CredentialsRequest,
         },
         options,
     );
@@ -84,10 +88,10 @@ export const credentialIssuance = (
         'credential-issuance',
         {
             RoundId,
-            RealAmountCredentialRequests: realAmountCredentials.credentialsRequest,
-            RealVsizeCredentialRequests: realVsizeCredentials.credentialsRequest,
-            ZeroAmountCredentialRequests: zeroAmountCredentials.credentialsRequest,
-            ZeroVsizeCredentialsRequests: zeroVsizeCredentials.credentialsRequest,
+            RealAmountCredentialRequests: realAmountCredentials.CredentialsRequest,
+            RealVsizeCredentialRequests: realVsizeCredentials.CredentialsRequest,
+            ZeroAmountCredentialRequests: zeroAmountCredentials.CredentialsRequest,
+            ZeroVsizeCredentialsRequests: zeroVsizeCredentials.CredentialsRequest,
         },
         options,
     );
@@ -104,8 +108,8 @@ export const outputRegistration = (
         {
             RoundId,
             Script: output.scriptPubKey,
-            AmountCredentialRequests: amountCredentials.credentialsRequest,
-            VsizeCredentialRequests: vsizeCredentials.credentialsRequest,
+            AmountCredentialRequests: amountCredentials.CredentialsRequest,
+            VsizeCredentialRequests: vsizeCredentials.CredentialsRequest,
         },
         options,
     );

@@ -1,4 +1,3 @@
-import React from 'react';
 import styled from 'styled-components';
 
 import * as STEP from 'src/constants/onboarding/steps';
@@ -13,7 +12,7 @@ const Wrapper = styled.div`
     color: ${({ theme }) => theme.TYPE_DARK_GREY};
     font-size: ${variables.NEUE_FONT_SIZE.NORMAL};
     font-weight: ${variables.FONT_WEIGHT.MEDIUM};
-    padding: 16px 0px;
+    padding: 16px 0;
 `;
 
 const StyledModal = styled(Modal)`
@@ -29,7 +28,7 @@ interface SkipStepConfirmationProps {
     onCancel: () => void;
 }
 
-const SkipStepConfirmation = ({ onCancel }: SkipStepConfirmationProps) => {
+export const SkipStepConfirmation = ({ onCancel }: SkipStepConfirmationProps) => {
     const { activeStepId, goToNextStep } = useOnboarding();
 
     let text;
@@ -73,5 +72,3 @@ const SkipStepConfirmation = ({ onCancel }: SkipStepConfirmationProps) => {
         </StyledModal>
     );
 };
-
-export default SkipStepConfirmation;

@@ -6,7 +6,7 @@ export const getAddress = async (api: TrezorConnect) => {
     if (singleAddress.success) {
         const { payload } = singleAddress;
         payload.address.toLowerCase();
-        payload.path.map(a => a);
+        payload.path.map((a: any) => a);
         payload.serializedPath.toLowerCase();
         // @ts-expect-error, payload is not a bundle
         payload.map(a => a);
@@ -17,7 +17,7 @@ export const getAddress = async (api: TrezorConnect) => {
     if (bundleAddress.success) {
         bundleAddress.payload.forEach(item => {
             item.address.toLowerCase();
-            item.path.map(a => a);
+            item.path.map((a: any) => a);
             item.serializedPath.toLowerCase();
         });
         // @ts-expect-error, payload is an array
@@ -113,6 +113,13 @@ export const signTransaction = async (api: TrezorConnect) => {
                 script_type: 'SPENDADDRESS',
             },
             {
+                address_n: "m/44'/0'/0'/0/0",
+                prev_index: 0,
+                prev_hash: 'txhash',
+                amount: '1',
+                script_type: 'SPENDADDRESS',
+            },
+            {
                 address_n: [0],
                 prev_index: 0,
                 prev_hash: 'txhash',
@@ -197,6 +204,11 @@ export const signTransaction = async (api: TrezorConnect) => {
                 },
             },
             // change outputs
+            {
+                address_n: "m/44'/0'/0'/1/0",
+                amount: '100',
+                script_type: 'PAYTOADDRESS',
+            },
             {
                 address_n: [0],
                 amount: '100',
@@ -425,10 +437,10 @@ export const signTransaction = async (api: TrezorConnect) => {
             },
         ],
         outputs: [
-            // @ts-expect-error unexpected address_n
             {
                 address_n: [0],
                 amount: '0',
+                // @ts-expect-error unexpected op_return_data
                 op_return_data: 'deadbeef',
                 script_type: 'PAYTOOPRETURN',
             },
@@ -438,10 +450,10 @@ export const signTransaction = async (api: TrezorConnect) => {
                 amount: '100',
                 script_type: 'PAYTOP2SHWITNESS',
             },
-            // @ts-expect-error unexpected address
             {
                 address: 'abcd',
                 amount: '0',
+                // @ts-expect-error unexpected op_return_data
                 op_return_data: 'deadbeef',
                 script_type: 'PAYTOOPRETURN',
             },
@@ -497,10 +509,11 @@ export const composeTransaction = async (api: TrezorConnect) => {
         if (tx.type === 'nonfinal') {
             tx.bytes.toFixed();
             tx.feePerByte.toLowerCase();
+            tx.inputs.map((a: any) => a);
         }
         if (tx.type === 'final') {
-            tx.transaction.inputs.map(a => a);
-            tx.transaction.outputs.map(a => a);
+            tx.inputs.map((a: any) => a);
+            tx.outputs.map((a: any) => a);
         }
     } else {
         precompose.payload.error.toLowerCase();
@@ -540,12 +553,12 @@ export const getAccountInfo = async (api: TrezorConnect) => {
         payload.balance.toLowerCase();
         payload.availableBalance.toLowerCase();
         if (payload.tokens) {
-            payload.tokens.map(t => t.contract.toLowerCase());
+            payload.tokens.map((t: { contract: string }) => t.contract.toLowerCase());
         }
         if (payload.addresses) {
-            payload.addresses.used.map(a => a.address.toLowerCase());
-            payload.addresses.unused.map(a => a.address.toLowerCase());
-            payload.addresses.change.map(a => a.address.toLowerCase());
+            payload.addresses.used.map((a: { address: string }) => a.address.toLowerCase());
+            payload.addresses.unused.map((a: { address: string }) => a.address.toLowerCase());
+            payload.addresses.change.map((a: { address: string }) => a.address.toLowerCase());
         }
         if (payload.utxo) {
             payload.utxo.map(u => u.address.toLowerCase());
@@ -554,10 +567,10 @@ export const getAccountInfo = async (api: TrezorConnect) => {
         payload.history.total.toFixed();
         payload.history.tokens?.toFixed();
         payload.history.unconfirmed.toFixed();
-        payload.history.transactions?.map(tx =>
+        payload.history.transactions?.map((tx: { type: string; targets: any[]; tokens: any[] }) =>
             tx.type === 'sent' ? tx.targets.join(',') : tx.tokens.join(','),
         );
-        payload.history.txids?.map(tx => tx.toLowerCase());
+        payload.history.txids?.map((tx: string) => tx.toLowerCase());
 
         if (payload.page) {
             payload.page.index.toFixed();
@@ -594,6 +607,44 @@ export const getAccountInfo = async (api: TrezorConnect) => {
             }
         });
     }
+};
+
+export const getAccountDescriptor = async (api: TrezorConnect) => {
+    const account = await api.getAccountDescriptor({
+        coin: 'btc',
+        path: 'm/44',
+        derivationType: 2,
+        suppressBackupWarning: true,
+    });
+    if (account.success) {
+        const { payload } = account;
+        payload.descriptor.toLowerCase();
+        payload.path.toLowerCase();
+        payload.legacyXpub?.toLowerCase();
+    }
+
+    const bundle = await api.getAccountDescriptor({
+        bundle: [
+            {
+                coin: 'btc',
+                path: 'm/44',
+            },
+        ],
+    });
+
+    if (bundle.success) {
+        bundle.payload.forEach(item => {
+            if (item) {
+                item.descriptor.toLowerCase();
+            }
+        });
+    }
+
+    // @ts-expect-error missing "coin" param
+    api.getAccountDescriptor({ path: 'm/44' });
+
+    // @ts-expect-error missing "path" param
+    api.getAccountDescriptor({ coin: 'btc' });
 };
 
 export const signMessage = async (api: TrezorConnect) => {

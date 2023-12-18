@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Modal, Pressable } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -64,11 +64,12 @@ export const AlertSheet = ({ alert }: AlertSheetProps) => {
         onPressSecondaryButton,
         secondaryButtonTitle,
         primaryButtonVariant = 'primary',
+        appendix,
     } = alert;
 
     const handlePressPrimaryButton = async () => {
         await closeSheetAnimated();
-        onPressPrimaryButton();
+        onPressPrimaryButton?.();
     };
 
     const handlePressSecondaryButton = async () => {
@@ -92,7 +93,7 @@ export const AlertSheet = ({ alert }: AlertSheetProps) => {
                                     subtitle={description}
                                     icon={icon}
                                 />
-
+                                {appendix}
                                 <VStack spacing="medium">
                                     <Button
                                         size="large"

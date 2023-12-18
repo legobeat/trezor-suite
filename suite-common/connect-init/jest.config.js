@@ -1,3 +1,6 @@
+const baseConfig = require('../../jest.config.base');
+
 module.exports = {
-    preset: '../../jest.config.base.js',
+    ...baseConfig,
+    roots: ['<rootDir>/src', '<rootDir>/../test-utils/__mocks__'],
 };

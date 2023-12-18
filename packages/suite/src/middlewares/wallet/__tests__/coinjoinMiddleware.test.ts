@@ -1,6 +1,8 @@
 import { combineReducers, createReducer } from '@reduxjs/toolkit';
-import { configureMockStore } from '@suite-common/test-utils';
+
+import { configureMockStore, testMocks } from '@suite-common/test-utils';
 import { prepareMessageSystemReducer } from '@suite-common/message-system';
+
 import { extraDependencies } from 'src/support/extraDependencies';
 import routerReducer from 'src/reducers/suite/routerReducer';
 import suiteReducer from 'src/reducers/suite/suiteReducer';
@@ -11,10 +13,6 @@ import { accountsReducer } from 'src/reducers/wallet';
 import { coinjoinReducer } from 'src/reducers/wallet/coinjoinReducer';
 import selectedAccountReducer from 'src/reducers/wallet/selectedAccountReducer';
 
-jest.mock('@trezor/connect', () => global.JestMocks.getTrezorConnect({}));
-// eslint-disable-next-line
-const TrezorConnect = require('@trezor/connect').default;
-
 jest.mock('src/services/coinjoin/coinjoinService', () => {
     const mock = jest.requireActual('../../../actions/wallet/__fixtures__/mockCoinjoinService');
     return mock.mockCoinjoinService();
@@ -23,7 +21,7 @@ jest.mock('src/services/coinjoin/coinjoinService', () => {
 const messageSystem = prepareMessageSystemReducer(extraDependencies);
 
 const rootReducer = combineReducers({
-    devices: createReducer({}, () => ({})),
+    device: createReducer({}, () => ({})),
     messageSystem,
     router: routerReducer,
     suite: suiteReducer,
@@ -36,11 +34,11 @@ const rootReducer = combineReducers({
 
 type State = ReturnType<typeof rootReducer>;
 
-const initStore = ({ devices, router, suite, wallet }: Partial<State> = {}) => {
+const initStore = ({ device, router, suite, wallet }: Partial<State> = {}) => {
     const preloadedState: State = rootReducer(undefined, { type: 'init' });
 
-    if (devices) {
-        preloadedState.devices = devices;
+    if (device) {
+        preloadedState.device = device;
     }
 
     if (router) {
@@ -89,7 +87,7 @@ describe('coinjoinMiddleware', () => {
             const store = initStore(f.state);
 
             if (f.connect) {
-                TrezorConnect.setTestFixtures(f.connect);
+                testMocks.setTrezorConnectFixtures(f.connect);
             }
 
             if (f.client) {

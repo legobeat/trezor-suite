@@ -59,13 +59,11 @@ export const identifyWsError = (error: Error) => {
         // file://./../../../blockchain-link-types/src/constants/errors.ts
         case 'Websocket timeout':
             return 'ERROR_TIMEOUT';
+        case 'Block not found':
+            return 'ERROR_BLOCK_NOT_FOUND';
+        case 'Unsupported script filter taproot-noordinals':
+            return 'ERROR_UNSUPPORTED_NOORDINALS';
         default:
             return 'ERROR_OTHER';
     }
-};
-
-// Randomize identity password to reset TOR circuit for this identity
-export const resetIdentityCircuit = (identity: string) => {
-    const [user] = identity.split(':');
-    return `${user}:${Math.random().toString(36).slice(2)}`;
 };

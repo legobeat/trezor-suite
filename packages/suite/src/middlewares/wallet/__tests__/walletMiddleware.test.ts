@@ -1,25 +1,24 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-import { configureStore } from 'src/support/tests/configureStore';
+import { testMocks } from '@suite-common/test-utils';
+import { prepareBlockchainMiddleware } from '@suite-common/wallet-core';
 
-import { accountsReducer, blockchainReducer } from 'src/reducers/wallet';
 import walletSettingsReducer from 'src/reducers/wallet/settingsReducer';
 import walletMiddleware from 'src/middlewares/wallet/walletMiddleware';
-import { prepareBlockchainMiddleware } from '@suite-common/wallet-core';
-import * as fixtures from '../__fixtures__/walletMiddleware';
+import { accountsReducer, blockchainReducer } from 'src/reducers/wallet';
+import { configureStore } from 'src/support/tests/configureStore';
 import selectedAccountReducer, {
     State as SelectedAccountState,
 } from 'src/reducers/wallet/selectedAccountReducer';
 import sendFormReducer, { SendState } from 'src/reducers/wallet/sendFormReducer';
 import formDraftReducer from 'src/reducers/wallet/formDraftReducer';
-
 import { RouterState } from 'src/reducers/suite/routerReducer';
 import { Action } from 'src/types/suite';
 import { extraDependencies } from 'src/support/extraDependencies';
 
-const { getWalletAccount } = global.JestMocks;
+import * as fixtures from '../__fixtures__/walletMiddleware';
 
-jest.mock('@trezor/connect', () => global.JestMocks.getTrezorConnect({}));
-const TrezorConnect = require('@trezor/connect').default;
+const { getWalletAccount } = testMocks;
+
+const TrezorConnect = testMocks.getTrezorConnectMock();
 
 type AccountsState = ReturnType<typeof accountsReducer>;
 type SettingsState = ReturnType<typeof walletSettingsReducer>;
@@ -42,7 +41,8 @@ export const getInitialState = ({
         app: 'wallet',
         ...router,
     },
-    suite: {
+    suite: {},
+    device: {
         device: true, // device is irrelevant in this test
     },
     wallet: {

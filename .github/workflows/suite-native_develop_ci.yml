@@ -66,6 +66,12 @@ jobs:
           bundle install
           bundle exec fastlane android develop
 
+      - uses: actions/upload-artifact@v3
+        with:
+          name: app-apk
+          path: |
+            suite-native/app/android/**/*.apk
+
   ios_develop:
     runs-on: macos-12
     environment: develop
@@ -97,6 +103,9 @@ jobs:
           APPSTORE_CERTIFICATE_CONTENT: ${{ secrets.APPSTORE_CERTIFICATE_CONTENT }}
         run: |
           echo $APPSTORE_CERTIFICATE_CONTENT | base64 -d > suite-native/app/TrezorDistributionCertificate.p12
+
+      - name: Install missing Python deps (to build bcrypto lib in Node)
+        run: pip install setuptools
 
       - name: Install dependecies
         run: |

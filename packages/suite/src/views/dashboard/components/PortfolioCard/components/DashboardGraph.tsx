@@ -1,6 +1,11 @@
-import React, { memo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback } from 'react';
+
 import { getUnixTime } from 'date-fns';
 import styled from 'styled-components';
+
+import { variables, Button } from '@trezor/components';
+import { calcTicks, calcTicksFromData } from '@suite-common/suite-utils';
+import { selectDevice } from '@suite-common/wallet-core';
 
 import { CARD_PADDING_SIZE } from 'src/constants/suite/layout';
 import GraphWorker from 'src/support/workers/graph';
@@ -8,9 +13,6 @@ import { getGraphDataForInterval, updateGraphData } from 'src/actions/wallet/gra
 import { useDispatch, useSelector } from 'src/hooks/suite';
 import { Account } from 'src/types/wallet';
 import { TransactionsGraph, Translation, HiddenPlaceholder } from 'src/components/suite';
-
-import { variables, Button } from '@trezor/components';
-import { calcTicks, calcTicksFromData } from '@suite-common/suite-utils';
 import { AggregatedDashboardHistory } from 'src/types/wallet/graph';
 import { getMinMaxValueFromData } from 'src/utils/wallet/graph';
 
@@ -23,7 +25,7 @@ const Wrapper = styled.div`
 const GraphWrapper = styled(HiddenPlaceholder)`
     display: flex;
     flex: 1 1 auto;
-    padding: ${CARD_PADDING_SIZE} 0px;
+    padding: ${CARD_PADDING_SIZE} 0;
     height: 320px;
 `;
 
@@ -46,7 +48,7 @@ interface DashboardGraphProps {
 // DashboardGraph.whyDidYouRender = true;
 export const DashboardGraph = memo(({ accounts }: DashboardGraphProps) => {
     const { error, isLoading, selectedRange } = useSelector(state => state.wallet.graph);
-    const selectedDevice = useSelector(state => state.suite.device);
+    const selectedDevice = useSelector(selectDevice);
     const localCurrency = useSelector(state => state.wallet.settings.localCurrency);
     const dispatch = useDispatch();
 
@@ -56,7 +58,9 @@ export const DashboardGraph = memo(({ accounts }: DashboardGraphProps) => {
 
     const selectedDeviceState = selectedDevice?.state;
     const failedAccounts = error?.filter(a => a.deviceState === selectedDeviceState);
-    const allFailed = failedAccounts && failedAccounts.length === accounts.length;
+    const allFailed =
+        failedAccounts &&
+        failedAccounts.every(fa => accounts.some(a => a.descriptor === fa.descriptor));
 
     const onRefresh = useCallback(() => {
         dispatch(updateGraphData(accounts));

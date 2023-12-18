@@ -15,16 +15,18 @@ import type {
     VersionArray,
     IntermediaryVersion,
 } from '../types';
-import { isVersionArray } from '../utils/versionUtils';
+import { DeviceModelInternal } from '../types';
 
-const releases: { [key: number]: FirmwareRelease[] } = {};
-releases[1] = [];
-releases[2] = [];
+const releases: Record<keyof typeof DeviceModelInternal, FirmwareRelease[]> = {
+    [DeviceModelInternal.T1B1]: [],
+    [DeviceModelInternal.T2T1]: [],
+    [DeviceModelInternal.T2B1]: [],
+};
 
-export const parseFirmware = (json: any, model: number) => {
+export const parseFirmware = (json: any, deviceModel: DeviceModelInternal) => {
     Object.keys(json).forEach(key => {
         const release = json[key];
-        releases[model].push({
+        releases[deviceModel].push({
             ...release,
         });
     });
@@ -156,13 +158,13 @@ const getSafeReleases = ({ features, releases }: GetInfoProps) => {
 
     const firmwareVersion = [major_version, minor_version, patch_version];
 
-    if (!isVersionArray(firmwareVersion)) {
+    if (!versionUtils.isVersionArray(firmwareVersion)) {
         return [];
     }
 
     if (major_version === 2 && bootloader_mode) {
         const fwVersion = [fw_major, fw_minor, fw_patch];
-        if (isVersionArray(fwVersion)) {
+        if (versionUtils.isVersionArray(fwVersion)) {
             // in bootloader, T2T1, T2B1 knows its firmware, so we still may filter "by firmware".
             return filterSafeListByFirmware(releases, fwVersion);
         }
@@ -186,6 +188,10 @@ const getSafeReleases = ({ features, releases }: GetInfoProps) => {
  * @param releases
  */
 export const getInfo = ({ features, releases }: GetInfoProps): ReleaseInfo | null => {
+    if (!Array.isArray(releases)) {
+        // no available releases - should never happen for official firmware, only custom
+        return null;
+    }
     if (!isStrictFeatures(features)) {
         throw new Error('Features of unexpected shape provided.');
     }
@@ -238,10 +244,13 @@ export const getFirmwareStatus = (features: Features) => {
         return 'unknown';
     }
 
-    const info = getInfo({ features, releases: releases[features.major_version] });
+    const info = getInfo({
+        features,
+        releases: releases[features?.internal_model],
+    });
 
-    // should not happen, possibly if releases list contains inconsistent data or so
-    if (!info) return 'unknown';
+    // should never happen for official firmware, see getInfo
+    if (!info) return 'custom';
 
     if (info.isRequired) return 'required';
 
@@ -251,6 +260,9 @@ export const getFirmwareStatus = (features: Features) => {
 };
 
 export const getRelease = (features: Features) =>
-    getInfo({ features, releases: releases[features.major_version] });
+    getInfo({
+        features,
+        releases: releases[features?.internal_model],
+    });
 
-export const getReleases = (model: number) => releases[model];
+export const getReleases = (deviceModel: DeviceModelInternal) => releases[deviceModel];

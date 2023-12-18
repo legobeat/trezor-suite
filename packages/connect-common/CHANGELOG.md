@@ -1,3 +1,33 @@
+# 0.0.24
+
+-   feat(connect-common): add more backend urls for solana (29f042470)
+-   chore(connect): use `tslib` as dependency in all public libs (606ecc63b)
+-   chore: update `jest` and related dependency (b8a321c83)
+-   chore(connect-common): update fw binaries to 2.6.4 (398509788)
+-   chore(repo): update tsx (53de3e3a8)
+-   feat(suite): add Solana support (f2a89b34f)
+-   chore(suite): unify support config for eth coins (8776bb79c)
+-   chore(suite): add Holesky (175707861)
+-   chore(connect-webextension): postMessage useQueue param (4e626e758)
+
+# 0.0.23
+
+-   feat(connect): update solana backend urls (876f60939)
+-   chore(repo): Upgrade TS 5.3 (#10017) (7277f9d0f)
+-   chore(jest): update in connect-common package (5801d2595)
+-   chore(repo): upgrade to TS 5.2 (#9989) (bf8d0fe80)
+-   chore(tests): cleanup jets configs (#9869) (7b68bab05)
+-   feat(deps): update deps without breaking changes (7e0584c51)
+-   feat(connect-common): add T2T1 & T2B1 firmware binaries 2.6.3 bootloader 2.1.4 (9cca8b14f)
+-   chore(desktop): update deps related to desktop packages (af412cfb5)
+
+# 0.0.22
+
+-   chore(connect): update coins.json support format (95f270fec)
+-   fix(connect-common): fix bootloader version in T2B1 release config (4e698091b)
+-   feat(suite): support t2b1 firmware installation (9ef2bf627)
+-   chore(connect): fix local storage check (#9547) (b9ac84446)
+
 # 0.0.19
 
 -   chore(connect): update coins.json (trezor-common f2374ae) (3b21c4308)

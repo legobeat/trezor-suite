@@ -3,14 +3,13 @@
 // - using bs58check.decodeAddress instead of bs58check.decode
 // - using bs58check.encodeAddress instead of bs58check.encode
 
-import * as ecc from 'tiny-secp256k1';
-import * as typef from 'typeforce';
+import ecc from 'tiny-secp256k1';
 import * as bs58check from '../bs58check';
 import * as bcrypto from '../crypto';
 import { bitcoin as BITCOIN_NETWORK } from '../networks';
 import * as bscript from '../script';
 import * as lazy from './lazy';
-import { Payment, PaymentOpts, StackFunction } from '../types';
+import { Payment, PaymentOpts, StackFunction, typeforce } from '../types';
 
 const { OPS } = bscript;
 
@@ -22,16 +21,16 @@ export function p2pkh(a: Payment, opts?: PaymentOpts): Payment {
 
     opts = Object.assign({ validate: true }, opts || {});
 
-    typef(
+    typeforce(
         {
-            network: typef.maybe(typef.Object),
-            address: typef.maybe(typef.String),
-            hash: typef.maybe(typef.BufferN(20)),
-            output: typef.maybe(typef.BufferN(25)),
+            network: typeforce.maybe(typeforce.Object),
+            address: typeforce.maybe(typeforce.String),
+            hash: typeforce.maybe(typeforce.BufferN(20)),
+            output: typeforce.maybe(typeforce.BufferN(25)),
 
-            pubkey: typef.maybe(ecc.isPoint),
-            signature: typef.maybe(bscript.isCanonicalScriptSignature),
-            input: typef.maybe(typef.Buffer),
+            pubkey: typeforce.maybe(ecc.isPoint),
+            signature: typeforce.maybe(bscript.isCanonicalScriptSignature),
+            input: typeforce.maybe(typeforce.Buffer),
         },
         a,
     );
@@ -48,7 +47,7 @@ export function p2pkh(a: Payment, opts?: PaymentOpts): Payment {
         return bs58check.encodeAddress(o.hash, network.pubKeyHash, network);
     });
     lazy.prop(o, 'hash', () => {
-        if (a.output) return a.output.slice(3, 23);
+        if (a.output) return a.output.subarray(3, 23);
         if (a.address) return _address().hash;
         if (a.pubkey || o.pubkey) return bcrypto.hash160(a.pubkey! || o.pubkey!);
     });
@@ -107,7 +106,7 @@ export function p2pkh(a: Payment, opts?: PaymentOpts): Payment {
             )
                 throw new TypeError('Output is invalid');
 
-            const hash2 = a.output.slice(3, 23);
+            const hash2 = a.output.subarray(3, 23);
             if (hash.length > 0 && !hash.equals(hash2)) throw new TypeError('Hash mismatch');
             else hash = hash2;
         }

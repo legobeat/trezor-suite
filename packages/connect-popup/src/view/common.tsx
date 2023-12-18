@@ -1,18 +1,9 @@
 // origin: https://github.com/trezor/connect/blob/develop/src/js/popup/view/common.js
 
-import {
-    POPUP,
-    ERRORS,
-    PopupInit,
-    CoreMessage,
-    ConnectSettings,
-    SystemInfo,
-    createUiResponse,
-} from '@trezor/connect';
-import React from 'react';
+import { POPUP, ERRORS, PopupInit, CoreMessage, createUiResponse } from '@trezor/connect';
 import { createRoot } from 'react-dom/client';
 
-import { ConnectUI } from '@trezor/connect-ui';
+import { ConnectUI, State } from '@trezor/connect-ui';
 import { StyleSheetWrapper } from './react/StylesSheetWrapper';
 import { reactEventBus } from '@trezor/connect-ui/src/utils/eventBus';
 
@@ -20,16 +11,9 @@ export const header: HTMLElement = document.getElementsByTagName('header')[0];
 export const container: HTMLElement = document.getElementById('container')!;
 export const views: HTMLElement = document.getElementById('views')!;
 
-type State = {
-    settings?: ConnectSettings;
-    iframe?: Window;
-    broadcast?: BroadcastChannel;
-    systemInfo?: SystemInfo;
-};
-
 let state: State = {};
 
-export const setState = (newState: State) => (state = { ...state, ...newState });
+export const setState = (newState: Partial<State>) => (state = { ...state, ...newState });
 export const getState = () => state;
 
 export const createTooltip = (text: string) => {
@@ -93,7 +77,7 @@ export const getIframeElement = () => {
 };
 
 // initialize message channel with iframe element
-export const initMessageChannel = async (
+export const initMessageChannelWithIframe = async (
     payload: PopupInit['payload'],
     handler: (e: MessageEvent) => void,
 ) => {
@@ -122,6 +106,13 @@ export const initMessageChannel = async (
             new Promise<boolean>(resolve => setTimeout(() => resolve(false), 1000)),
         ]);
 
+    const iframe = getIframeElement();
+    // Webextension doesn't have iframe element defined here since there is not `window.opener` reference
+    // so they only relay on receiving `POPUP.HANDSHAKE` message from iframe to make sure it is available.
+    if (!iframe && settings.env !== 'webextension') {
+        throw ERRORS.TypedError('Popup_ConnectionMissing');
+    }
+
     // iframe requested communication via BroadcastChannel.
     if (broadcastId) {
         try {
@@ -137,7 +128,7 @@ export const initMessageChannel = async (
 
             // POPUP.HANDSHAKE successfully received back from the iframe
             if (await broadcastHandshake) {
-                setState({ broadcast, systemInfo });
+                setState({ broadcast, systemInfo, iframe });
                 return;
             }
 
@@ -149,17 +140,18 @@ export const initMessageChannel = async (
         }
     }
 
-    const iframe = getIframeElement();
-    if (!iframe) {
-        throw ERRORS.TypedError('Popup_ConnectionMissing');
-    }
-
+    // Depending on some settings of user's browser BroadcastChannel might be unavailable
+    // in those cases we use MessageChannel as fallback communication.
     // create MessageChannel and assign message listener
     const channel = new MessageChannel();
     channel.port1.onmessage = handler;
 
     // create handshake loader
     const iframeHandshake = handshakeLoader(channel.port1);
+
+    if (!iframe) {
+        throw ERRORS.TypedError('Popup_ConnectionMissing');
+    }
 
     // send POPUP.HANDSHAKE to iframe with assigned MessagePort
     iframe.postMessage(handshakeMessage, window.location.origin, [channel.port2]);
@@ -175,17 +167,20 @@ export const initMessageChannel = async (
 
 // this method can be used from anywhere
 export const postMessage = (message: CoreMessage) => {
-    const { broadcast, iframe } = getState();
+    const { broadcast, iframe, core } = getState();
+    if (core) {
+        core.handleMessage(message);
+        return;
+    }
     if (broadcast) {
         broadcast.postMessage(message);
         return;
     }
-
-    if (!iframe) {
-        throw ERRORS.TypedError('Popup_ConnectionMissing');
+    if (iframe) {
+        iframe.postMessage(message, window.location.origin);
+        return;
     }
-
-    iframe.postMessage(message, window.location.origin);
+    throw ERRORS.TypedError('Popup_ConnectionMissing');
 };
 
 export const postMessageToParent = (message: CoreMessage) => {
@@ -193,7 +188,7 @@ export const postMessageToParent = (message: CoreMessage) => {
         // post message to parent and wait for POPUP.INIT message
         window.opener.postMessage(message, '*');
     } else {
-        // webextensions doesn't have "window.opener" reference and expect this message in "content-script" above popup [see: ./src/plugins/webextension/trezor-content-script.js]
+        // webextensions doesn't have "window.opener" reference and expect this message in "content-script" above popup [see: packages/connect-web/src/webextension/trezor-content-script.js]
         // future communication channel with webextension iframe will be "ChromePort"
 
         // and electron (electron which uses connect hosted outside)
@@ -233,10 +228,10 @@ export const renderConnectUI = () => {
     clearLegacyView();
     root.render(Component);
 
-    return new Promise(resolve => {
+    return new Promise<void>(resolve => {
         reactEventBus.on(event => {
             if (event?.type === 'connect-ui-rendered') {
-                resolve(undefined);
+                resolve();
             }
         });
     });

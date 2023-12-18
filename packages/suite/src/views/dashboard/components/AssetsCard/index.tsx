@@ -1,24 +1,26 @@
-import React from 'react';
 import styled, { useTheme } from 'styled-components';
 import BigNumber from 'bignumber.js';
-import { NETWORKS } from 'src/config/wallet';
-import { Section } from 'src/components/dashboard';
-import { AssetTable, AssetTableSkeleton } from './components/AssetTable';
-import { AssetGrid, AssetGridSkeleton } from './components/AssetGrid';
-import { Account, Network } from 'src/types/wallet';
+import { AnimatePresence } from 'framer-motion';
+
 import { variables, Icon, Button, colors, LoadingContent } from '@trezor/components';
+import { selectSupportedNetworks } from '@suite-common/wallet-core';
+
+import { NETWORKS } from 'src/config/wallet';
+import { DashboardSection } from 'src/components/dashboard';
+import { Account, Network } from 'src/types/wallet';
 import { Card, Translation } from 'src/components/suite';
 import { useDiscovery, useDispatch, useSelector } from 'src/hooks/suite';
 import { useAccounts } from 'src/hooks/wallet';
 import { setFlag } from 'src/actions/suite/suiteActions';
 import { goto } from 'src/actions/suite/routerActions';
-import { AnimatePresence } from 'framer-motion';
 import { useEnabledNetworks } from 'src/hooks/settings/useEnabledNetworks';
-import { selectSupportedNetworks } from 'src/reducers/suite/suiteReducer';
+
+import { AssetGrid, AssetGridSkeleton } from './components/AssetGrid';
+import { AssetTable, AssetTableSkeleton } from './components/AssetTable';
 
 const StyledCard = styled(Card)`
     flex-direction: column;
-    padding: 0px;
+    padding: 0;
 `;
 
 const InfoMessage = styled.div`
@@ -41,12 +43,13 @@ const Header = styled.div`
     font-weight: 500;
     line-height: 1.57;
     align-items: center;
-    padding: 12px 0px;
+    padding: 12px 0;
     border-bottom: 1px solid ${({ theme }) => theme.STROKE_GREY};
 
     &:first-child {
         padding-left: 18px;
     }
+
     &:last-child {
         padding-right: 18px;
     }
@@ -133,7 +136,7 @@ const AssetsCard = () => {
     const setGrid = () => dispatch(setFlag('dashboardAssetsGridMode', true));
 
     return (
-        <Section
+        <DashboardSection
             heading={
                 <>
                     <LoadingContent isLoading={isDiscoveryRunning}>
@@ -215,7 +218,7 @@ const AssetsCard = () => {
                     )}
                 </StyledCard>
             )}
-        </Section>
+        </DashboardSection>
     );
 };
 

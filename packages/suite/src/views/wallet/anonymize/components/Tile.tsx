@@ -1,4 +1,4 @@
-import React from 'react';
+import { ReactNode } from 'react';
 import styled, { css } from 'styled-components';
 
 import { Image, PngImage, variables } from '@trezor/components';
@@ -61,7 +61,7 @@ const Title = styled.h3`
     align-self: end;
     font-size: ${variables.FONT_SIZE.NORMAL};
     font-weight: ${variables.FONT_WEIGHT.DEMI_BOLD};
-    margin: 16px 0 8px 0;
+    margin: 16px 0 8px;
 
     ${variables.SCREEN_QUERY.BELOW_LAPTOP} {
         ${titleGridStyle}
@@ -70,7 +70,7 @@ const Title = styled.h3`
     ${variables.SCREEN_QUERY.BELOW_TABLET} {
         grid-column: unset;
         grid-row: unset;
-        margin: 16px 0 8px 0;
+        margin: 16px 0 8px;
     }
 
     ${variables.SCREEN_QUERY.MOBILE} {
@@ -105,9 +105,9 @@ const Description = styled.p`
 `;
 
 export interface TileProps {
-    description: React.ReactNode;
+    description: ReactNode;
     image: PngImage;
-    title: React.ReactNode;
+    title: ReactNode;
 }
 
 export const Tile = ({ description, image, title }: TileProps) => (

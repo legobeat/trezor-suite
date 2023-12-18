@@ -1,162 +1,12 @@
-import TrezorConnect, { UI } from '@trezor/connect';
-import { createDeferred, Deferred, DeferredResponse } from '@trezor/utils';
-import { MODAL, SUITE } from 'src/actions/suite/constants';
-import { Route, Dispatch, GetState, TrezorDevice } from 'src/types/suite';
-import { Account, WalletAccountTransaction } from 'src/types/wallet';
-import { RequestEnableTorResponse } from 'src/components/suite/modals/RequestEnableTor';
+import { createAction } from '@reduxjs/toolkit';
 
-export type UserContextPayload =
-    | {
-          type: 'qr-reader';
-          decision: Deferred<string>;
-          allowPaste?: boolean;
-      }
-    | {
-          type: 'unverified-address';
-          value: string;
-          addressPath: string;
-      }
-    | {
-          type: 'unverified-xpub';
-      }
-    | {
-          type: 'address';
-          value: string;
-          addressPath: string;
-          isConfirmed?: boolean;
-      }
-    | {
-          type: 'xpub';
-          isConfirmed?: boolean;
-      }
-    | {
-          type: 'passphrase-duplicate';
-          device: TrezorDevice;
-          duplicate: TrezorDevice;
-      }
-    | {
-          type: 'add-account';
-          device: TrezorDevice;
-          symbol?: Account['symbol'];
-          noRedirect?: boolean;
-      }
-    | {
-          type: 'device-background-gallery';
-      }
-    | {
-          type: 'transaction-detail';
-          tx: WalletAccountTransaction;
-          rbfForm?: boolean;
-      }
-    | {
-          type: 'review-transaction';
-          decision: Deferred<boolean>;
-      }
-    | {
-          type: 'import-transaction';
-          decision: Deferred<{ [key: string]: string }[]>;
-      }
-    | {
-          type: 'coinmarket-buy-terms';
-          provider?: string;
-          cryptoCurrency?: string;
-          decision: Deferred<boolean>;
-      }
-    | {
-          type: 'coinmarket-savings-terms';
-          provider?: string;
-          cryptoCurrency?: string;
-          decision: Deferred<boolean>;
-      }
-    | {
-          type: 'coinmarket-sell-terms';
-          provider?: string;
-          cryptoCurrency?: string;
-          decision: Deferred<boolean>;
-      }
-    | {
-          type: 'coinmarket-leave-spend';
-          routeToContinue?: Route['name'];
-      }
-    | {
-          type: 'coinmarket-exchange-terms';
-          provider?: string;
-          fromCryptoCurrency?: string;
-          toCryptoCurrency?: string;
-          decision: Deferred<boolean>;
-      }
-    | {
-          type: 'coinmarket-exchange-dex-terms';
-          provider?: string;
-          fromCryptoCurrency?: string;
-          toCryptoCurrency?: string;
-          decision: Deferred<boolean>;
-      }
-    | {
-          type: 'coinmarket-p2p-terms';
-          provider?: string;
-          cryptoCurrency?: string;
-          decision: Deferred<boolean>;
-      }
-    | {
-          type: 'application-log';
-      }
-    | {
-          type: 'pin-mismatch';
-      }
-    | {
-          type: 'wipe-device';
-      }
-    | {
-          type: 'disconnect-device';
-      }
-    | {
-          type: 'metadata-provider';
-          decision: Deferred<boolean>;
-      }
-    | {
-          type: 'advanced-coin-settings';
-          coin: Account['symbol'];
-      }
-    | {
-          type: 'add-token';
-      }
-    | {
-          type: 'safety-checks';
-      }
-    | {
-          type: 'disable-tor';
-          decision: Deferred<boolean>;
-      }
-    | {
-          type: 'request-enable-tor';
-          decision: Deferred<RequestEnableTorResponse>;
-      }
-    | {
-          type: 'disable-tor-stop-coinjoin';
-          decision: Deferred<boolean>;
-      }
-    | {
-          type: 'tor-loading';
-          decision: Deferred<boolean>;
-      }
-    | {
-          type: 'cancel-coinjoin';
-      }
-    | {
-          type: 'critical-coinjoin-phase';
-          relatedAccountKey: string;
-      }
-    | {
-          type: 'coinjoin-success';
-          relatedAccountKey: string;
-      }
-    | {
-          type: 'more-rounds-needed';
-      }
-    | {
-          type: 'uneco-coinjoin-warning';
-      };
+import TrezorConnect, { UI } from '@trezor/connect';
+import { createDeferred, DeferredResponse } from '@trezor/utils';
+import { UserContextPayload } from '@suite-common/suite-types';
+import { deviceActions, selectDevice } from '@suite-common/wallet-core';
+
+import { MODAL } from 'src/actions/suite/constants';
+import { Dispatch, GetState } from 'src/types/suite';
 
 export type ModalAction =
     | { type: typeof MODAL.CLOSE }
@@ -166,9 +16,7 @@ export type ModalAction =
           payload: UserContextPayload;
       };
 
-export const onCancel = (): ModalAction => ({
-    type: MODAL.CLOSE,
-});
+export const onCancel = createAction(MODAL.CLOSE);
 
 /**
  * Don't close modals on UI.CLOSE_UI.WINDOW event but wait for explicit closing instead
@@ -194,17 +42,18 @@ export const onPinSubmit = (payload: string) => () => {
  */
 export const onPassphraseSubmit =
     (value: string, passphraseOnDevice: boolean) => (dispatch: Dispatch, getState: GetState) => {
-        const { device } = getState().suite;
+        const device = selectDevice(getState());
         if (!device) return;
 
         if (!device.state) {
             // call SUITE.UPDATE_PASSPHRASE_MODE action to set or remove walletNumber
-            dispatch({
-                type: SUITE.UPDATE_PASSPHRASE_MODE,
-                payload: device,
-                hidden: passphraseOnDevice || !!value,
-                alwaysOnDevice: passphraseOnDevice,
-            });
+            dispatch(
+                deviceActions.updatePassphraseMode({
+                    device,
+                    hidden: passphraseOnDevice || !!value,
+                    alwaysOnDevice: passphraseOnDevice,
+                }),
+            );
         }
 
         TrezorConnect.uiResponse({
@@ -226,10 +75,9 @@ export const onReceiveConfirmation = (confirmation: boolean) => (dispatch: Dispa
     dispatch(onCancel());
 };
 
-export const openModal = (payload: UserContextPayload): ModalAction => ({
-    type: MODAL.OPEN_USER_CONTEXT,
+export const openModal = createAction(MODAL.OPEN_USER_CONTEXT, (payload: UserContextPayload) => ({
     payload,
-});
+}));
 
 // declare all modals with promises
 type DeferredModals = Extract<

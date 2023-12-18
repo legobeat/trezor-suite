@@ -18,7 +18,7 @@ export type LabelableEntityKeysByVersion = DeviceEntityKeys | AccountEntityKeys;
 export type MetadataAddPayload =
     | {
           type: 'outputLabel';
-          accountKey: string;
+          entityKey: string;
           txid: string;
           outputIndex: number;
           defaultValue: string;
@@ -26,19 +26,19 @@ export type MetadataAddPayload =
       }
     | {
           type: 'addressLabel';
-          accountKey: string;
+          entityKey: string;
           defaultValue: string;
           value?: string;
       }
     | {
           type: 'accountLabel';
-          accountKey: string;
+          entityKey: string;
           defaultValue: string;
           value?: string;
       }
     | {
           type: 'walletLabel';
-          deviceState: string;
+          entityKey: string;
           defaultValue: string;
           value?: string;
       };
@@ -98,6 +98,7 @@ export abstract class AbstractMetadataProvider {
     /* isCloud means that this provider is not local and allows multi client sync. These providers are suitable for backing up data. */
     abstract isCloud: boolean;
 
+    // eslint-disable-next-line no-empty-function
     constructor(public type: MetadataProviderType) {}
 
     abstract connect(): Result<void>;
@@ -124,6 +125,8 @@ export abstract class AbstractMetadataProvider {
      */
     abstract getFilesList(): Result<string[] | undefined>;
 
+    abstract renameFile(from: string, to: string): Result<void>;
+
     ok(): Success<void>;
     ok<T>(payload: T): Success<T>;
     ok(payload?: any) {
@@ -145,6 +148,32 @@ export abstract class AbstractMetadataProvider {
             error: reason,
         } as const;
     }
+
+    scheduleApiRequest<T extends () => ReturnType<R>, R extends (...args: any) => Result<any>>(
+        fn: T,
+        options: { retries: number; delay: number } = { retries: 3, delay: 1000 },
+    ) {
+        let retried = 0;
+        return new Promise<Awaited<ReturnType<R>>>(resolve => {
+            const { retries, delay } = options;
+            const run = async () => {
+                const res = await fn();
+
+                if (res.success) {
+                    return resolve(res);
+                }
+
+                if (retries > 0 && retried < retries) {
+                    retried++;
+                    setTimeout(run, delay);
+                } else {
+                    // reached retries limit, return error
+                    resolve(res);
+                }
+            };
+            run();
+        });
+    }
 }
 
 export interface AccountLabels {
@@ -159,13 +188,7 @@ export interface WalletLabels {
 
 export type Labels = AccountLabels | WalletLabels;
 
-export type DeviceMetadata =
-    | {
-          status: 'disabled' | 'cancelled'; // user rejects "Enable labeling" on device
-      }
-    | ({
-          status: 'enabled';
-      } & DeviceEntityKeys);
+export type DeviceMetadata = DeviceEntityKeys;
 
 type Data = Record<
     LabelableEntityKeys['fileName'], // unique "id" for mapping with labelable entitties
@@ -206,6 +229,12 @@ export interface MetadataState {
     // field shall hold default value for which user may add metadata (address, txId, etc...);
     editing?: string;
     initiating?: boolean;
+    /**
+     * error, typical reasons:
+     * - user clicked cancel button on device when "Enable labeling" was shown.
+     * - device disconnected
+     */
+    error?: { [deviceState: string]: boolean };
 }
 
 export type OAuthServerEnvironment = 'production' | 'staging' | 'localhost';

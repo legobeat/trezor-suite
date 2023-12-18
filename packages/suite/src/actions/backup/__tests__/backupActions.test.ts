@@ -1,49 +1,23 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable global-require */
-
-import { configureStore } from 'src/support/tests/configureStore';
 import { mergeDeepObject } from '@trezor/utils';
 import { connectInitThunk } from '@suite-common/connect-init';
-import { SUITE } from 'src/actions/suite/constants';
-import { BACKUP } from 'src/actions/backup/constants';
-import * as backupActions from 'src/actions/backup/backupActions';
+import { testMocks } from '@suite-common/test-utils';
 import { notificationsActions } from '@suite-common/toast-notifications';
 import { CommonParams, DeviceModelInternal } from '@trezor/connect';
 
-jest.mock('@trezor/connect', () => {
-    let fixture: any;
-
-    const backupDevice = () => fixture;
-    const callbacks: { [key: string]: () => any } = {};
-
-    const { PROTO, DeviceModelInternal } = jest.requireActual('@trezor/connect');
-
-    return {
-        __esModule: true, // this property makes it work
-        default: {
-            init: () => true,
-            on: (event: string, cb: () => any) => {
-                callbacks[event] = cb;
-            },
-            getFeatures: () => {},
-            backupDevice,
-            blockchainSetCustomBackend: () => {},
-        },
-        DEVICE: {},
-        TRANSPORT: {},
-        BLOCKCHAIN: {},
-        setTestFixtures: (f: any) => {
-            fixture = f;
-        },
-        PROTO,
-        DeviceModelInternal,
-    };
-});
+import { configureStore } from 'src/support/tests/configureStore';
+import { SUITE } from 'src/actions/suite/constants';
+import { BACKUP } from 'src/actions/backup/constants';
+import * as backupActions from 'src/actions/backup/backupActions';
 
 export const getInitialState = (override: any) => {
     const defaults = {
         suite: {
-            device: {
+            locks: [3],
+            settings: { debug: {} },
+        },
+        // doesnt affect anything, just needed for TrezorConnect.init action
+        device: {
+            selectedDevice: {
                 connected: true,
                 type: 'acquired',
                 features: {
@@ -51,11 +25,8 @@ export const getInitialState = (override: any) => {
                     internal_model: DeviceModelInternal.T2T1,
                 },
             },
-            locks: [3],
-            settings: { debug: {} },
+            devices: [],
         },
-        // doesnt affect anything, just needed for TrezorConnect.init action
-        devices: [],
         wallet: {
             settings: {
                 enabledNetworks: ['btc'],
@@ -79,14 +50,16 @@ describe('Backup Actions', () => {
     });
 
     it('backup success', async () => {
-        require('@trezor/connect').setTestFixtures({ success: true });
+        testMocks.setTrezorConnectFixtures({ success: true });
 
         const state = getInitialState({});
         const store = mockStore(state);
         await store.dispatch(connectInitThunk());
 
         await store.dispatch(
-            backupActions.backupDevice({ device: store.getState().suite.device } as CommonParams),
+            backupActions.backupDevice({
+                device: store.getState().device.selectedDevice,
+            } as CommonParams),
         );
 
         expect(store.getActions().shift()).toMatchObject({
@@ -110,7 +83,7 @@ describe('Backup Actions', () => {
     });
 
     it('backup error', async () => {
-        require('@trezor/connect').setTestFixtures({
+        testMocks.setTrezorConnectFixtures({
             success: false,
             payload: { error: 'avadakedavra' },
         });
@@ -120,7 +93,9 @@ describe('Backup Actions', () => {
         await store.dispatch(connectInitThunk());
 
         await store.dispatch(
-            backupActions.backupDevice({ device: store.getState().suite.device } as CommonParams),
+            backupActions.backupDevice({
+                device: store.getState().device.selectedDevice,
+            } as CommonParams),
         );
 
         expect(store.getActions().shift()).toMatchObject({

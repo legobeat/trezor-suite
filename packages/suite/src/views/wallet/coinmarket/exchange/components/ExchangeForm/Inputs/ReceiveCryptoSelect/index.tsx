@@ -1,6 +1,5 @@
 import { variables, Select } from '@trezor/components';
 import { ExchangeInfo } from 'src/actions/wallet/coinmarketExchangeActions';
-import React from 'react';
 import { Controller } from 'react-hook-form';
 import styled from 'styled-components';
 import { ExchangeCoinInfo } from 'invity-api';
@@ -66,6 +65,7 @@ const buildOptions = (
                 coin.name &&
                 coin.category &&
                 coin.ticker.toLowerCase() !== symbolToFilter &&
+                coin.ticker.toLowerCase() !== 'usdt20' && // temporary solution; invity-api renamed USDT20 => USDT and sends both codes (USDT and USDT20) to maintain backward compatibility with old versions of suite
                 exchangeInfo.buySymbols.has(coin.ticker.toLowerCase()),
         )
         .reduce((options, coin) => {

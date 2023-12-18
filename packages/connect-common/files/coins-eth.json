@@ -12,8 +12,9 @@
         "support": {
             "connect": true,
             "suite": true,
-            "trezor1": "1.6.2",
-            "trezor2": "2.0.7"
+            "T1B1": "1.6.2",
+            "T2T1": "2.0.7",
+            "T2B1": "2.6.1"
         },
         "url": "https://ethereum.org"
     },
@@ -30,9 +31,10 @@
         "slip44": 1,
         "support": {
             "connect": true,
-            "suite": false,
-            "trezor1": "1.11.2",
-            "trezor2": "2.5.2"
+            "suite": true,
+            "T1B1": "1.11.2",
+            "T2T1": "2.5.2",
+            "T2B1": "2.6.1"
         },
         "url": "https://sepolia.otterscan.io"
     },
@@ -48,11 +50,31 @@
         "slip44": 1,
         "support": {
             "connect": true,
-            "suite": false,
-            "trezor1": "1.11.2",
-            "trezor2": "2.5.2"
+            "suite": true,
+            "T1B1": "1.11.2",
+            "T2T1": "2.5.2",
+            "T2B1": "2.6.1"
         },
         "url": "https://goerli.net/#about"
+    },
+    {
+        "blockchain_link": {
+            "type": "blockbook",
+            "url": ["https://holesky1.trezor.io", "https://holesky2.trezor.io"]
+        },
+        "chain": "hol",
+        "chain_id": 17000,
+        "name": "Holesky",
+        "shortcut": "tHOL",
+        "slip44": 1,
+        "support": {
+            "connect": true,
+            "suite": true,
+            "T1B1": "1.11.2",
+            "T2T1": "2.5.2",
+            "T2B1": "2.6.1"
+        },
+        "url": "https://holesky.ethpandaops.io/"
     },
     {
         "blockchain_link": {
@@ -67,8 +89,9 @@
         "support": {
             "connect": true,
             "suite": true,
-            "trezor1": "1.6.2",
-            "trezor2": "2.0.7"
+            "T1B1": "1.6.2",
+            "T2T1": "2.0.7",
+            "T2B1": "2.6.1"
         },
         "url": "https://ethereumclassic.org"
     }

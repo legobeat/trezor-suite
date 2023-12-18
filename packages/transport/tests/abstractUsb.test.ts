@@ -1,18 +1,25 @@
+import { v1 as v1Protocol } from '@trezor/protocol';
 import { AbstractTransport } from '../src/transports/abstract';
-import { AbstractUsbTransport, UsbTransportConstructorParams } from '../src/transports/abstractUsb';
-import { UsbInterface } from '../src/interfaces/usb';
+import { AbstractApiTransport } from '../src/transports/abstractApi';
+import { UsbApi } from '../src/api/usb';
 import { SessionsClient } from '../src/sessions/client';
 import { SessionsBackground } from '../src/sessions/background';
 import * as messages from '@trezor/protobuf/messages.json';
 
 // we cant directly use abstract class (UsbTransport)
-class TestUsbTransport extends AbstractUsbTransport {
+
+class TestUsbTransport extends AbstractApiTransport {
     public name = 'WebUsbTransport' as const;
 
-    constructor({ messages, usbInterface, sessionsClient, signal }: UsbTransportConstructorParams) {
+    constructor({
+        messages,
+        api,
+        sessionsClient,
+        signal,
+    }: ConstructorParameters<typeof AbstractApiTransport>[0]) {
         super({
             messages,
-            usbInterface,
+            api,
             sessionsClient,
             signal,
         });
@@ -45,11 +52,12 @@ const createMockedDevice = (optional = {}) => ({
 });
 
 // mock of navigator.usb
-const createUsbMock = (optional = {}) => ({
-    getDevices: () =>
-        Promise.resolve([createMockedDevice(), createMockedDevice({ serialNumber: null })]),
-    ...optional,
-});
+const createUsbMock = (optional = {}) =>
+    ({
+        getDevices: () =>
+            Promise.resolve([createMockedDevice(), createMockedDevice({ serialNumber: null })]),
+        ...optional,
+    }) as unknown as UsbApi['usbInterface'];
 
 describe('Usb', () => {
     beforeEach(() => {
@@ -68,17 +76,18 @@ describe('Usb', () => {
                 registerBackgroundCallbacks: () => {},
             });
 
-            // create usb interface with navigator.usb mock
-            const testUsbInterface = new UsbInterface({
-                // @ts-expect-error
+            // create usb api with navigator.usb mock
+            const testUsbApi = new UsbApi({
                 usbInterface: createUsbMock(),
             });
 
             const transport = new TestUsbTransport({
-                usbInterface: testUsbInterface,
+                api: testUsbApi,
                 sessionsClient,
-                messages,
             });
+
+            // there are no loaded messages
+            expect(transport.getMessage()).toEqual(false);
 
             const res = await transport.init().promise;
             expect(res).toMatchObject({
@@ -90,14 +99,12 @@ describe('Usb', () => {
             const sessionsBackground = new SessionsBackground();
 
             const sessionsClient = new SessionsClient({
-                // @ts-expect-error
                 requestFn: params => sessionsBackground.handleMessage(params),
                 registerBackgroundCallbacks: () => {},
             });
 
-            // create usb interface with navigator.usb mock
-            const testUsbInterface = new UsbInterface({
-                // @ts-expect-error
+            // create usb api with navigator.usb mock
+            const testUsbApi = new UsbApi({
                 usbInterface: createUsbMock({
                     getDevices: () => {
                         throw new Error('crazy error nobody expects');
@@ -106,9 +113,8 @@ describe('Usb', () => {
             });
 
             const transport = new TestUsbTransport({
-                usbInterface: testUsbInterface,
+                api: testUsbApi,
                 sessionsClient,
-                messages,
             });
 
             await transport.init().promise;
@@ -126,7 +132,7 @@ describe('Usb', () => {
         let sessionsBackground: SessionsBackground;
         let sessionsClient: SessionsClient;
         let transport: AbstractTransport;
-        let testUsbInterface: UsbInterface;
+        let testUsbApi: UsbApi;
         let abortController: AbortController;
 
         beforeEach(async () => {
@@ -145,16 +151,15 @@ describe('Usb', () => {
                 sessionsClient.emit('descriptors', descriptors);
             });
 
-            // create usb interface with navigator.usb mock
-            testUsbInterface = new UsbInterface({
-                // @ts-expect-error
+            // create usb api with navigator.usb mock
+            testUsbApi = new UsbApi({
                 usbInterface: createUsbMock(),
             });
 
             abortController = new AbortController();
 
             transport = new TestUsbTransport({
-                usbInterface: testUsbInterface,
+                api: testUsbApi,
                 sessionsClient,
                 messages,
                 signal: abortController.signal,
@@ -273,8 +278,12 @@ describe('Usb', () => {
         });
 
         it('call error - called without acquire.', async () => {
-            const res = await transport.call({ name: 'GetAddress', data: {}, session: '1' })
-                .promise;
+            const res = await transport.call({
+                name: 'GetAddress',
+                data: {},
+                session: '1',
+                protocol: v1Protocol,
+            }).promise;
             expect(res).toEqual({ success: false, error: 'device disconnected during action' });
         });
 
@@ -287,11 +296,14 @@ describe('Usb', () => {
 
             expect(acquireRes.payload).toEqual('1');
 
+            expect(transport.getMessage('GetAddress')).toEqual(true);
+
             // doesn't really matter what what message we send
             const res = await transport.call({
                 name: 'GetAddress',
                 data: {},
                 session: acquireRes.payload,
+                protocol: v1Protocol,
             }).promise;
             expect(res).toEqual({
                 success: true,
@@ -318,6 +330,7 @@ describe('Usb', () => {
                 name: 'GetAddress',
                 data: {},
                 session: acquireRes.payload,
+                protocol: v1Protocol,
             }).promise;
             expect(sendRes).toEqual({
                 success: true,
@@ -325,6 +338,7 @@ describe('Usb', () => {
             });
             const receiveRes = await transport.receive({
                 session: acquireRes.payload,
+                protocol: v1Protocol,
             }).promise;
             expect(receiveRes).toEqual({
                 success: true,
@@ -335,6 +349,49 @@ describe('Usb', () => {
                     },
                 },
             });
+        });
+
+        it('send protocol-v1 with custom chunkSize', async () => {
+            await transport.enumerate().promise;
+            const acquireRes = await transport.acquire({ input: { path: '123', previous: null } })
+                .promise;
+            expect(acquireRes.success).toEqual(true);
+            if (!acquireRes.success) return;
+
+            const writeSpy = jest
+                .spyOn(testUsbApi, 'write')
+                .mockImplementation(() => Promise.resolve({ success: true, payload: undefined }));
+
+            // override protocol options
+            const overrideProtocol = (protocol: typeof v1Protocol, chunkSize: number) =>
+                ({
+                    ...protocol,
+                    encode: (...[data, options]: Parameters<typeof protocol.encode>) =>
+                        protocol.encode(data, { ...options, chunkSize }),
+                }) as typeof protocol;
+
+            const send = (chunkSize: number) =>
+                transport.send({
+                    name: 'SignMessage',
+                    data: {
+                        message: '00'.repeat(200),
+                    },
+                    session: acquireRes.payload,
+                    protocol: overrideProtocol(v1Protocol, chunkSize),
+                }).promise;
+
+            // count encoded/sent chunks
+            await send(64); // default usb
+            expect(writeSpy).toBeCalledTimes(4);
+            writeSpy.mockClear();
+
+            await send(16); // smaller chunks
+            expect(writeSpy).toBeCalledTimes(15);
+            writeSpy.mockClear();
+
+            await send(128); // bigger chunks
+            expect(writeSpy).toBeCalledTimes(2);
+            writeSpy.mockClear();
         });
 
         it('release', async () => {
@@ -368,6 +425,7 @@ describe('Usb', () => {
                 name: 'GetAddress',
                 data: {},
                 session: acquireRes.payload,
+                protocol: v1Protocol,
             });
             abort();
 
@@ -380,6 +438,7 @@ describe('Usb', () => {
                 name: 'GetAddress',
                 data: {},
                 session: acquireRes.payload,
+                protocol: v1Protocol,
             });
             // await promise2;
             expect(promise2).resolves.toEqual({

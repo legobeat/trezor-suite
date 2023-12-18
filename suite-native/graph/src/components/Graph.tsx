@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { N } from '@mobily/ts-belt';
 import * as Haptics from 'expo-haptics';
@@ -12,6 +12,7 @@ import {
     GroupedBalanceMovementEvent,
     GroupedBalanceMovementEventPayload,
 } from '@suite-common/graph';
+import { useTranslate } from '@suite-native/intl';
 
 import { getExtremaFromGraphPoints } from '../utils';
 import { AxisLabel, MAX_CLAMP_VALUE } from './AxisLabel';
@@ -29,6 +30,7 @@ type GraphProps<TGraphPoint extends GraphPoint> = {
     error?: string | null;
     onTryAgain: () => void;
     events?: GroupedBalanceMovementEvent[];
+    loadingTakesLongerThanExpected?: boolean;
 };
 
 const GRAPH_HEIGHT = 250;
@@ -78,20 +80,21 @@ const triggerHaptics = () => {
 export const Graph = <TGraphPoint extends FiatGraphPoint>({
     onPointSelected,
     onGestureEnd,
-    points = [],
-    loading = false,
-    animated = true,
     onTryAgain,
     error,
     events,
+    points = [],
+    loading = false,
+    animated = true,
+    loadingTakesLongerThanExpected = false,
 }: GraphProps<TGraphPoint>) => {
     const {
         applyStyle,
         utils: { colors },
     } = useNativeStyles();
+    const { translate } = useTranslate();
 
     const isPointsEmpty = points.length <= 1;
-
     const nonEmptyPoints = isPointsEmpty ? emptyPoints : points;
     const extremaFromGraphPoints = useMemo(() => getExtremaFromGraphPoints(points), [points]);
     const axisLabels = useMemo(() => {
@@ -138,7 +141,13 @@ export const Graph = <TGraphPoint extends FiatGraphPoint>({
             />
             {loading && (
                 <Box style={applyStyle(graphMessageStyleContainer)}>
-                    <Loader title="Loading graph data..." />
+                    <Loader
+                        title={translate(
+                            loadingTakesLongerThanExpected
+                                ? 'graph.retrievengTakesLongerThanExpected'
+                                : 'graph.retrievingData',
+                        )}
+                    />
                 </Box>
             )}
             {error && !loading && (

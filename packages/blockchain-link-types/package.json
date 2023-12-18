@@ -1,6 +1,6 @@
 {
     "name": "@trezor/blockchain-link-types",
-    "version": "1.0.5",
+    "version": "1.0.9",
     "license": "See LICENSE.md in repo root",
     "sideEffects": false,
     "main": "lib/index",
@@ -16,11 +16,12 @@
         "prepublish": "yarn tsx ../../scripts/prepublish.js"
     },
     "devDependencies": {
+        "@solana/web3.js": "^1.87.6",
         "@trezor/utxo-lib": "workspace:*",
-        "rimraf": "^5.0.1",
+        "rimraf": "^5.0.5",
         "ripple-lib": "^1.10.1",
         "socks-proxy-agent": "6.1.1",
-        "tsx": "^3.12.7",
-        "typescript": "4.9.5"
+        "tsx": "^4.6.2",
+        "typescript": "5.3.2"
     }
 }

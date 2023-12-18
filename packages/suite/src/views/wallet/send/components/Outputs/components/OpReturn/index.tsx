@@ -1,4 +1,3 @@
-import React from 'react';
 import styled from 'styled-components';
 import { useSendFormContext } from 'src/hooks/wallet';
 import { Translation } from 'src/components/suite';
@@ -11,8 +10,7 @@ import { useTranslation } from 'src/hooks/suite';
 const Wrapper = styled.div`
     display: flex;
     flex-direction: row;
-    justify-items: space-between;
-    align-items: center;
+    place-items: center space-between;
 `;
 
 const Label = styled.div`

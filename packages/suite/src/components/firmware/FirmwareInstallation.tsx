@@ -1,9 +1,9 @@
-import React, { useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Button } from '@trezor/components';
 import { getTextForStatus } from 'src/utils/firmware';
 import { Translation, WebUsbButton } from 'src/components/suite';
 import { useDevice, useFirmware } from 'src/hooks/suite';
-import { FirmwareOffer, ProgressBar, ReconnectDevicePrompt } from 'src/components/firmware';
+import { FirmwareOffer, FirmwareProgressBar, ReconnectDevicePrompt } from 'src/components/firmware';
 import { OnboardingStepBox } from 'src/components/onboarding';
 import { TrezorDevice } from 'src/types/suite';
 import { selectIsActionAbortable } from 'src/reducers/suite/suiteReducer';
@@ -31,7 +31,6 @@ export const FirmwareInstallation = ({
     const { device } = useDevice();
     const { status, installingProgress, resetReducer, isWebUSB, subsequentInstalling } =
         useFirmware();
-    const deviceModelInternal = device?.features?.internal_model;
     const cachedDeviceModelInternal = cachedDevice?.features?.internal_model;
     const isActionAbortable = useSelector(selectIsActionAbortable);
 
@@ -66,10 +65,6 @@ export const FirmwareInstallation = ({
 
             case 'done':
             case 'partially-done':
-                if (status === 'done' && deviceModelInternal === DeviceModelInternal.T2B1) {
-                    return;
-                }
-
                 return (
                     <Button
                         variant="primary"
@@ -82,7 +77,7 @@ export const FirmwareInstallation = ({
             default:
                 return undefined;
         }
-    }, [status, isWebUSB, getContinueAction, standaloneFwUpdate, deviceModelInternal]);
+    }, [status, isWebUSB, getContinueAction, standaloneFwUpdate]);
 
     return (
         <>
@@ -103,9 +98,7 @@ export const FirmwareInstallation = ({
                         <Translation id="TR_INSTALL_FIRMWARE" />
                     )
                 }
-                deviceModelInternal={
-                    status === 'waiting-for-confirmation' ? deviceModelInternal : undefined
-                }
+                device={status === 'waiting-for-confirmation' ? device : undefined}
                 isActionAbortable={isActionAbortable}
                 innerActions={InnerActionComponent}
                 nested={!!standaloneFwUpdate}
@@ -120,7 +113,7 @@ export const FirmwareInstallation = ({
                         // Progress bar shown in 'installing', 'wait-for-reboot', 'unplug', 'reconnect-in-normal', 'partially-done', 'done'
                         // Also in 'started' if the device has no fw (freshly unpacked device). In this case device won't ask for confirmation
                         // and starts installation right away. However it doesn't provide an installation progress till way later (we set status to 'installing' only after receiving UI.FIRMWARE_PROGRESS in firmware reducer)
-                        <ProgressBar
+                        <FirmwareProgressBar
                             key={subsequentInstalling ? 1 : 0} // will reset the progress after an installation of intermediary fw (subsequent fw update will follow)
                             label={statusText}
                             total={100}

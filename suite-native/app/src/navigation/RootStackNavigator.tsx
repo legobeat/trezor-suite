@@ -1,9 +1,11 @@
-import React from 'react';
 import { useSelector } from 'react-redux';
 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import { AccountDetailScreen, AccountSettingsScreen } from '@suite-native/module-accounts';
+import {
+    AccountDetailScreen,
+    AccountSettingsScreen,
+} from '@suite-native/module-accounts-management';
 import { AccountsImportStackNavigator } from '@suite-native/module-accounts-import';
 import {
     RootStackParamList,
@@ -14,23 +16,22 @@ import { selectIsOnboardingFinished } from '@suite-native/module-settings';
 import { DevUtilsStackNavigator } from '@suite-native/module-dev-utils';
 import { TransactionDetailScreen } from '@suite-native/transactions';
 import { OnboardingStackNavigator } from '@suite-native/module-onboarding';
-import { selectUserHasAccounts } from '@suite-common/wallet-core';
-import { ReceiveModal } from '@suite-native/receive';
+import { ReceiveModalScreen } from '@suite-native/receive';
+import { ConnectDeviceStackNavigator } from '@suite-native/module-connect-device';
+import { DeviceInfoModalScreen, useHandleDeviceConnection } from '@suite-native/device';
 
 import { AppTabNavigator } from './AppTabNavigator';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 export const RootStackNavigator = () => {
+    useHandleDeviceConnection();
+
     const isOnboardingFinished = useSelector(selectIsOnboardingFinished);
-    const userHasAccounts = useSelector(selectUserHasAccounts);
 
     const getInitialRouteName = () => {
-        if (isOnboardingFinished && userHasAccounts) {
+        if (isOnboardingFinished) {
             return RootStackRoutes.AppTabs;
-        }
-        if (isOnboardingFinished && !userHasAccounts) {
-            return RootStackRoutes.AccountsImport;
         }
         return RootStackRoutes.Onboarding;
     };
@@ -48,6 +49,11 @@ export const RootStackNavigator = () => {
             <RootStack.Screen
                 name={RootStackRoutes.AccountsImport}
                 component={AccountsImportStackNavigator}
+            />
+            <RootStack.Screen
+                name={RootStackRoutes.ConnectDevice}
+                component={ConnectDeviceStackNavigator}
+                options={{ ...stackNavigationOptionsConfig, animation: 'slide_from_bottom' }}
             />
             <RootStack.Screen
                 options={{ title: RootStackRoutes.AccountSettings }}
@@ -68,7 +74,8 @@ export const RootStackNavigator = () => {
                 name={RootStackRoutes.DevUtilsStack}
                 component={DevUtilsStackNavigator}
             />
-            <RootStack.Screen name={RootStackRoutes.ReceiveModal} component={ReceiveModal} />
+            <RootStack.Screen name={RootStackRoutes.ReceiveModal} component={ReceiveModalScreen} />
+            <RootStack.Screen name={RootStackRoutes.DeviceInfo} component={DeviceInfoModalScreen} />
         </RootStack.Navigator>
     );
 };

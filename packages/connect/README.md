@@ -1,6 +1,6 @@
 # @trezor/connect
 
-API version 9.1.2
+API version 9.1.7
 
 [![Build Status](https://github.com/trezor/trezor-suite/actions/workflows/connect-test.yml/badge.svg)](https://github.com/trezor/trezor-suite/actions/workflows/connect-test.yml)
 [![NPM](https://img.shields.io/npm/v/@trezor/connect.svg)](https://www.npmjs.org/package/@trezor/connect)
@@ -46,6 +46,8 @@ Version 9 is available as `@trezor/connect` and `@trezor/connect-web` npm packag
 ### Major version
 
 New major version is released when there are breaking changes on API level. Previous major version will be maintained for 12 months and after this period it can be taken down without notice.
+
+Current major version 9 is being developed on top of `develop` branch. When there is a new major version a new branch should be created (`v-<major-version>`) and mantained separately.
 
 ### Minor version
 

@@ -2,6 +2,7 @@ export type CoinSelectPaymentType = 'p2pkh' | 'p2sh' | 'p2tr' | 'p2wpkh' | 'p2ws
 
 export interface CoinSelectOptions {
     txType: CoinSelectPaymentType;
+    changeOutput?: CoinSelectOutput;
     dustThreshold?: number;
     longTermFeeRate?: number;
     own?: number;
@@ -9,8 +10,8 @@ export interface CoinSelectOptions {
     coinbase?: number;
     baseFee?: number;
     floorBaseFee?: boolean;
-    dustOutputFee?: number;
     skipPermutation?: boolean;
+    feePolicy?: 'bitcoin' | 'doge' | 'zcash';
 }
 
 export interface CoinSelectInput {
@@ -36,17 +37,12 @@ export interface CoinSelectOutputFinal {
     value: string;
 }
 
-export type CoinSelectResult =
-    | {
-          fee: number;
-          inputs?: typeof undefined;
-          outputs?: typeof undefined;
-      }
-    | {
-          fee: number;
-          inputs: CoinSelectInput[];
-          outputs: CoinSelectOutputFinal[];
-      };
+export interface CoinSelectRequest extends CoinSelectOptions {
+    inputs: CoinSelectInput[];
+    outputs: CoinSelectOutput[];
+    sendMaxOutputIndex: number;
+    feeRate: number;
+}
 
 export type CoinSelectAlgorithm = (
     inputs: CoinSelectInput[],
@@ -56,18 +52,15 @@ export type CoinSelectAlgorithm = (
 ) => CoinSelectResult;
 
 export interface CoinSelectSuccess {
-    success: true;
-    payload: {
-        inputs: CoinSelectInput[];
-        outputs: CoinSelectOutputFinal[];
-        max?: string;
-        totalSpent: string;
-        fee: number;
-        feePerByte: number;
-        bytes: number;
-    };
+    fee: number;
+    inputs: CoinSelectInput[];
+    outputs: CoinSelectOutputFinal[];
 }
 
 export interface CoinSelectFailure {
-    success: false;
+    fee: number;
+    inputs?: typeof undefined;
+    outputs?: typeof undefined;
 }
+
+export type CoinSelectResult = CoinSelectSuccess | CoinSelectFailure;

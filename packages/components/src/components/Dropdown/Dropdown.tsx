@@ -1,11 +1,18 @@
-import React, {
+import {
     useState,
     useRef,
     useLayoutEffect,
     forwardRef,
     useImperativeHandle,
     useCallback,
+    ReactNode,
+    Fragment,
+    ButtonHTMLAttributes,
+    ReactElement,
+    ComponentType,
+    cloneElement,
 } from 'react';
+
 import { createPortal } from 'react-dom';
 import styled, { css } from 'styled-components';
 import { useOnClickOutside } from '@trezor/react-utils';
@@ -65,7 +72,8 @@ const Menu = styled.ul<MenuProps>`
     position: absolute;
     flex: 1;
     min-width: ${props => props.minWidth}px;
-    box-shadow: 0 2px 7px 0 ${({ theme }) => theme.BOX_SHADOW_BLACK_15},
+    box-shadow:
+        0 2px 7px 0 ${({ theme }) => theme.BOX_SHADOW_BLACK_15},
         0 2px 3px 0 ${({ theme }) => theme.BOX_SHADOW_BLACK_5};
     padding: ${props => props.topPadding}px ${props => props.horizontalPadding}px
         ${props => props.bottomPadding}px;
@@ -199,7 +207,7 @@ const MoreIcon = styled(Icon)<{ $isDisabled?: boolean }>`
 
 interface DropdownMenuItem {
     key: string;
-    label: React.ReactNode;
+    label: ReactNode;
     callback?: () => any | Promise<any>;
     icon?: IconProps['icon'] | JSX.Element;
     iconRight?: IconProps['icon'];
@@ -215,7 +223,7 @@ interface DropdownMenuItem {
 export interface GroupedMenuItems {
     key: string;
     options: DropdownMenuItem[];
-    label?: React.ReactNode;
+    label?: ReactNode;
 }
 
 interface MenuItemProps {
@@ -223,7 +231,7 @@ interface MenuItemProps {
 }
 
 interface MasterLink {
-    label: React.ReactNode;
+    label: ReactNode;
     icon: IconProps['icon'];
     callback?: () => void;
 }
@@ -241,18 +249,18 @@ interface MenuProps {
 }
 
 type DropdownProps = MenuProps &
-    Omit<React.ButtonHTMLAttributes<HTMLDivElement>, 'disabled'> & {
-        children?: React.ReactElement<any>;
+    Omit<ButtonHTMLAttributes<HTMLDivElement>, 'disabled'> & {
+        children?: ReactElement<any>;
         absolutePosition?: boolean;
         items: GroupedMenuItems[];
         components?: {
-            DropdownMenuItem?: React.ComponentType<MenuItemProps>;
-            DropdownMenu?: React.ComponentType<MenuProps>;
+            DropdownMenuItem?: ComponentType<MenuItemProps>;
+            DropdownMenu?: ComponentType<MenuProps>;
         };
         offset?: number;
         isDisabled?: boolean;
         appendTo?: HTMLElement;
-        hoverContent?: React.ReactNode;
+        hoverContent?: ReactNode;
         onToggle?: (isToggled: boolean) => void;
     };
 
@@ -361,7 +369,7 @@ const Dropdown = forwardRef(
         };
 
         const toggleComponent = children ? (
-            React.cloneElement(children, {
+            cloneElement(children, {
                 ref: toggleRef,
                 isDisabled,
                 onClick: !isDisabled
@@ -438,7 +446,7 @@ const Dropdown = forwardRef(
                     </MasterLinkComponent>
                 )}
                 {visibleItems.map(group => (
-                    <React.Fragment key={group.key}>
+                    <Fragment key={group.key}>
                         {group.label && <Group>{group.label}</Group>}
                         {group.options.map(item => (
                             <MenuItemComponent
@@ -463,7 +471,7 @@ const Dropdown = forwardRef(
                                 )}
                             </MenuItemComponent>
                         ))}
-                    </React.Fragment>
+                    </Fragment>
                 ))}
             </MenuComponent>
         );

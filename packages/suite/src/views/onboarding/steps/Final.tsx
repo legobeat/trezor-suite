@@ -1,11 +1,19 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import styled, { css } from 'styled-components';
 import useMeasure from 'react-use/lib/useMeasure';
 import { analytics, EventType } from '@trezor/suite-analytics';
 
-import { Button, Icon, variables, Dropdown, DropdownRef, Tooltip } from '@trezor/components';
+import {
+    Button,
+    Icon,
+    variables,
+    Dropdown,
+    DropdownRef,
+    Tooltip,
+    DeviceAnimation,
+} from '@trezor/components';
 import { Translation, HomescreenGallery } from 'src/components/suite';
-import { DeviceAnimation, OnboardingStepBox } from 'src/components/onboarding';
+import { OnboardingStepBox } from 'src/components/onboarding';
 import { useDevice, useOnboarding, useSelector } from 'src/hooks/suite';
 import { DEFAULT_LABEL } from 'src/constants/suite/device';
 import { isHomescreenSupportedOnDevice } from 'src/utils/suite/homescreen';
@@ -27,6 +35,7 @@ const StyledButton = styled(Button)`
     :not(:disabled) {
         color: ${({ theme }) => theme.TYPE_DARK_GREY};
     }
+
     :hover,
     :focus {
         background-color: transparent;
@@ -49,7 +58,7 @@ const Content = styled.div`
 
 const GalleryWrapper = styled.div`
     width: 330px;
-    padding: 8px 0px;
+    padding: 8px 0;
     height: 200px;
     overflow-y: auto;
     border: 1px solid ${({ theme }) => theme.STROKE_GREY};
@@ -113,7 +122,7 @@ const Wrapper = styled.div<{ shouldWrap?: boolean }>`
             flex-direction: column;
 
             ${DeviceImageWrapper} {
-                margin: 0 0 20px 0;
+                margin: 0 0 20px;
             }
 
             ${Heading} {
@@ -162,12 +171,16 @@ export const FinalStep = () => {
     return (
         <OnboardingStepBox
             data-test="@onboarding/final"
-            deviceModelInternal={isWaitingForConfirm ? deviceModelInternal : undefined}
+            device={isWaitingForConfirm ? device : undefined}
             isActionAbortable={isActionAbortable}
         >
             <Wrapper ref={wrapperRef} shouldWrap={width < 650}>
                 <DeviceImageWrapper>
-                    <DeviceAnimation type="SUCCESS" size={400} device={device} />
+                    <DeviceAnimation
+                        type="SUCCESS"
+                        size={400}
+                        deviceModelInternal={deviceModelInternal}
+                    />
                 </DeviceImageWrapper>
                 <Content>
                     <Heading>

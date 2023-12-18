@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { Card, HStack, IconButton, Text, VStack } from '@suite-native/atoms';
 import { Icon } from '@suite-common/icons';
 import { prepareNativeStyle, useNativeStyles } from '@trezor/styles';
@@ -32,7 +30,7 @@ export const AboutUsBanners = () => {
                 <VStack spacing="large" style={applyStyle(stackStyle)}>
                     <Icon color="iconOnPrimary" name="trezor" />
                     <Text
-                        align="center"
+                        textAlign="center"
                         color="textOnPrimary"
                         variant="titleSmall"
                         style={applyStyle(trezorDescriptionTextStyle)}

@@ -1,25 +1,28 @@
-import React from 'react';
+import styled from 'styled-components';
+
+import { pickByDeviceModel } from '@trezor/device-utils';
+import { DeviceModelInternal } from '@trezor/connect';
+import { selectDevice } from '@suite-common/wallet-core';
+
 import { OnboardingButtonCta } from 'src/components/onboarding';
 import { SelectWordCount, SelectRecoveryType, SelectRecoveryWord } from 'src/components/recovery';
 import { Translation } from 'src/components/suite';
 import { goToNextStep, updateAnalytics } from 'src/actions/onboarding/onboardingActions';
 import { useDispatch, useRecovery, useSelector } from 'src/hooks/suite';
-import RecoveryStepBox from './RecoveryStepBox';
-import { pickByDeviceModel } from '@trezor/device-utils';
 import { selectIsActionAbortable } from 'src/reducers/suite/suiteReducer';
-import styled from 'styled-components';
-import { DeviceModelInternal } from '@trezor/connect';
+
+import RecoveryStepBox from './RecoveryStepBox';
 
 const InProgressRecoveryStepBox = styled(RecoveryStepBox)<{
-    deviceModelInternal: DeviceModelInternal;
+    $deviceModelInternal: DeviceModelInternal;
 }>`
-    ${({ deviceModelInternal }) =>
-        deviceModelInternal === DeviceModelInternal.T1B1 ? 'min-height: 475px' : ''};
+    ${({ $deviceModelInternal }) =>
+        $deviceModelInternal === DeviceModelInternal.T1B1 ? 'min-height: 475px' : ''};
 `;
 
 export const RecoveryStep = () => {
     const isActionAbortable = useSelector(selectIsActionAbortable);
-    const device = useSelector(state => state.suite.device);
+    const device = useSelector(selectDevice);
     const dispatch = useDispatch();
 
     const {
@@ -116,7 +119,7 @@ export const RecoveryStep = () => {
                     [DeviceModelInternal.T2T1]: <Translation id="TR_RECOVER_SUBHEADING_TOUCH" />,
                     [DeviceModelInternal.T2B1]: <Translation id="TR_RECOVER_SUBHEADING_BUTTONS" />,
                 })}
-                deviceModelInternal={deviceModelInternal}
+                device={device}
                 isActionAbortable={isActionAbortable}
             />
         );
@@ -142,7 +145,8 @@ export const RecoveryStep = () => {
             <InProgressRecoveryStepBox
                 key={status} // to properly rerender in translation mode
                 heading={<Translation id="TR_RECOVER_YOUR_WALLET_FROM" />}
-                deviceModelInternal={deviceModelInternal}
+                $deviceModelInternal={deviceModelInternal}
+                device={device}
                 description={pickByDeviceModel(deviceModelInternal, {
                     default: undefined,
                     [DeviceModelInternal.T1B1]: getModel1Description(),

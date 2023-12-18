@@ -1,5 +1,4 @@
 import { ActivityIndicator, ActivityIndicatorProps } from 'react-native';
-import React from 'react';
 
 import { useNativeStyles } from '@trezor/styles';
 import { Color } from '@trezor/theme';
@@ -23,7 +22,7 @@ export const Loader = ({ size, title, color = 'backgroundPrimaryDefault' }: Load
         <Box>
             <ActivityIndicator size={size} color={colors[color]} />
             {title && (
-                <Text variant="label" color="textSubdued">
+                <Text variant="label" color="textSubdued" textAlign="center">
                     {title}
                 </Text>
             )}

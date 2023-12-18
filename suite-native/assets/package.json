@@ -24,17 +24,19 @@
         "@suite-native/ethereum-tokens": "workspace:*",
         "@suite-native/fiat-rates": "workspace:*",
         "@suite-native/formatters": "workspace:*",
-        "@suite-native/module-devices": "workspace:*",
+        "@suite-native/intl": "workspace:*",
         "@suite-native/module-settings": "workspace:*",
         "@suite-native/navigation": "workspace:*",
         "@trezor/styles": "workspace:*",
         "bignumber.js": "^9.1.1",
+        "jotai": "1.9.1",
         "proxy-memoize": "2.0.2",
         "react": "^18.2.0",
         "react-native": "0.71.8",
+        "react-native-reanimated": "3.6.1",
         "react-redux": "8.0.7"
     },
     "devDependencies": {
-        "jest": "^26.6.3"
+        "jest": "29.5.0"
     }
 }

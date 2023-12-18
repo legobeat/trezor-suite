@@ -1,5 +1,6 @@
 import type { Step } from 'src/types/onboarding';
 import * as STEP from 'src/constants/onboarding/steps';
+import { DeviceModelInternal } from '@trezor/connect';
 
 const commonPrerequisites: Step['prerequisites'] = [
     'transport-bridge',
@@ -19,11 +20,6 @@ const afterInitializePrerequisites: Step['prerequisites'] = [
 
 const steps: Step[] = [
     {
-        id: STEP.ID_WELCOME_STEP,
-        stepGroup: undefined,
-        prerequisites: [...commonPrerequisites],
-    },
-    {
         id: STEP.ID_FIRMWARE_STEP,
         stepGroup: 0,
         prerequisites: [
@@ -36,6 +32,18 @@ const steps: Step[] = [
             'device-different',
             // Device disconnection is handled separately in Firmware components, as disconnecting the device is essential part of the fw update process
         ],
+    },
+    {
+        id: STEP.ID_AUTHENTICATE_DEVICE_STEP,
+        stepGroup: 0,
+        supportedModels: [DeviceModelInternal.T2B1],
+        prerequisites: [...commonPrerequisites, 'device-recovery-mode', 'device-different'],
+    },
+    {
+        id: STEP.ID_TUTORIAL_STEP,
+        stepGroup: 0,
+        supportedModels: [DeviceModelInternal.T2B1],
+        prerequisites: [...commonPrerequisites, 'device-recovery-mode', 'device-different'],
     },
     {
         id: STEP.ID_CREATE_OR_RECOVER,

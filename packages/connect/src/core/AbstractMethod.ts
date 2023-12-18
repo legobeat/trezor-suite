@@ -1,4 +1,5 @@
 import { storage } from '@trezor/connect-common';
+import { Deferred, versionUtils } from '@trezor/utils';
 import { DataManager } from '../data/DataManager';
 import { ERRORS, NETWORK } from '../constants';
 import {
@@ -9,18 +10,21 @@ import {
     CallMethodPayload,
     CallMethodResponse,
     UiRequestButtonData,
-    UiPromise,
-    UiPromiseResponse,
+    UiPromiseCreator,
     PostMessage,
 } from '../events';
-import { Deferred } from '../utils/deferred';
-import { versionCompare } from '../utils/versionUtils';
 import { getHost } from '../utils/urlUtils';
 import type { Device } from '../device/Device';
 import type { FirmwareRange } from '../types';
 
 export type Payload<M> = Extract<CallMethodPayload, { method: M }> & { override?: boolean };
 export type MethodReturnType<M extends CallMethodPayload['method']> = CallMethodResponse<M>;
+
+export const DEFAULT_FIRMWARE_RANGE: FirmwareRange = {
+    T1B1: { min: '1.0.0', max: '0' },
+    T2T1: { min: '2.0.0', max: '0' },
+    T2B1: { min: '2.6.1', max: '0' },
+};
 
 export abstract class AbstractMethod<Name extends CallMethodPayload['method'], Params = undefined> {
     responseID: number;
@@ -80,7 +84,7 @@ export abstract class AbstractMethod<Name extends CallMethodPayload['method'], P
 
     confirmation?(): Promise<boolean | undefined>;
 
-    noBackupConfirmation?(): Promise<boolean>;
+    noBackupConfirmation?(allowSuppression?: boolean): Promise<boolean>;
 
     getButtonRequestData?(code: string): UiRequestButtonData | undefined;
 
@@ -90,14 +94,12 @@ export abstract class AbstractMethod<Name extends CallMethodPayload['method'], P
     // @ts-expect-error: strictPropertyInitialization
     getPopupPromise: () => Deferred<void>;
     // @ts-expect-error: strictPropertyInitialization
-    createUiPromise: <T extends UiPromiseResponse['type']>(
-        promiseId: T,
-        device?: Device,
-    ) => UiPromise<T>;
+    createUiPromise: UiPromiseCreator;
     // @ts-expect-error: strictPropertyInitialization
     removeUiPromise: (promise: Deferred<any>) => void;
 
     initAsync?(): Promise<void>;
+    initAsyncPromise?: Promise<void>;
 
     constructor(message: { id?: number; payload: Payload<Name> }) {
         const { payload } = message;
@@ -135,10 +137,7 @@ export abstract class AbstractMethod<Name extends CallMethodPayload['method'], P
             }
         });
         // default values for all methods
-        this.firmwareRange = {
-            '1': { min: '1.0.0', max: '0' },
-            '2': { min: '2.0.0', max: '0' },
-        };
+        this.firmwareRange = DEFAULT_FIRMWARE_RANGE;
         this.requiredPermissions = [];
         this.useDevice = true;
         this.useDeviceState = true;
@@ -257,22 +256,28 @@ export abstract class AbstractMethod<Name extends CallMethodPayload['method'], P
         }
         const { device } = this;
         if (!device.features) return;
-        const version = device.getVersion();
-        const model = version[0] as 1 | 2;
-        const range = this.firmwareRange[model];
+        const range = this.firmwareRange[device.features.internal_model];
 
         if (device.firmwareStatus === 'none') {
             return UI.FIRMWARE_NOT_INSTALLED;
+        }
+        if (!range) {
+            // range not known only for custom (unknown) models
+            return;
         }
         if (range.min === '0') {
             return UI.FIRMWARE_NOT_SUPPORTED;
         }
 
-        if (device.firmwareStatus === 'required' || versionCompare(version, range.min) < 0) {
+        const version = device.getVersion().join('.');
+        if (
+            device.firmwareStatus === 'required' ||
+            !versionUtils.isNewerOrEqual(version, range.min)
+        ) {
             return UI.FIRMWARE_OLD;
         }
 
-        if (range.max !== '0' && versionCompare(version, range.max) > 0) {
+        if (range.max !== '0' && versionUtils.isNewer(version, range.max)) {
             if (isUsingPopup) {
                 // wait for popup handshake
                 await this.getPopupPromise().promise;

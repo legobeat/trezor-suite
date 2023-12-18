@@ -8,11 +8,29 @@ import {
     VERIFY_BUY_ADDRESS_FIXTURES,
     VERIFY_EXCHANGE_ADDRESS_FIXTURES,
 } from '../__fixtures__/coinmarketCommonActions/verifyAddress';
-import { transactionsReducer } from 'src/reducers/wallet';
+import { transactionsReducer, accountsReducer } from 'src/reducers/wallet';
+import { State as DeviceState } from '@suite-common/wallet-core';
+import { SuiteState } from 'src/reducers/suite/suiteReducer';
+import type { DeepPartial } from '@trezor/type-utils';
 
-export const getInitialState = (initial = {}) => ({
+interface InitialState {
+    device?: DeepPartial<DeviceState>;
+    suite?: DeepPartial<SuiteState>;
+    wallet?: {
+        accounts?: ReturnType<typeof accountsReducer>;
+        transactions?: ReturnType<typeof transactionsReducer>;
+        selectedAccount?: ReturnType<typeof selectedAccountReducer>;
+        coinmarket?: ReturnType<typeof coinmarketReducer>;
+    };
+}
+
+export const getInitialState = (initial: InitialState) => ({
     ...DEFAULT_STORE,
     ...initial,
+    wallet: {
+        ...DEFAULT_STORE.wallet,
+        ...initial.wallet,
+    },
 });
 type State = ReturnType<typeof getInitialState>;
 
@@ -22,85 +40,17 @@ const initStore = (state: State) => {
     const store = mockStore(state);
     store.subscribe(() => {
         const action = store.getActions().pop();
-        const { coinmarket, selectedAccount, transactions } = store.getState().wallet;
+        const { coinmarket, selectedAccount, transactions, accounts } = store.getState().wallet;
         store.getState().wallet = {
             coinmarket: coinmarketReducer(coinmarket, action),
             selectedAccount: selectedAccountReducer({ ...selectedAccount }, action),
             transactions: transactionsReducer(transactions, action),
+            accounts: accountsReducer(accounts, action),
         };
         store.getActions().push(action);
     });
     return store;
 };
-
-jest.mock('@trezor/connect', () => {
-    let fixture: any;
-    let buttonRequest: ((e?: any) => any) | undefined;
-    let fixtureIndex = 0;
-
-    const getAddress = (_params: any) => {
-        if (fixture && fixture.getAddress) {
-            if (fixture.getAddress.success && buttonRequest) {
-                buttonRequest({ code: 'ButtonRequest_Address' });
-            }
-            return fixture.getAddress;
-        }
-        // trigger multiple button requests
-        if (buttonRequest) {
-            buttonRequest({ code: 'ButtonRequest_Address' });
-            buttonRequest({ code: 'some-other-code' });
-            buttonRequest();
-        }
-        return {
-            success: true,
-            payload: {
-                address: '3AnYTd2FGxJLNKL1AzxfW3FJMntp9D2KKX',
-            },
-        };
-    };
-    const getNextFixture = () => {
-        if (!fixture) return { success: false, payload: { error: 'error' } };
-        const f = Array.isArray(fixture) ? fixture[fixtureIndex] : fixture;
-        fixtureIndex++;
-        if (!f) return { success: false, payload: { error: 'error' } };
-        return f.response;
-    };
-
-    return {
-        ...jest.requireActual('@trezor/connect'),
-        __esModule: true, // this property makes it work
-        default: {
-            blockchainSetCustomBackend: () => {},
-            init: () => null,
-            on: (event: string, cb: (e?: any) => any) => {
-                if (event === 'ui-button') buttonRequest = cb;
-            },
-            off: () => {
-                buttonRequest = undefined;
-            },
-            getAddress,
-            ethereumGetAddress: getAddress,
-            rippleGetAddress: getAddress,
-            // eslint-disable-next-line require-await
-            composeTransaction: jest.fn(async _params => getNextFixture()),
-            blockchainEstimateFee: () => getNextFixture(),
-        },
-        setTestFixtures: (f: any) => {
-            fixture = f;
-            fixtureIndex = 0;
-        },
-        DEVICE_EVENT: 'DEVICE_EVENT',
-        UI_EVENT: 'UI_EVENT',
-        TRANSPORT_EVENT: 'TRANSPORT_EVENT',
-        BLOCKCHAIN_EVENT: 'BLOCKCHAIN_EVENT',
-        DEVICE: {},
-        TRANSPORT: {},
-        BLOCKCHAIN: {},
-        UI: {
-            REQUEST_BUTTON: 'ui-button',
-        },
-    };
-});
 
 describe('Coinmarket Common Actions', () => {
     afterEach(() => {
@@ -120,8 +70,8 @@ describe('Coinmarket Common Actions', () => {
                 ),
             );
             expect(store.getState().wallet.coinmarket.buy.addressVerified).toEqual(f.result.value);
-            if (f.result && f.result.actions) {
-                expect(store.getActions()).toMatchObject(f.result.actions);
+            if (f.result && f.result.action) {
+                expect(store.getActions().pop()).toMatchObject(f.result.action);
             }
         });
     });
@@ -141,20 +91,27 @@ describe('Coinmarket Common Actions', () => {
             expect(store.getState().wallet.coinmarket.exchange.addressVerified).toEqual(
                 f.result.value,
             );
-            if (f.result && f.result.actions) {
-                expect(store.getActions()).toMatchObject(f.result.actions);
+            if (f.result && f.result.action) {
+                expect(store.getActions().pop()).toMatchObject(f.result.action);
             }
         });
     });
 
     it('saveComposedTransaction', () => {
-        const store = initStore(getInitialState());
+        const store = initStore(getInitialState({ wallet: { accounts: [] } }));
 
         const info: ComposedTransactionInfo = {
             selectedFee: 'normal',
             composed: {
                 fee: '43214234',
+                feeLimit: '123',
                 feePerByte: '13',
+                estimatedFeeLimit: '123',
+                token: {
+                    type: 'abc',
+                    contract: 'cde',
+                    decimals: 0,
+                },
             },
         };
 

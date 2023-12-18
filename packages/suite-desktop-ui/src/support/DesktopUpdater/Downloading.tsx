@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import styled from 'styled-components';
 
@@ -54,7 +54,7 @@ export const Downloading = ({ hideWindow, progress }: DownloadingProps) => {
 
     return (
         <Modal
-            headerComponents={[
+            headerComponent={
                 <StyledButton
                     variant="secondary"
                     icon="CROSS"
@@ -62,8 +62,8 @@ export const Downloading = ({ hideWindow, progress }: DownloadingProps) => {
                     onClick={hideWindow}
                 >
                     <Translation id="TR_BACKGROUND_DOWNLOAD" />
-                </StyledButton>,
-            ]}
+                </StyledButton>
+            }
             currentProgressBarStep={progress?.percent || 0}
             totalProgressBarSteps={100}
             onCancel={hideWindow}

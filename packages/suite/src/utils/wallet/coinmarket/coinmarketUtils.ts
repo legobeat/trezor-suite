@@ -1,15 +1,13 @@
 import { Account, Network } from 'src/types/wallet';
 import { NETWORKS } from 'src/config/wallet';
-import TrezorConnect from '@trezor/connect';
+import TrezorConnect, { TokenInfo } from '@trezor/connect';
 import regional from 'src/constants/wallet/coinmarket/regional';
 import { TrezorDevice } from 'src/types/suite';
 
-const suiteToInvitySymbols = [
-    {
-        suiteSymbol: 'usdt',
-        invitySymbol: 'usdt20',
-    },
-];
+const suiteToInvitySymbols: {
+    suiteSymbol: string;
+    invitySymbol: string;
+}[] = [];
 
 export const buildOption = (currency: string) => ({
     value: currency,
@@ -29,27 +27,67 @@ export const symbolToInvityApiSymbol = (symbol?: string) => {
     return result ? result.invitySymbol : symbol;
 };
 
-export const getSendCryptoOptions = (account: Account, supportedCoins: Set<string>) => {
+export const getSendCryptoOptions = (
+    account: Account,
+    supportedCoins: Set<string>,
+    tokensFiatValue?: Record<string, number>,
+) => {
     const uppercaseSymbol = account.symbol.toUpperCase();
-    const options: { value: string; label: string }[] = [
+    const options: { value: string; label: string; token?: TokenInfo }[] = [
         { value: uppercaseSymbol, label: uppercaseSymbol },
     ];
 
     if (account.networkType === 'ethereum' && account.tokens) {
         account.tokens.forEach(token => {
-            if (token.symbol) {
-                const invityToken = symbolToInvityApiSymbol(token.symbol);
-                if (supportedCoins.has(invityToken)) {
-                    options.push({
-                        label: invityToken.toUpperCase(),
-                        value: invityToken.toUpperCase(),
-                    });
-                }
+            if (!token.symbol) {
+                return;
             }
+
+            const invityToken = symbolToInvityApiSymbol(token.symbol);
+            if (!supportedCoins.has(invityToken)) {
+                return;
+            }
+
+            const isZeroValueToken = tokensFiatValue && tokensFiatValue[token.contract] === 0;
+            if (isZeroValueToken) {
+                return;
+            }
+
+            options.push({
+                label: invityToken.toUpperCase(),
+                value: invityToken.toUpperCase(),
+                token,
+            });
         });
     }
 
     return options;
+};
+
+export const getTokensFiatValue = async (account: Account, supportedCoins: Set<string>) => {
+    const tokensFiatValue: Record<string, number> = {};
+
+    await Promise.all(
+        getSendCryptoOptions(account, supportedCoins || new Set()).map(option =>
+            (async () => {
+                if (!option.token?.contract) {
+                    return;
+                }
+
+                const rates = await TrezorConnect.blockchainGetCurrentFiatRates({
+                    coin: 'eth',
+                    currencies: ['usd'],
+                    token: option.token?.contract,
+                });
+
+                if (rates.success && rates.payload.rates.usd) {
+                    tokensFiatValue[option.token.contract] = rates.payload.rates.usd;
+                }
+            })(),
+        ),
+    );
+
+    return tokensFiatValue;
 };
 
 export const getUnusedAddressFromAccount = (account: Account) => {
@@ -64,7 +102,8 @@ export const getUnusedAddressFromAccount = (account: Account) => {
             return { address: undefined, path: undefined };
         }
         case 'ripple':
-        case 'ethereum': {
+        case 'ethereum':
+        case 'solana': {
             return {
                 address: account.descriptor,
                 path: account.path,
@@ -97,6 +136,7 @@ export const getComposeAddressPlaceholder = async (
     network: Network,
     device?: TrezorDevice,
     accounts?: Account[],
+    chunkify?: boolean,
 ) => {
     // the address is later replaced by the address of the sell
     // as a precaution, use user's own address as a placeholder
@@ -129,6 +169,7 @@ export const getComposeAddressPlaceholder = async (
                     path: `${legacy.bip43Path.replace('i', '0')}/0/0`,
                     useEmptyPassphrase: device.useEmptyPassphrase,
                     showOnTrezor: false,
+                    chunkify,
                 });
                 if (result.success) {
                     return result.payload.address;
@@ -143,6 +184,7 @@ export const getComposeAddressPlaceholder = async (
             return '37btjrVyb4KDXBNC4haBVPCrro8AQPHwvCMp3RFhhSVWwfFmZ6wwzSK6JK1hY6wHNmtrpTf1kdbva8TCneM2YsiXT7mrzT21EacHnPpz5YyUdj64na';
         case 'ethereum':
         case 'ripple':
+        case 'solana':
             return account.descriptor;
         // no default
     }
@@ -152,6 +194,7 @@ export const mapTestnetSymbol = (symbol: Network['symbol']) => {
     if (symbol === 'test') return 'btc';
     if (symbol === 'tsep') return 'eth';
     if (symbol === 'tgor') return 'eth';
+    if (symbol === 'thol') return 'eth';
     if (symbol === 'txrp') return 'xrp';
     if (symbol === 'tada') return 'ada';
     return symbol;

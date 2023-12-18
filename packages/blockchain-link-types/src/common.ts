@@ -31,7 +31,7 @@ export interface ServerInfo {
     consensusBranchId?: number; // zcash current branch id
 }
 
-export type TokenStandard = 'ERC20' | 'ERC1155' | 'ERC721';
+export type TokenStandard = 'ERC20' | 'ERC1155' | 'ERC721' | 'SPL';
 
 export type TransferType = 'sent' | 'recv' | 'self' | 'unknown';
 
@@ -124,6 +124,9 @@ export interface Transaction {
         withdrawal?: string;
         deposit?: string;
     };
+    solanaSpecific?: {
+        status: 'confirmed';
+    };
     details: TransactionDetail;
     vsize?: number;
     feeRate?: string;
@@ -166,6 +169,11 @@ export interface Utxo {
     };
 }
 
+export interface TokenAccount {
+    publicKey: string;
+    balance: string;
+}
+
 export interface TokenInfo {
     type: string; // token type: ERC20...
     contract: string; // token address
@@ -173,6 +181,7 @@ export interface TokenInfo {
     name?: string; // token name
     symbol?: string; // token symbol
     decimals: number; // token decimals or 0
+    accounts?: TokenAccount[]; // token accounts for solana
     // transfers: number, // total transactions?
 }
 
@@ -207,6 +216,8 @@ export interface AccountInfo {
             rewards: string;
             poolId: string | null;
         };
+        // SOL
+        owner?: string; // The Solana program owning the account
     };
     page?: {
         // blockbook and blockfrost
@@ -224,6 +235,7 @@ export interface AccountInfo {
 export interface SubscriptionAccountInfo {
     descriptor: string;
     addresses?: AccountAddresses; // bitcoin addresses
+    subscriptionId?: number;
 }
 
 export type ChannelMessage<T> = T & { id: number };

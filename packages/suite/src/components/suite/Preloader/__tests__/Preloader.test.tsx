@@ -1,17 +1,21 @@
-import React from 'react';
+import * as envUtils from '@trezor/env-utils';
 
 import { configureStore } from 'src/support/tests/configureStore';
 import { renderWithProviders, findByTestId } from 'src/support/tests/hooksHelper';
 
-import * as envUtils from '@trezor/env-utils';
+import { Preloader } from '../Preloader';
 
-import Preloader from '..';
-
-// react-svg will not work
-jest.mock('react-svg', () => ({ ReactSVG: () => 'SVG' }));
 // render only Translation.id in data-test attribute
 jest.mock('src/components/suite/Translation', () => ({
     Translation: ({ id }: any) => <div data-test={id}>{id}</div>,
+}));
+
+// @trezor/connect fetching ethereum definitions
+
+// Preloader/LottieAnimation fetch videos
+jest.mock('cross-fetch', () => ({
+    __esModule: true,
+    default: () => Promise.resolve({ ok: false }),
 }));
 
 // jest.mock('@firmware-components/ReconnectDevicePrompt', () => ({
@@ -34,7 +38,7 @@ jest.mock('src/components/suite/Translation', () => ({
 //     default: () => ['ref', { height: 0 }],
 // }));
 
-export const getInitialState = ({ suite, router }: any = {}) => ({
+export const getInitialState = ({ suite, router, device }: any = {}) => ({
     suite: {
         lifecycle: {
             status: 'ready',
@@ -46,7 +50,10 @@ export const getInitialState = ({ suite, router }: any = {}) => ({
         flags: {},
         ...suite,
     },
-    devices: [],
+    device: {
+        devices: [],
+        ...device,
+    },
     resize: {
         size: 'LARGE',
     },
@@ -72,14 +79,13 @@ export const getInitialState = ({ suite, router }: any = {}) => ({
         settings: {},
     },
     router: {
-        app: 'suite-start',
+        app: 'suite-index',
         loaded: true,
-        route: {
-            app: 'suite-start',
-        },
+        route: '/dashboard',
         ...router,
     },
     recovery: {},
+    analytics: {},
 });
 
 type State = ReturnType<typeof getInitialState>;
@@ -183,7 +189,9 @@ describe('Preloader component', () => {
             getInitialState({
                 suite: {
                     transport: { type: 'BridgeTransport' },
-                    device: { type: 'unacquired' },
+                },
+                device: {
+                    selectedDevice: { type: 'unacquired' },
                 },
             }),
         );
@@ -200,7 +208,9 @@ describe('Preloader component', () => {
             getInitialState({
                 suite: {
                     transport: { type: 'WebUsbTransport' },
-                    device: { type: 'unreadable', error: 'LIBUSB_ERROR_ACCESS' },
+                },
+                device: {
+                    selectedDevice: { type: 'unreadable', error: 'LIBUSB_ERROR_ACCESS' },
                 },
             }),
         );
@@ -219,7 +229,9 @@ describe('Preloader component', () => {
             getInitialState({
                 suite: {
                     transport: { type: 'BridgeTransport' },
-                    device: { type: 'unreadable', error: 'LIBUSB_ERROR_ACCESS' },
+                },
+                device: {
+                    selectedDevice: { type: 'unreadable', error: 'LIBUSB_ERROR_ACCESS' },
                 },
             }),
         );
@@ -238,7 +250,9 @@ describe('Preloader component', () => {
             getInitialState({
                 suite: {
                     transport: { type: 'BridgeTransport' },
-                    device: { type: 'unreadable', error: 'LIBUSB_ERROR_ACCESS' },
+                },
+                device: {
+                    selectedDevice: { type: 'unreadable', error: 'LIBUSB_ERROR_ACCESS' },
                 },
             }),
         );
@@ -255,7 +269,9 @@ describe('Preloader component', () => {
             getInitialState({
                 suite: {
                     transport: { type: 'BridgeTransport' },
-                    device: { type: 'unreadable', error: 'Unexpected error' },
+                },
+                device: {
+                    selectedDevice: { type: 'unreadable', error: 'Unexpected error' },
                 },
             }),
         );
@@ -272,7 +288,9 @@ describe('Preloader component', () => {
             getInitialState({
                 suite: {
                     transport: { type: 'BridgeTransport' },
-                    device: { features: null },
+                },
+                device: {
+                    selectedDevice: { features: null },
                 },
             }),
         );
@@ -289,7 +307,9 @@ describe('Preloader component', () => {
             getInitialState({
                 suite: {
                     transport: { type: 'BridgeTransport' },
-                    device: { mode: 'seedless', features: {} },
+                },
+                device: {
+                    selectedDevice: { mode: 'seedless', features: {} },
                 },
             }),
         );
@@ -307,7 +327,9 @@ describe('Preloader component', () => {
             getInitialState({
                 suite: {
                     transport: { type: 'BridgeTransport' },
-                    device: { features: { recovery_mode: true } },
+                },
+                device: {
+                    selectedDevice: { features: { recovery_mode: true } },
                 },
             }),
         );
@@ -325,7 +347,9 @@ describe('Preloader component', () => {
             getInitialState({
                 suite: {
                     transport: { type: 'BridgeTransport' },
-                    device: { mode: 'initialize', features: {} },
+                },
+                device: {
+                    selectedDevice: { mode: 'initialize', features: {} },
                 },
             }),
         );
@@ -343,7 +367,9 @@ describe('Preloader component', () => {
             getInitialState({
                 suite: {
                     transport: { type: 'BridgeTransport' },
-                    device: { mode: 'bootloader', features: { firmware_present: true } },
+                },
+                device: {
+                    selectedDevice: { mode: 'bootloader', features: { firmware_present: true } },
                 },
             }),
         );
@@ -361,7 +387,9 @@ describe('Preloader component', () => {
             getInitialState({
                 suite: {
                     transport: { type: 'BridgeTransport' },
-                    device: { mode: 'bootloader', features: { firmware_present: false } },
+                },
+                device: {
+                    selectedDevice: { mode: 'bootloader', features: { firmware_present: false } },
                 },
             }),
         );
@@ -379,7 +407,9 @@ describe('Preloader component', () => {
             getInitialState({
                 suite: {
                     transport: { type: 'BridgeTransport' },
-                    device: { firmware: 'required', features: {} },
+                },
+                device: {
+                    selectedDevice: { firmware: 'required', features: {} },
                 },
             }),
         );

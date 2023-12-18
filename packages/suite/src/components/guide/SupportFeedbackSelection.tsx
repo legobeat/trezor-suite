@@ -1,18 +1,19 @@
-import React from 'react';
 import { darken } from 'polished';
 import styled from 'styled-components';
+
 import { TREZOR_FORUM_URL, TREZOR_SUPPORT_URL } from '@trezor/urls';
 import { analytics, EventType } from '@trezor/suite-analytics';
 import { resolveStaticPath, isDevEnv } from '@suite-common/suite-utils';
+import { Icon, Link, variables } from '@trezor/components';
+import { isDesktop } from '@trezor/env-utils';
+import { getFirmwareVersion } from '@trezor/device-utils';
+import { selectDevice } from '@suite-common/wallet-core';
 
 import { Translation } from 'src/components/suite';
 import { setView } from 'src/actions/suite/guideActions';
 import { useDispatch, useSelector } from 'src/hooks/suite';
-import { Icon, Link, variables } from '@trezor/components';
-import { ViewWrapper, Header, Content } from 'src/components/guide';
-import { isDesktop } from '@trezor/env-utils';
+import { GuideViewWrapper, GuideHeader, GuideContent } from 'src/components/guide';
 import { UpdateState } from 'src/reducers/suite/desktopUpdateReducer';
-import { getFirmwareVersion } from '@trezor/device-utils';
 
 const Section = styled.div`
     & + & {
@@ -24,7 +25,7 @@ const SectionHeader = styled.h3`
     font-size: ${variables.FONT_SIZE.SMALL};
     font-weight: ${variables.FONT_WEIGHT.DEMI_BOLD};
     color: ${({ theme }) => theme.TYPE_LIGHT_GREY};
-    padding: 0 0 18px 0;
+    padding: 0 0 18px;
 `;
 
 const SectionButton = styled.button<{ hasBackground?: boolean }>`
@@ -52,7 +53,7 @@ const StyledLink = styled(Link)`
 `;
 
 const Details = styled.div`
-    padding: 10px 0 0 0;
+    padding: 10px 0 0;
     font-size: 10px;
     font-weight: ${variables.FONT_WEIGHT.MEDIUM};
     color: ${({ theme }) => theme.TYPE_LIGHT_GREY};
@@ -101,7 +102,7 @@ const LabelSubheadline = styled.div`
 
 export const SupportFeedbackSelection = () => {
     const desktopUpdate = useSelector(state => state.desktopUpdate);
-    const device = useSelector(state => state.suite.device);
+    const device = useSelector(selectDevice);
     const dispatch = useDispatch();
 
     const appUpToDate =
@@ -132,12 +133,12 @@ export const SupportFeedbackSelection = () => {
     };
 
     return (
-        <ViewWrapper>
-            <Header
+        <GuideViewWrapper>
+            <GuideHeader
                 back={goBack}
                 label={<Translation id="TR_GUIDE_VIEW_HEADLINES_SUPPORT_FEEDBACK_SELECTION" />}
             />
-            <Content>
+            <GuideContent>
                 <Section>
                     <SectionHeader>
                         <Translation id="TR_GUIDE_VIEW_HEADLINE_HELP_US_IMPROVE" />
@@ -244,7 +245,7 @@ export const SupportFeedbackSelection = () => {
                         )}
                     </DetailItem>
                 </Details>
-            </Content>
-        </ViewWrapper>
+            </GuideContent>
+        </GuideViewWrapper>
     );
 };

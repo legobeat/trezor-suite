@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import { ReactNode } from 'react';
 
 import { IconName, Icon } from '@suite-common/icons';
 import { Color, TypographyStyle } from '@trezor/theme';
@@ -99,16 +99,20 @@ export const Pictogram = ({
                     <Icon name={icon} color={iconColor} customSize={ICON_SIZE} />
                 </Box>
             </Box>
-            {title && (
-                <VStack alignItems="center">
-                    <Text variant={titleVariant} align="center">
-                        {title}
-                    </Text>
-                    <Text color="textSubdued" align="center">
+            <VStack alignItems="center">
+                {title && (
+                    <Box>
+                        <Text variant={titleVariant} textAlign="center">
+                            {title}
+                        </Text>
+                    </Box>
+                )}
+                {subtitle && (
+                    <Text color="textSubdued" textAlign="center">
                         {subtitle}
                     </Text>
-                </VStack>
-            )}
+                )}
+            </VStack>
         </VStack>
     );
 };

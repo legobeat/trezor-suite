@@ -1,5 +1,5 @@
 import { Button, Card, CardProps, Icon, IconProps, useTheme, variables } from '@trezor/components';
-import React from 'react';
+import { ReactNode } from 'react';
 import styled from 'styled-components';
 
 const Wrapper = styled.div`
@@ -92,16 +92,17 @@ const Line = styled.div`
     height: 1px;
     margin: 10px 0;
     background: ${({ theme }) => theme.STROKE_GREY};
+
     /* border-top: 1px solid ${({ theme }) => theme.STROKE_GREY}; */
 `;
 
 export interface SecurityCardProps extends CardProps {
     variant: 'primary' | 'secondary';
     icon: IconProps['icon'];
-    heading: React.ReactNode;
-    description?: React.ReactNode;
+    heading: ReactNode;
+    description?: ReactNode;
     cta?: {
-        label: React.ReactNode;
+        label: ReactNode;
         action?: () => void;
         dataTest?: string;
         isDisabled?: boolean;

@@ -90,19 +90,6 @@ const config: webpack.Configuration = {
         maxAssetSize: 10 * 1000 * 1000,
         maxEntrypointSize: 1000 * 1000,
     },
-    // We are using WASM package - it's much faster (https://github.com/Emurgo/cardano-serialization-lib)
-    // This option makes it possible
-    // Unfortunately Cardano Serialization Lib triggers webpack warning:
-    // "Critical dependency: the request of a dependency is an expression" due to require in generated wasm module
-    // https://github.com/Emurgo/cardano-serialization-lib/issues/119
-    experiments: {
-        asyncWebAssembly: true,
-    },
-    ignoreWarnings: [
-        {
-            module: /cardano-serialization-lib-browser/, // see the comment above `experiments`
-        },
-    ],
     module: {
         rules: [
             // TypeScript/JavaScript
@@ -113,7 +100,15 @@ const config: webpack.Configuration = {
                     loader: 'babel-loader',
                     options: {
                         cacheDirectory: true,
-                        presets: ['@babel/preset-react', '@babel/preset-typescript'],
+                        presets: [
+                            [
+                                '@babel/preset-react',
+                                {
+                                    runtime: 'automatic',
+                                },
+                            ],
+                            '@babel/preset-typescript',
+                        ],
                         plugins: [
                             '@babel/plugin-proposal-class-properties',
                             [

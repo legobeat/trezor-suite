@@ -1,36 +1,97 @@
-import { CoinSelectSuccess, ComposedTransaction, ComposeResult } from '../types';
+import BN from 'bn.js';
 
-export const empty: ComposeResult = {
-    type: 'error',
-    error: 'EMPTY',
-};
+import { transactionBytes } from '../coinselect/coinselectUtils';
+import { createTransaction } from './transaction';
+import {
+    CoinSelectRequest,
+    CoinSelectResult,
+    ComposeRequest,
+    ComposeInput,
+    ComposeOutput,
+    ComposeChangeAddress,
+    ComposeFinalOutput,
+    ComposeNotFinalOutput,
+    ComposeResult,
+    ComposeResultFinal,
+    ComposeResultError,
+    COMPOSE_ERROR_TYPES,
+} from '../types';
 
-export function getNonfinalResult(result: CoinSelectSuccess): ComposeResult {
-    const { max, fee, feePerByte, bytes, totalSpent } = result.payload;
+export function getErrorResult(error: unknown): ComposeResultError {
+    const message = error instanceof Error ? error.message : `${error}`;
+    const known = COMPOSE_ERROR_TYPES.find(e => e === message);
+    if (known) {
+        return { type: 'error', error: known };
+    }
+    return { type: 'error', error: 'COINSELECT', message };
+}
+
+function splitByCompleteness(outputs: ComposeOutput[]) {
+    const complete: ComposeFinalOutput[] = [];
+    const incomplete: ComposeNotFinalOutput[] = [];
+
+    outputs.forEach(output => {
+        if (output.type === 'payment' || output.type === 'send-max' || output.type === 'opreturn') {
+            complete.push(output);
+        } else {
+            incomplete.push(output);
+        }
+    });
 
     return {
-        type: 'nonfinal',
-        fee: fee.toString(),
-        feePerByte: feePerByte.toString(),
-        bytes,
-        max,
-        totalSpent,
+        complete,
+        incomplete,
     };
 }
 
-export function getFinalResult(
-    result: CoinSelectSuccess,
-    transaction: ComposedTransaction,
-): ComposeResult {
-    const { max, fee, feePerByte, bytes, totalSpent } = result.payload;
+export function getResult<
+    Input extends ComposeInput,
+    Output extends ComposeOutput,
+    Change extends ComposeChangeAddress,
+>(
+    request: ComposeRequest<Input, Output, Change>,
+    { sendMaxOutputIndex }: CoinSelectRequest,
+    result: CoinSelectResult,
+): ComposeResult<Input, Output, Change> {
+    if (!result.inputs || !result.outputs) {
+        return { type: 'error', error: 'NOT-ENOUGH-FUNDS' };
+    }
+
+    const totalSpent = result.outputs.reduce((total, output, index) => {
+        if (request.outputs[index]) {
+            return total.add(new BN(output.value));
+        }
+        return total;
+    }, new BN(result.fee));
+
+    const max = sendMaxOutputIndex >= 0 ? result.outputs[sendMaxOutputIndex].value : undefined;
+    const bytes = transactionBytes(result.inputs, result.outputs);
+    const feePerByte = result.fee / bytes;
+
+    const { complete, incomplete } = splitByCompleteness(request.outputs);
+
+    if (incomplete.length > 0) {
+        const inputs = result.inputs.map(input => request.utxos[input.i]);
+        return {
+            type: 'nonfinal',
+            fee: result.fee.toString(),
+            feePerByte: feePerByte.toString(),
+            bytes,
+            max,
+            totalSpent: totalSpent.toString(),
+            inputs,
+        };
+    }
+
+    const transaction = createTransaction({ ...request, outputs: complete }, result);
 
     return {
         type: 'final',
-        fee: fee.toString(),
+        fee: result.fee.toString(),
         feePerByte: feePerByte.toString(),
         bytes,
-        transaction,
         max,
-        totalSpent,
-    };
+        totalSpent: totalSpent.toString(),
+        ...transaction,
+    } as ComposeResultFinal<Input, Output, Change>;
 }

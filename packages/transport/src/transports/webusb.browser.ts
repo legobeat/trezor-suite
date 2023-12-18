@@ -1,26 +1,25 @@
-import { AbstractTransport } from './abstract';
-import { AbstractUsbTransport } from './abstractUsb';
+import { AbstractTransportParams } from './abstract';
+import { AbstractApiTransport } from './abstractApi';
 import { SessionsClient } from '../sessions/client';
-import { UsbInterface } from '../interfaces/usb';
+import { UsbApi } from '../api/usb';
 
 import { initBackgroundInBrowser } from '../sessions/background-browser';
-
-type UsbTransportConstructorParams = ConstructorParameters<typeof AbstractTransport>[0];
 
 /**
  * WebUsbTransport
  * - chrome supported
  * - firefox not supported https://mozilla.github.io/standards-positions/#webusb
  */
-export class WebUsbTransport extends AbstractUsbTransport {
+export class WebUsbTransport extends AbstractApiTransport {
     public name = 'WebUsbTransport' as const;
 
-    constructor({ messages, logger }: UsbTransportConstructorParams) {
+    constructor(params?: AbstractTransportParams) {
+        const { messages, logger } = params || {};
         const { requestFn, registerBackgroundCallbacks } = initBackgroundInBrowser();
 
         super({
             messages,
-            usbInterface: new UsbInterface({
+            api: new UsbApi({
                 usbInterface: navigator.usb,
                 logger,
             }),

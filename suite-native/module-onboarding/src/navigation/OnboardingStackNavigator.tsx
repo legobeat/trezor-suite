@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import {
@@ -12,7 +10,7 @@ import { WelcomeScreen } from '../screens/WelcomeScreen';
 import { TrackBalancesScreen } from '../screens/TrackBalancesScreen';
 import { FeatureReceiveScreen } from '../screens/FeatureReceiveScreen';
 import { AnalyticsConsentScreen } from '../screens/AnalyticsConsentScreen';
-import { GetStartedScreen } from '../screens/GetStartedScreen';
+import { ConnectTrezorScreen } from '../screens/ConnectTrezorScreen';
 
 export const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
@@ -31,12 +29,12 @@ export const OnboardingStackNavigator = () => (
             component={FeatureReceiveScreen}
         />
         <OnboardingStack.Screen
-            name={OnboardingStackRoutes.AnalyticsConsent}
-            component={AnalyticsConsentScreen}
+            name={OnboardingStackRoutes.ConnectTrezor}
+            component={ConnectTrezorScreen}
         />
         <OnboardingStack.Screen
-            name={OnboardingStackRoutes.GetStarted}
-            component={GetStartedScreen}
+            name={OnboardingStackRoutes.AnalyticsConsent}
+            component={AnalyticsConsentScreen}
         />
     </OnboardingStack.Navigator>
 );

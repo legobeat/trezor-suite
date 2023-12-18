@@ -1,10 +1,6 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-import { configureStore, filterThunkActionTypes } from 'src/support/tests/configureStore';
 import { PROTO } from '@trezor/connect';
-import { accountsReducer, transactionsReducer, blockchainReducer } from 'src/reducers/wallet';
-import feesReducer from 'src/reducers/wallet/feesReducer';
+import { testMocks } from '@suite-common/test-utils';
 import { notificationsActions, notificationsReducer } from '@suite-common/toast-notifications';
-import * as fixtures from '../__fixtures__/blockchainActions';
 import {
     initBlockchainThunk,
     onBlockchainConnectThunk,
@@ -16,8 +12,13 @@ import {
     updateFeeInfoThunk,
 } from '@suite-common/wallet-core';
 
-jest.mock('@trezor/connect', () => global.JestMocks.getTrezorConnect({}));
-const TrezorConnect = require('@trezor/connect').default;
+import { configureStore, filterThunkActionTypes } from 'src/support/tests/configureStore';
+import { accountsReducer, transactionsReducer, blockchainReducer } from 'src/reducers/wallet';
+import feesReducer from 'src/reducers/wallet/feesReducer';
+
+import * as fixtures from '../__fixtures__/blockchainActions';
+
+const TrezorConnect = testMocks.getTrezorConnectMock();
 
 type AccountsState = ReturnType<typeof accountsReducer>;
 type TransactionsState = ReturnType<typeof transactionsReducer>;
@@ -57,7 +58,9 @@ export const getInitialState = (
         },
     },
     notifications: notificationsReducer([], action),
-    devices: [{ state: 'deviceState' }], // device is needed for notification/event
+    device: {
+        devices: [{ state: 'deviceState' }], // device is needed for notification/event
+    },
     suite: {
         device: { state: 'deviceState' }, // device is needed for notification/event
     },
@@ -106,7 +109,7 @@ describe('Blockchain Actions', () => {
 
     fixtures.onConnect.forEach(f => {
         it(`onConnect: ${f.description}`, async () => {
-            TrezorConnect.setTestFixtures(f.connect);
+            testMocks.setTrezorConnectFixtures(f.connect);
             const store = initStore(getInitialState(f.initialState as Args));
             await store.dispatch(onBlockchainConnectThunk(f.symbol));
             expect(filterThunkActionTypes(store.getActions())).toMatchObject(f.actions);
@@ -138,7 +141,7 @@ describe('Blockchain Actions', () => {
 
     fixtures.onNotification.forEach(f => {
         it(`onNotification: ${f.description}`, async () => {
-            // TrezorConnect.setTestFixtures(f.connect);
+            // testMocks.setTrezorConnectFixtures(f.connect);
             const store = initStore(getInitialState(f.initialState as Args));
             await store.dispatch(onBlockchainNotificationThunk(f.params as any));
             expect(filterThunkActionTypes(store.getActions())).toMatchObject(f.actions);
@@ -150,11 +153,13 @@ describe('Blockchain Actions', () => {
         it(`onBlock: ${f.description}`, async () => {
             // set fixtures in @trezor/connect
             if (Array.isArray(f.connect)) {
-                TrezorConnect.setTestFixtures(
+                testMocks.setTrezorConnectFixtures(
                     f.connect.map(payload => ({ success: true, payload })),
                 );
             } else {
-                TrezorConnect.setTestFixtures(f.connect && { success: true, payload: f.connect });
+                testMocks.setTrezorConnectFixtures(
+                    f.connect && { success: true, payload: f.connect },
+                );
             }
 
             const store = initStore(getInitialState(f.state as any));
@@ -214,7 +219,7 @@ describe('Blockchain Actions', () => {
         expect(TrezorConnect.blockchainEstimateFee).toBeCalledTimes(0);
 
         // preload fee info failed in connect
-        TrezorConnect.setTestFixtures({ success: false });
+        testMocks.setTrezorConnectFixtures({ success: false });
         await store.dispatch(preloadFeeInfoThunk());
         expect(filterThunkActionTypes(store.getActions())).toMatchObject([{ payload: {} }]);
     });

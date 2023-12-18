@@ -1,15 +1,14 @@
-import { discoveryActions } from '@suite-common/wallet-core';
+import { testMocks } from '@suite-common/test-utils';
+import { deviceActions, discoveryActions } from '@suite-common/wallet-core';
 import { DiscoveryStatus } from '@suite-common/wallet-constants';
 
-import { SUITE } from 'src/actions/suite/constants';
-
-const { getSuiteDevice } = global.JestMocks;
+const { getSuiteDevice } = testMocks;
 const DEV = getSuiteDevice();
 
 export const actions = [
     {
         action: {
-            type: SUITE.SELECT_DEVICE,
+            type: deviceActions.selectDevice.type,
             payload: undefined,
         },
         renders: 1,
@@ -20,7 +19,7 @@ export const actions = [
     },
     {
         action: {
-            type: SUITE.SELECT_DEVICE,
+            type: deviceActions.selectDevice.type,
             payload: DEV,
         },
         renders: 2,
@@ -31,7 +30,7 @@ export const actions = [
     },
     {
         action: {
-            type: SUITE.UPDATE_SELECTED_DEVICE,
+            type: deviceActions.updateSelectedDevice.type,
             payload: DEV,
         },
         renders: 2, // update of exact same device shouldn't cause render
@@ -42,13 +41,13 @@ export const actions = [
     },
     {
         action: {
-            type: SUITE.UPDATE_SELECTED_DEVICE,
+            type: deviceActions.updateSelectedDevice.type,
             payload: getSuiteDevice({ state: 'deviceState' }),
         },
         renders: 3,
         result: {
             running: undefined,
-            status: undefined, // normally discoveryActions.createDiscovery is called before SUITE.UPDATE_SELECTED_DEVICE, this is here only for coverage
+            status: undefined, // normally discoveryActions.createDiscovery is called before deviceActions.updateSelectedDevice.type, this is here only for coverage
         },
     },
     {
@@ -110,7 +109,7 @@ export const actions = [
     },
     {
         action: {
-            type: SUITE.UPDATE_SELECTED_DEVICE,
+            type: deviceActions.updateSelectedDevice.type,
             payload: getSuiteDevice({ authFailed: true }),
         },
         renders: 8,
@@ -121,7 +120,7 @@ export const actions = [
     },
     {
         action: {
-            type: SUITE.UPDATE_SELECTED_DEVICE,
+            type: deviceActions.updateSelectedDevice.type,
             payload: getSuiteDevice({ authConfirm: true }),
         },
         renders: 9,
@@ -132,7 +131,7 @@ export const actions = [
     },
     {
         action: {
-            type: SUITE.UPDATE_SELECTED_DEVICE,
+            type: deviceActions.updateSelectedDevice.type,
             payload: getSuiteDevice({ state: 'deviceState', available: false }), // available is used in one test case
         },
         renders: 10,

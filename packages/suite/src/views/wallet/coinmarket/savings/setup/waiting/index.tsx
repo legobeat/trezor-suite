@@ -1,17 +1,15 @@
-import React from 'react';
-import { withCoinmarket, WithSelectedAccountLoadedProps } from 'src/components/wallet';
+import { WithSelectedAccountLoadedProps } from 'src/components/wallet';
 import { useCoinmarketSavingsSetupWaiting } from 'src/hooks/wallet/useCoinmarketSavingsSetupWaiting';
 import { Button, Spinner } from '@trezor/components';
 import styled from 'styled-components';
 import { Translation } from 'src/components/suite';
+import { withCoinmarket } from '../../withCoinmarket';
 
 const Wrapper = styled.div`
     display: flex;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
+    flex-flow: column nowrap;
+    place-content: stretch flex-start;
     align-items: center;
-    align-content: stretch;
 `;
 
 const Message = styled.div`

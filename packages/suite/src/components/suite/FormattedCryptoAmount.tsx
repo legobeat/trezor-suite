@@ -1,5 +1,3 @@
-import React from 'react';
-
 import styled from 'styled-components';
 import { HiddenPlaceholder, Sign } from 'src/components/suite';
 import { NetworkSymbol } from 'src/types/wallet';
@@ -25,9 +23,7 @@ const Value = styled.span`
     text-overflow: ellipsis;
 `;
 
-const Symbol = styled.span`
-    word-break: initial;
-`;
+const Symbol = styled.span``;
 
 export interface FormattedCryptoAmountProps {
     value?: string | number;

@@ -1,38 +1,29 @@
-import React, { useMemo } from 'react';
-import styled from 'styled-components';
-import { Translation, PrerequisitesGuide } from 'src/components/suite';
-import { PinMatrix } from 'src/components/suite/PinMatrix';
-import { PrerequisiteType } from 'src/types/suite';
+import { useMemo } from 'react';
+
+import { selectDevice } from '@suite-common/wallet-core';
+
+import { PinMatrix, PrerequisitesGuide, Translation } from 'src/components/suite';
 import { useOnboarding, useSelector } from 'src/hooks/suite';
 import { OnboardingStepBox } from 'src/components/onboarding';
 import steps from 'src/config/onboarding/steps';
+import { selectPrerequisite } from 'src/reducers/suite/suiteReducer';
 
 import IsSameDevice from './components/IsSameDevice';
 
-const Wrapper = styled.div`
-    display: flex;
-    align-items: center;
-    flex-direction: column;
-`;
-
 interface UnexpectedStateProps {
     children: JSX.Element;
-    prerequisite?: PrerequisiteType;
-    prerequisitesGuidePadded?: boolean;
 }
 
 /**
  * This component handles unexpected device states across various steps in the onboarding.
  */
-const UnexpectedState = ({
-    children,
-    prerequisite,
-    prerequisitesGuidePadded,
-}: UnexpectedStateProps) => {
-    const { device } = useSelector(s => s.suite);
+const UnexpectedState = ({ children }: UnexpectedStateProps) => {
+    const device = useSelector(selectDevice);
+    const prerequisite = useSelector(selectPrerequisite);
+
     const { prevDevice, activeStepId, showPinMatrix } = useOnboarding();
+
     const activeStep = steps.find(s => s.id === activeStepId);
-    const deviceModelInternal = device?.features?.internal_model;
 
     const isNotSameDevice = useMemo(() => {
         const prevDeviceId = prevDevice?.id;
@@ -59,11 +50,9 @@ const UnexpectedState = ({
 
         // otherwise handle common prerequisite which are determined and passed as prop from Preloader component
         if (prerequisite && activeStep?.prerequisites?.includes(prerequisite)) {
-            return (
-                <PrerequisitesGuide prerequisite={prerequisite} padded={prerequisitesGuidePadded} />
-            );
+            return <PrerequisitesGuide />;
         }
-    }, [activeStep, prerequisite, isNotSameDevice, prerequisitesGuidePadded]);
+    }, [activeStep, prerequisite, isNotSameDevice]);
 
     const getPinComponent = () => {
         // After the PIN is set it may happen that it takes too long for an user to finish the onboarding process.
@@ -85,7 +74,7 @@ const UnexpectedState = ({
         return (
             <OnboardingStepBox
                 heading={<Translation id="TR_ENTER_PIN" />}
-                deviceModelInternal={deviceModelInternal}
+                device={device}
                 isActionAbortable={false}
             >
                 {pinComponent}
@@ -93,7 +82,7 @@ const UnexpectedState = ({
         );
     }
     if (UnexpectedStateComponent) {
-        return <Wrapper>{UnexpectedStateComponent}</Wrapper>;
+        return UnexpectedStateComponent;
     }
 
     return children;

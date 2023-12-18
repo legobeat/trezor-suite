@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { Translation, AccountLabeling } from 'src/components/suite';
 import { Button, Spinner, P, RadioButton, Truncate, variables } from '@trezor/components';
@@ -65,7 +65,7 @@ const LoaderWrapper = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 60px 20px 60px 20px;
+    padding: 60px 20px;
     flex-direction: column;
 `;
 

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 
 import styled from 'styled-components';
 import { Translation, QuestionTooltip, ReadMoreLink } from 'src/components/suite';
@@ -12,11 +12,10 @@ import { AccountsRootState, selectIsAccountUtxoBased } from '@suite-common/walle
 
 const StyledCard = styled(Card)`
     width: 100%;
-    flex-direction: row;
+    flex-flow: row wrap;
     margin-bottom: 16px;
     align-items: center;
     justify-content: space-between;
-    flex-wrap: wrap;
     padding: 32px 42px;
 
     @media (max-width: ${variables.SCREEN_SIZE.SM}) {
@@ -62,14 +61,11 @@ const AddressLabel = styled.span`
 `;
 
 const Overlay = styled.div`
-    top: 0px;
-    right: 0px;
-    bottom: 0px;
-    left: 0px;
+    inset: 0;
     position: absolute;
     background-image: linear-gradient(
         to right,
-        rgba(0, 0, 0, 0) 0%,
+        rgb(0 0 0 / 0%) 0%,
         ${({ theme }) => theme.BG_WHITE} 220px
     );
 `;
@@ -138,19 +134,31 @@ export const FreshAddress = ({
         }
     }, [account, addresses, pendingAddresses, isAccountUtxoBased]);
 
-    if (!account || !firstFreshAddress) return null;
+    if (!account) return null;
 
-    const addressValue = `${firstFreshAddress.address.substring(0, 20)}`;
+    const addressValue = firstFreshAddress?.address?.substring(0, 20);
 
     // On coinjoin account, disallow to reveal more than the first receive address until it is used,
     // because discovery of coinjoin account relies on assumption that user uses his first address first.
     const coinjoinDisallowReveal =
         account.accountType === 'coinjoin' &&
         !account.addresses?.used.length &&
-        firstFreshAddress.address !== account.addresses?.unused[0]?.address;
+        firstFreshAddress?.address !== account.addresses?.unused[0]?.address;
 
-    const handleAddressReveal = () =>
-        dispatch(showAddress(firstFreshAddress.path, firstFreshAddress.address));
+    const handleAddressReveal = () => {
+        if (firstFreshAddress)
+            dispatch(showAddress(firstFreshAddress.path, firstFreshAddress.address));
+    };
+
+    const buttonTooltipContent = () => {
+        if (coinjoinDisallowReveal) {
+            return <Translation id="RECEIVE_ADDRESS_COINJOIN_DISALLOW" />;
+        }
+        if (!firstFreshAddress) {
+            return <Translation id="RECEIVE_ADDRESS_LIMIT_REACHED" />;
+        }
+        return null;
+    };
 
     return (
         <StyledCard>
@@ -161,20 +169,18 @@ export const FreshAddress = ({
                     accountType={account.accountType}
                 />
                 <FreshAddressWrapper>
-                    <Overlay />
-                    <StyledFreshAddress>{addressValue}</StyledFreshAddress>
+                    {addressValue && <Overlay />}
+                    <StyledFreshAddress>
+                        {addressValue ?? <Translation id="RECEIVE_ADDRESS_UNAVAILABLE" />}
+                    </StyledFreshAddress>
                 </FreshAddressWrapper>
             </AddressContainer>
-            <Tooltip
-                content={
-                    coinjoinDisallowReveal && <Translation id="RECEIVE_ADDRESS_COINJOIN_DISALLOW" />
-                }
-            >
+            <Tooltip content={buttonTooltipContent()}>
                 <StyledButton
                     data-test="@wallet/receive/reveal-address-button"
                     icon="TREZOR_LOGO"
                     onClick={handleAddressReveal}
-                    isDisabled={disabled || locked || coinjoinDisallowReveal}
+                    isDisabled={disabled || locked || coinjoinDisallowReveal || !firstFreshAddress}
                     isLoading={locked}
                 >
                     <Translation id="RECEIVE_ADDRESS_REVEAL" />

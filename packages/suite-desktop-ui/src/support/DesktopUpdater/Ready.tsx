@@ -1,5 +1,3 @@
-import React from 'react';
-
 import styled from 'styled-components';
 
 import { Button, H2, variables } from '@trezor/components';
@@ -32,7 +30,7 @@ export const Ready = ({ hideWindow, isCancelable }: ReadyProps) => {
 
     const install = () => dispatch(installUpdate());
     const installOnQuit = () => {
-        install();
+        dispatch(installUpdate(true));
         hideWindow();
     };
 

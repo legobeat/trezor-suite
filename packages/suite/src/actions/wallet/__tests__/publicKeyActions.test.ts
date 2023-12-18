@@ -1,13 +1,14 @@
-/* eslint-disable global-require */
 import { combineReducers, createReducer } from '@reduxjs/toolkit';
 
 import { configureMockStore, testMocks } from '@suite-common/test-utils';
 import { connectInitThunk } from '@suite-common/connect-init';
-import fixtures from '../__fixtures__/publicKeyActions';
-import { SuiteState } from 'src/reducers/suite/suiteReducer';
+import { State as DeviceState } from '@suite-common/wallet-core';
 
-jest.mock('@trezor/connect', () => {
-    let fixture: any;
+import fixtures from '../__fixtures__/publicKeyActions';
+
+const TrezorConnect = testMocks.getTrezorConnectMock();
+
+const setTrezorConnectFixtures = (fixture: any) => {
     let buttonRequest: ((e?: any) => any) | undefined;
 
     const getPublicKey = (_params: any) => {
@@ -28,38 +29,15 @@ jest.mock('@trezor/connect', () => {
         };
     };
 
-    const { PROTO } = jest.requireActual('@trezor/connect');
-
-    return {
-        __esModule: true, // this property makes it work
-        default: {
-            blockchainSetCustomBackend: () => {},
-            init: () => null,
-            on: (event: string, cb: () => any) => {
-                if (event === 'ui-button') buttonRequest = cb;
-            },
-            off: () => {
-                buttonRequest = undefined;
-            },
-            getPublicKey,
-            cardanoGetPublicKey: getPublicKey,
-        },
-        setTestFixtures: (f: any) => {
-            fixture = f;
-        },
-        DEVICE_EVENT: 'DEVICE_EVENT',
-        UI_EVENT: 'UI_EVENT',
-        TRANSPORT_EVENT: 'TRANSPORT_EVENT',
-        BLOCKCHAIN_EVENT: 'BLOCKCHAIN_EVENT',
-        DEVICE: {},
-        TRANSPORT: {},
-        BLOCKCHAIN: {},
-        UI: {
-            REQUEST_BUTTON: 'ui-button',
-        },
-        PROTO,
-    };
-});
+    jest.spyOn(TrezorConnect, 'on').mockImplementation((event: string, cb) => {
+        if (event === 'ui-button') buttonRequest = cb;
+    });
+    jest.spyOn(TrezorConnect, 'off').mockImplementation(() => {
+        buttonRequest = undefined;
+    });
+    jest.spyOn(TrezorConnect, 'getPublicKey').mockImplementation(getPublicKey);
+    jest.spyOn(TrezorConnect, 'cardanoGetPublicKey').mockImplementation(getPublicKey);
+};
 
 const device = testMocks.getSuiteDevice({
     state: 'device-state',
@@ -68,13 +46,7 @@ const device = testMocks.getSuiteDevice({
 });
 
 const rootReducer = combineReducers({
-    suite: createReducer(
-        {
-            device,
-        },
-        () => ({}),
-    ),
-    devices: createReducer([device], () => {}),
+    device: createReducer({ devices: [device], selectedDevice: device }, () => {}),
     wallet: combineReducers({
         selectedAccount: createReducer(
             {
@@ -99,14 +71,14 @@ const rootReducer = combineReducers({
 });
 
 interface StateOverrides {
-    suite?: Pick<SuiteState, 'device'>;
+    device?: Pick<DeviceState, 'selectedDevice'>;
     networkType?: string;
 }
 
 const initStore = (stateOverrides?: StateOverrides) => {
     const preloadedState = JSON.parse(JSON.stringify(rootReducer(undefined, { type: 'init' })));
-    if (stateOverrides?.suite) {
-        preloadedState.suite = stateOverrides.suite;
+    if (stateOverrides?.device) {
+        preloadedState.device = stateOverrides.device;
     }
     if (stateOverrides?.networkType) {
         preloadedState.wallet.selectedAccount.account.networkType = stateOverrides.networkType;
@@ -115,11 +87,9 @@ const initStore = (stateOverrides?: StateOverrides) => {
 };
 
 describe('PublicKeyActions', () => {
-    // fixtures.slice(3, 4).forEach(f => {
     fixtures.forEach(f => {
         it(f.description, async () => {
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
-            require('@trezor/connect').setTestFixtures(f.mocks);
+            setTrezorConnectFixtures(f.mocks);
             const store = initStore(f.initialState);
             await store.dispatch(connectInitThunk());
             await store.dispatch(f.action());

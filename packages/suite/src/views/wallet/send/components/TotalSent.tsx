@@ -1,4 +1,3 @@
-import React from 'react';
 import styled from 'styled-components';
 import { variables } from '@trezor/components';
 import { useSendFormContext } from 'src/hooks/wallet';
@@ -8,8 +7,8 @@ import { Card, Translation, FiatValue, FormattedCryptoAmount } from 'src/compone
 const StyledCard = styled(Card)`
     display: flex;
     flex-direction: row;
-    justify-items: space-between;
     align-items: center;
+    justify-content: space-between;
     min-height: 86px;
     padding: 0 42px;
 

@@ -1,14 +1,13 @@
-import React from 'react';
 import { FormattedNumber } from 'react-intl';
 import styled from 'styled-components';
 import BigNumber from 'bignumber.js';
+
 import { useFormatters } from '@suite-common/formatters';
 import { Translation } from 'src/components/suite';
 import { Button, H3, Icon, Tooltip, useTheme, variables } from '@trezor/components';
 import regional from 'src/constants/wallet/coinmarket/regional';
 import { useCoinmarketP2pOffersContext } from 'src/hooks/wallet/useCoinmarketP2pOffers';
-import { CoinmarketProviderInfo } from 'src/components/wallet';
-import { CoinmarketFiatAmount } from 'src/views/wallet/coinmarket/common/CoinmarketFiatAmount';
+import { CoinmarketFiatAmount, CoinmarketProviderInfo } from 'src/views/wallet/coinmarket/common';
 import { P2pQuote, P2pQuotesRequest } from 'invity-api';
 import { Avatar } from '../Avatar';
 
@@ -26,14 +25,14 @@ const Wrapper = styled.div`
 
 const Main = styled.div`
     display: flex;
-    margin: 30px 30px 0 30px;
+    margin: 30px 30px 0;
     justify-content: space-between;
     padding-bottom: 20px;
     border-bottom: 1px solid ${({ theme }) => theme.STROKE_GREY};
 
     @media (max-width: ${variables.SCREEN_SIZE.SM}) {
         flex-direction: column;
-        margin: 20px 20px 0 20px;
+        margin: 20px 20px 0;
     }
 `;
 

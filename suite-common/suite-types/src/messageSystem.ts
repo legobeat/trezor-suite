@@ -8,7 +8,7 @@
  */
 export type DateTime = string;
 export type Version = string | string[];
-export type Model = '1' | 'T' | 'T1B1' | 'T2T1' | 'T2B1';
+export type Model = '1' | 'T' | 'T1B1' | 'T2T1' | 'T2B1' | 'Safe 3' | '';
 export type FirmwareRevision = string;
 export type FirmwareVariant = '*' | 'bitcoin-only' | 'regular';
 /**
@@ -102,6 +102,7 @@ export interface Message {
     variant: Variant;
     category: Category | Category[];
     content: Localization;
+    headline?: Localization;
     cta?: CTA;
     modal?: Modal;
     /**

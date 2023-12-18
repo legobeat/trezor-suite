@@ -2,6 +2,7 @@ import { memoizeWithArgs } from 'proxy-memoize';
 
 import { Account, WalletAccountTransaction, AccountKey } from '@suite-common/wallet-types';
 import { findTransaction, getConfirmations, isPending } from '@suite-common/wallet-utils';
+import { getIsZeroValuePhishing } from '@suite-common/suite-utils';
 import { createReducerWithExtraDeps } from '@suite-common/redux-utils';
 
 import { fiatRatesActions } from '../fiat-rates/fiatRatesActions';
@@ -189,14 +190,25 @@ export const selectPendingAccountAddresses = memoizeWithArgs(
         const pendingAddresses: string[] = [];
         const pendingTxs = accountTransactions.filter(isPending);
         pendingTxs.forEach(t =>
-            t.targets.forEach(target =>
-                target.addresses?.forEach(a => pendingAddresses.unshift(a)),
+            t.targets.forEach(
+                target => target.addresses?.forEach(a => pendingAddresses.unshift(a)),
             ),
         );
         return pendingAddresses;
     },
     { size: EXPECTED_MAX_NUMBER_OF_ACCOUNTS },
 );
+
+export const selectAllPendingTransactions = (state: TransactionsRootState) => {
+    const { transactions } = state.wallet.transactions;
+    return Object.keys(transactions).reduce(
+        (response, accountKey) => {
+            response[accountKey] = transactions[accountKey].filter(isPending);
+            return response;
+        },
+        {} as typeof transactions,
+    );
+};
 
 // Note: Account key is passed because there can be duplication of TXIDs if self transaction was sent.
 export const selectTransactionByTxidAndAccountKey = (
@@ -257,4 +269,16 @@ export const selectTransactionConfirmations = (
 
     const blockchainHeight = selectBlockchainHeightBySymbol(state, transaction.symbol);
     return getConfirmations(transaction, blockchainHeight);
+};
+
+export const selectIsTransactionZeroValuePhishing = (
+    state: TransactionsRootState,
+    txid: string,
+    accountKey: AccountKey,
+) => {
+    const transaction = selectTransactionByTxidAndAccountKey(state, txid, accountKey);
+
+    if (!transaction) return false;
+
+    return getIsZeroValuePhishing(transaction);
 };

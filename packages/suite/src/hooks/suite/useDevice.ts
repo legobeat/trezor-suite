@@ -1,9 +1,13 @@
 import { useCallback } from 'react';
-import { useSelector } from './useSelector';
+
+import { selectDevice } from '@suite-common/wallet-core';
+
 import { SUITE } from 'src/actions/suite/constants';
 
+import { useSelector } from './useSelector';
+
 export const useDevice = () => {
-    const device = useSelector(state => state.suite.device);
+    const device = useSelector(selectDevice);
     const locks = useSelector(state => state.suite.locks);
 
     const isLocked = useCallback(

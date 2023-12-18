@@ -1,29 +1,28 @@
 import { ScanAccountProgress, BroadcastedTransactionDetails } from '@trezor/coinjoin';
 import TrezorConnect from '@trezor/connect';
 import { promiseAllSequence } from '@trezor/utils';
-
-import { SUITE } from 'src/actions/suite/constants';
-import * as COINJOIN from './constants/coinjoinConstants';
-import { goto } from '../suite/routerActions';
 import { notificationsActions } from '@suite-common/toast-notifications';
-import * as coinjoinClientActions from './coinjoinClientActions';
-import { CoinjoinService, COORDINATOR_FEE_RATE_MULTIPLIER } from 'src/services/coinjoin';
-import { getAccountProgressHandle, getRegisterAccountParams } from 'src/utils/wallet/coinjoinUtils';
-import { Dispatch, GetState } from 'src/types/suite';
 import { isDevEnv } from '@suite-common/suite-utils';
 import { Network, NetworkSymbol } from '@suite-common/wallet-config';
 import { Account } from '@suite-common/wallet-types';
+import {
+    accountsActions,
+    selectAccountByKey,
+    transactionsActions,
+    selectDevice,
+    selectDevices,
+} from '@suite-common/wallet-core';
+import { getAccountTransactions, sortByBIP44AddressIndex } from '@suite-common/wallet-utils';
+
+import { CoinjoinService, COORDINATOR_FEE_RATE_MULTIPLIER } from 'src/services/coinjoin';
+import { getAccountProgressHandle, getRegisterAccountParams } from 'src/utils/wallet/coinjoinUtils';
+import { Dispatch, GetState } from 'src/types/suite';
 import {
     CoinjoinAccount,
     CoinjoinConfig,
     CoinjoinDiscoveryCheckpoint,
     CoinjoinSessionParameters,
 } from 'src/types/wallet/coinjoin';
-import {
-    accountsActions,
-    selectAccountByKey,
-    transactionsActions,
-} from '@suite-common/wallet-core';
 import {
     selectCoinjoinAccounts,
     selectCoinjoinAccountByKey,
@@ -36,8 +35,13 @@ import {
     selectSessionByAccountKey,
     selectWeightedAnonymityByAccountKey,
 } from 'src/reducers/wallet/coinjoinReducer';
-import { getAccountTransactions, sortByBIP44AddressIndex } from '@suite-common/wallet-utils';
+import { SUITE } from 'src/actions/suite/constants';
 import { openModal } from 'src/actions/suite/modalActions';
+
+import * as coinjoinClientActions from './coinjoinClientActions';
+import { goto } from '../suite/routerActions';
+import * as COINJOIN from './constants/coinjoinConstants';
+import { selectLocks } from '../../reducers/suite/suiteReducer';
 
 export const coinjoinAccountUpdateAnonymity = (accountKey: string, targetAnonymity: number) =>
     ({
@@ -46,7 +50,7 @@ export const coinjoinAccountUpdateAnonymity = (accountKey: string, targetAnonymi
             accountKey,
             targetAnonymity,
         },
-    } as const);
+    }) as const;
 
 export const coinjoinAccountUpdateMaxMiningFee = (accountKey: string, maxFeePerVbyte: number) =>
     ({
@@ -55,7 +59,7 @@ export const coinjoinAccountUpdateMaxMiningFee = (accountKey: string, maxFeePerV
             accountKey,
             maxFeePerVbyte,
         },
-    } as const);
+    }) as const;
 
 export const coinjoinAccountToggleSkipRounds = (accountKey: string) =>
     ({
@@ -63,7 +67,7 @@ export const coinjoinAccountToggleSkipRounds = (accountKey: string) =>
         payload: {
             accountKey,
         },
-    } as const);
+    }) as const;
 
 export const coinjoinAccountUpdateSetupOption = (accountKey: string, isRecommended: boolean) =>
     ({
@@ -72,7 +76,7 @@ export const coinjoinAccountUpdateSetupOption = (accountKey: string, isRecommend
             accountKey,
             isRecommended,
         },
-    } as const);
+    }) as const;
 
 export const coinjoinAccountSetLiquidityClue = (
     accountKey: string,
@@ -84,7 +88,7 @@ export const coinjoinAccountSetLiquidityClue = (
             accountKey,
             rawLiquidityClue,
         },
-    } as const);
+    }) as const;
 
 const coinjoinAccountAuthorize = (accountKey: string) =>
     ({
@@ -92,7 +96,7 @@ const coinjoinAccountAuthorize = (accountKey: string) =>
         payload: {
             accountKey,
         },
-    } as const);
+    }) as const;
 
 const coinjoinAccountAuthorizeSuccess = (accountKey: string, params: CoinjoinSessionParameters) =>
     ({
@@ -101,7 +105,7 @@ const coinjoinAccountAuthorizeSuccess = (accountKey: string, params: CoinjoinSes
             accountKey,
             params,
         },
-    } as const);
+    }) as const;
 
 const coinjoinAccountAuthorizeFailed = (accountKey: string, error: string) =>
     ({
@@ -110,7 +114,7 @@ const coinjoinAccountAuthorizeFailed = (accountKey: string, error: string) =>
             accountKey,
             error,
         },
-    } as const);
+    }) as const;
 
 const coinjoinAccountUnregister = (accountKey: string) =>
     ({
@@ -118,7 +122,7 @@ const coinjoinAccountUnregister = (accountKey: string) =>
         payload: {
             accountKey,
         },
-    } as const);
+    }) as const;
 
 const coinjoinAccountPreloading = (isPreloading: boolean) =>
     ({
@@ -126,7 +130,7 @@ const coinjoinAccountPreloading = (isPreloading: boolean) =>
         payload: {
             isPreloading,
         },
-    } as const);
+    }) as const;
 
 const coinjoinSessionRestore = (accountKey: string) =>
     ({
@@ -134,7 +138,7 @@ const coinjoinSessionRestore = (accountKey: string) =>
         payload: {
             accountKey,
         },
-    } as const);
+    }) as const;
 
 const coinjoinAccountDiscoveryReset = (
     accountKey: string,
@@ -146,7 +150,7 @@ const coinjoinAccountDiscoveryReset = (
             accountKey,
             checkpoint,
         },
-    } as const);
+    }) as const;
 
 const coinjoinAccountDiscoveryProgress = (accountKey: string, progress: ScanAccountProgress) =>
     ({
@@ -155,7 +159,7 @@ const coinjoinAccountDiscoveryProgress = (accountKey: string, progress: ScanAcco
             accountKey,
             progress,
         },
-    } as const);
+    }) as const;
 
 const coinjoinSessionStarting = (accountKey: string, isStarting: boolean) =>
     ({
@@ -164,7 +168,7 @@ const coinjoinSessionStarting = (accountKey: string, isStarting: boolean) =>
             accountKey,
             isStarting,
         },
-    } as const);
+    }) as const;
 
 export const coinjoinSessionAutostop = (accountKey: string, isAutostopped: boolean) =>
     ({
@@ -173,7 +177,7 @@ export const coinjoinSessionAutostop = (accountKey: string, isAutostopped: boole
             accountKey,
             isAutostopped,
         },
-    } as const);
+    }) as const;
 
 const coinjoinAccountUpdateAnonymityLevels = (accountKey: string, level: number) =>
     ({
@@ -182,19 +186,19 @@ const coinjoinAccountUpdateAnonymityLevels = (accountKey: string, level: number)
             accountKey,
             level,
         },
-    } as const);
+    }) as const;
 
 export const updateLastAnonymityReportTimestamp = (accountKey: string) =>
     ({
         type: COINJOIN.ACCOUNT_UPDATE_LAST_REPORT_TIMESTAMP,
         payload: { accountKey },
-    } as const);
+    }) as const;
 
 export const updateCoinjoinConfig = (payload: Partial<CoinjoinConfig>) =>
     ({
         type: COINJOIN.UPDATE_CONFIG,
         payload,
-    } as const);
+    }) as const;
 
 export type CoinjoinAccountAction =
     | ReturnType<typeof coinjoinAccountUpdateAnonymity>
@@ -509,7 +513,10 @@ export const fetchAndUpdateAccount =
                 // status must be set here already (instead of wait for endCoinjoinAccountSync)
                 // so it's potentially stored into db
                 dispatch(
-                    accountsActions.updateAccount({ ...account, status: 'ready' }, accountInfo),
+                    accountsActions.updateAccount(
+                        { ...account, status: 'ready' as const },
+                        accountInfo,
+                    ),
                 );
 
                 // update account in CoinjoinClient
@@ -555,7 +562,7 @@ export const createCoinjoinAccount =
 
         dispatch(coinjoinAccountPreloading(true));
 
-        const { device } = getState().suite;
+        const device = selectDevice(getState());
         const unlockPath = await TrezorConnect.unlockPath({
             path: "m/10025'",
             device,
@@ -577,6 +584,7 @@ export const createCoinjoinAccount =
             device,
             useEmptyPassphrase: device?.useEmptyPassphrase,
             coin: network.symbol,
+            suppressBackupWarning: true,
         });
         if (!publicKey.success) {
             dispatch(handleError(publicKey.payload.error));
@@ -587,9 +595,9 @@ export const createCoinjoinAccount =
 
         // create empty account
         const account = dispatch(
-            accountsActions.createAccount(
-                device!.state!,
-                {
+            accountsActions.createAccount({
+                deviceState: device!.state!,
+                discoveryItem: {
                     index: 0,
                     path,
                     unlockPath: unlockPath.payload,
@@ -600,12 +608,12 @@ export const createCoinjoinAccount =
                     derivationType: 0,
                     status: 'initial',
                 },
-                {
+                accountInfo: {
                     ...EMPTY_ACCOUNT_INFO,
                     descriptor: publicKey.payload.xpubSegwit || publicKey.payload.xpub,
                     legacyXpub: publicKey.payload.xpub,
                 },
-            ),
+            }),
         );
 
         log(`CoinjoinAccount created: ${getAccountProgressHandle(account.payload)}`);
@@ -656,7 +664,7 @@ export const rescanCoinjoinAccount =
         // reset account + unlock
         const { payload } = dispatch(
             accountsActions.updateAccount(
-                { ...account, status: 'initial' },
+                { ...account, status: 'initial' as const },
                 { ...EMPTY_ACCOUNT_INFO, descriptor: account.descriptor },
             ),
         );
@@ -668,7 +676,7 @@ export const rescanCoinjoinAccount =
 const authorizeCoinjoin =
     (account: Account, coordinator: string, params: CoinjoinSessionParameters) =>
     async (dispatch: Dispatch, getState: GetState) => {
-        const { device } = getState().suite;
+        const device = selectDevice(getState());
 
         // authorize coinjoin session on Trezor
         dispatch(coinjoinAccountAuthorize(account.key));
@@ -744,9 +752,9 @@ export const startCoinjoinSession =
 export const restoreCoinjoinSession =
     (accountKey: string) => async (dispatch: Dispatch, getState: GetState) => {
         // TODO: check if device is connected, passphrase is authorized...
-        const state = getState();
-        const { device, locks } = state.suite;
-        const account = selectAccountByKey(state, accountKey);
+        const locks = selectLocks(getState());
+        const device = selectDevice(getState());
+        const account = selectAccountByKey(getState(), accountKey);
 
         if (!account) {
             return;
@@ -775,7 +783,7 @@ export const restoreCoinjoinSession =
             return errorToast('CoinjoinClient is not enabled');
         }
         // get fresh data from reducer
-        const coinjoinAccount = selectCoinjoinAccountByKey(state, account.key);
+        const coinjoinAccount = selectCoinjoinAccountByKey(getState(), account.key);
         if (!coinjoinAccount || !coinjoinAccount.session) {
             return errorToast('Coinjoin account session is missing');
         }
@@ -866,7 +874,8 @@ export const stopCoinjoinSessionByDeviceId =
     (deviceID: string) => (dispatch: Dispatch, getState: GetState) => {
         const state = getState();
 
-        const disconnectedDevices = state.devices.filter(d => d.id === deviceID && d.remember);
+        const devices = selectDevices(state);
+        const disconnectedDevices = devices.filter(d => d.id === deviceID && d.remember);
         const affectedAccounts = disconnectedDevices.flatMap(d =>
             state.wallet.accounts.filter(
                 a => a.accountType === 'coinjoin' && a.deviceState === d.state,

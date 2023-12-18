@@ -101,6 +101,7 @@ export const migrate: OnUpgradeFunc<SuiteDBSchema> = async (
 
         await updateAll(transaction, 'devices', device => {
             device.metadata = {
+                // @ts-expect-error
                 status: 'disabled',
             };
             return device;
@@ -618,6 +619,7 @@ export const migrate: OnUpgradeFunc<SuiteDBSchema> = async (
 
         await updateAll(transaction, 'devices', device => {
             if (
+                // @ts-expect-error
                 device.metadata.status === 'enabled' &&
                 // @ts-expect-error
                 device.metadata.fileName &&
@@ -625,6 +627,7 @@ export const migrate: OnUpgradeFunc<SuiteDBSchema> = async (
                 device.metadata.aesKey
             ) {
                 device.metadata = {
+                    // @ts-expect-error
                     status: device.metadata.status,
                     1: {
                         // @ts-expect-error
@@ -677,6 +680,24 @@ export const migrate: OnUpgradeFunc<SuiteDBSchema> = async (
             }
 
             return updatedMetadata;
+        });
+    }
+
+    if (oldVersion < 40) {
+        // device.metadata.status does not exist anymore. this information is derivable from
+        // device.metadata[key]
+        // and
+        // metadata.error[deviceState]
+        await updateAll(transaction, 'devices', device => {
+            if (
+                // @ts-expect-error
+                device.metadata.status
+            ) {
+                // @ts-expect-error
+                delete device.metadata.status;
+            }
+
+            return device;
         });
     }
 };

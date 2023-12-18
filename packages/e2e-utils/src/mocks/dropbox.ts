@@ -9,7 +9,7 @@ const port = 30002;
  */
 export class DropboxMock {
     files: Record<string, any> = {};
-    nextResponse: null | Record<string, any> = null;
+    nextResponse: Record<string, any>[] = [];
     // store requests for assertions in tests
     requests: string[] = [];
     app?: Express;
@@ -24,13 +24,13 @@ export class DropboxMock {
         app.use((req, res, next) => {
             this.requests.push(req.url);
 
-            if (this.nextResponse) {
-                console.log('[dropboxMock]', this.nextResponse);
+            if (this.nextResponse.length) {
+                const response = this.nextResponse.shift();
+                console.log('[dropboxMock]', response);
                 // @ts-expect-error
-                res.writeHeader(this.nextResponse.status, this.nextResponse.headers);
-                res.write(JSON.stringify(this.nextResponse.body));
+                res.writeHeader(response.status, response.headers);
+                res.write(JSON.stringify(response!.body));
                 res.end();
-                this.nextResponse = null;
                 return;
             }
             next();
@@ -100,7 +100,7 @@ export class DropboxMock {
         app.post('/2/files/search_v2', express.raw(), (req, res) => {
             const { query } = req.body;
 
-            const file = this.files[`/apps/trezor/${query}`];
+            const file = this.files[`/${query}`];
 
             // @ts-expect-error
             res.writeHeader(200, { 'Content-Type': 'application/json' });
@@ -144,9 +144,9 @@ export class DropboxMock {
             // @ts-expect-error
             const dropboxApiArgs = JSON.parse(req.headers['dropbox-api-arg']);
             const { path } = dropboxApiArgs;
-            const name = path.replace('/apps/trezor/', '');
+            const name = path.replace('/apps/trezor', '');
 
-            const file = this.files[path];
+            const file = this.files[name];
 
             if (file) {
                 // @ts-expect-error
@@ -208,7 +208,7 @@ export class DropboxMock {
     reset() {
         console.log('[mockDropbox]: reset');
         this.files = {};
-        this.nextResponse = null;
+        this.nextResponse = [];
         this.requests = [];
     }
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import { ReactNode, SyntheticEvent } from 'react';
 import styled from 'styled-components';
 import { darken } from 'polished';
 import { Icon, IconProps, variables, useTheme, Checkbox } from '@trezor/components';
@@ -18,7 +18,9 @@ const Card = styled.div<{ checked: boolean }>`
     padding: 24px;
     border-radius: 10px;
     border: solid 1.5px ${({ theme, checked }) => (checked ? theme.TYPE_GREEN : theme.STROKE_GREY)};
-    transition: box-shadow 0.2s ease-in-out, border 0.2s ease-in-out;
+    transition:
+        box-shadow 0.2s ease-in-out,
+        border 0.2s ease-in-out;
     cursor: pointer;
 
     :hover {
@@ -50,7 +52,7 @@ const Content = styled.div`
     flex: 1;
 
     ${variables.SCREEN_QUERY.BELOW_TABLET} {
-        margin-top: 0px;
+        margin-top: 0;
     }
 `;
 
@@ -68,7 +70,7 @@ const IconWrapper = styled.div`
 `;
 
 interface BackupSeedCardProps {
-    label: React.ReactNode;
+    label: ReactNode;
     icon: IconProps['icon'];
     isChecked: boolean;
     onClick: () => void;
@@ -84,7 +86,7 @@ export const BackupSeedCard = ({
 }: BackupSeedCardProps) => {
     const theme = useTheme();
 
-    const handleCheckboxClick = (e: React.SyntheticEvent<HTMLElement>) => {
+    const handleCheckboxClick = (e: SyntheticEvent<HTMLElement>) => {
         e.stopPropagation();
         onClick();
     };

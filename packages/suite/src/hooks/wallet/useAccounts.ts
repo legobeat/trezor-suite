@@ -1,13 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSelector } from 'src/hooks/suite';
+
 import type { AccountAddress } from '@trezor/connect';
 import * as accountUtils from '@suite-common/wallet-utils';
+import { selectDevice } from '@suite-common/wallet-core';
+
+import { useSelector } from 'src/hooks/suite';
 import type { Account, Discovery } from 'src/types/wallet';
 
 export const useAccounts = (discovery?: Discovery) => {
     const [accounts, setAccounts] = useState<Account[]>([]);
 
-    const device = useSelector(state => state.suite.device);
+    const device = useSelector(selectDevice);
     const accountsState = useSelector(state => state.wallet.accounts);
 
     useEffect(() => {
@@ -25,7 +28,7 @@ export const useAccounts = (discovery?: Discovery) => {
 };
 
 export const useFastAccounts = () => {
-    const device = useSelector(state => state.suite.device);
+    const device = useSelector(selectDevice);
     const accounts = useSelector(state => state.wallet.accounts);
 
     const deviceAccounts = useMemo(
@@ -42,11 +45,15 @@ export const useAccountAddressDictionary = (account: Account | undefined) =>
             case 'bitcoin': {
                 return (account?.addresses?.unused ?? [])
                     .concat(account?.addresses?.used ?? [])
-                    .reduce((previous, current) => {
-                        previous[current.address] = current;
-                        return previous;
-                    }, {} as { [address: string]: AccountAddress });
+                    .reduce(
+                        (previous, current) => {
+                            previous[current.address] = current;
+                            return previous;
+                        },
+                        {} as { [address: string]: AccountAddress },
+                    );
             }
+            case 'solana':
             case 'ripple':
             case 'ethereum': {
                 return {

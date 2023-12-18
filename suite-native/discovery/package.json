@@ -1,0 +1,32 @@
+{
+    "name": "@suite-native/discovery",
+    "version": "1.0.0",
+    "private": true,
+    "license": "See LICENSE.md in repo root",
+    "sideEffects": false,
+    "main": "src/index",
+    "scripts": {
+        "lint:js": "yarn g:eslint '**/*.{ts,tsx,js}'",
+        "type-check": "tsc --build"
+    },
+    "dependencies": {
+        "@mobily/ts-belt": "^3.13.1",
+        "@reduxjs/toolkit": "1.9.5",
+        "@suite-common/redux-utils": "workspace:*",
+        "@suite-common/suite-types": "workspace:*",
+        "@suite-common/wallet-config": "workspace:*",
+        "@suite-common/wallet-constants": "workspace:*",
+        "@suite-common/wallet-core": "workspace:*",
+        "@suite-common/wallet-types": "workspace:*",
+        "@suite-common/wallet-utils": "workspace:*",
+        "@suite-native/accounts": "workspace:*",
+        "@suite-native/analytics": "workspace:*",
+        "@suite-native/config": "workspace:*",
+        "@suite-native/device": "workspace:*",
+        "@suite-native/device-mutex": "workspace:*",
+        "@trezor/connect": "workspace:*",
+        "@trezor/device-utils": "workspace:*",
+        "react": "18.2.0",
+        "react-redux": "8.0.7"
+    }
+}

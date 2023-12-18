@@ -1,4 +1,3 @@
-import React from 'react';
 import styled from 'styled-components';
 import invityAPI from 'src/services/suite/invityAPI';
 import { NumberInput } from 'src/components/suite';
@@ -56,6 +55,7 @@ const CryptoInput = () => {
         setValue,
         setAmountLimits,
         composeRequest,
+        tokensFiatValue,
     } = useCoinmarketSellFormContext();
     const { shouldSendInSats } = useBitcoinAmountUnit(account.symbol);
 
@@ -119,7 +119,11 @@ const CryptoInput = () => {
                                 } else {
                                     // set the address of the token to the output
                                     const symbol = invityApiSymbolToSymbol(token).toLowerCase();
-                                    const tokenData = tokens?.find(t => t.symbol === symbol);
+                                    const tokenData = tokens?.find(
+                                        t =>
+                                            t.symbol === symbol &&
+                                            t.contract === selected.token?.contract,
+                                    );
                                     setValue(CRYPTO_TOKEN, tokenData?.contract ?? null);
                                     // set token address for ERC20 transaction to estimate the fees more precisely
                                     setValue('outputs.0.address', tokenData?.contract ?? '');
@@ -131,6 +135,7 @@ const CryptoInput = () => {
                             options={getSendCryptoOptions(
                                 account,
                                 sellInfo?.supportedCryptoCurrencies || new Set(),
+                                tokensFiatValue,
                             )}
                             isClean
                             hideTextCursor

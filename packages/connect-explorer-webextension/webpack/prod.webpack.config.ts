@@ -3,9 +3,13 @@ import path from 'path';
 import webpack from 'webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import CopyPlugin from 'copy-webpack-plugin';
+import { execSync } from 'child_process';
 
 const DIST = path.resolve(__dirname, '../build');
 const CONNECT_WEB_PATH = path.join(__dirname, '..', '..', 'connect-web');
+
+const CONNECT_WEB_EXTENSION_PATH = path.join(CONNECT_WEB_PATH, 'src', 'webextension');
+const commitHash = execSync('git rev-parse HEAD').toString().trim();
 
 const config: webpack.Configuration = {
     target: 'web',
@@ -36,7 +40,15 @@ const config: webpack.Configuration = {
                     loader: 'babel-loader',
                     options: {
                         cacheDirectory: true,
-                        presets: ['@babel/preset-react', '@babel/preset-typescript'],
+                        presets: [
+                            [
+                                '@babel/preset-react',
+                                {
+                                    runtime: 'automatic',
+                                },
+                            ],
+                            '@babel/preset-typescript',
+                        ],
                         plugins: [
                             '@babel/plugin-proposal-class-properties',
                             [
@@ -60,9 +72,14 @@ const config: webpack.Configuration = {
         ],
     },
     resolve: {
+        // todo: this block is identical in connect-web, connect-explorer, and connect-explorer-webextension
         extensions: ['.ts', '.tsx', '.js', '.jsx'],
         modules: ['node_modules'],
         mainFields: ['browser', 'module', 'main'],
+        fallback: {
+            fs: false, // ignore "fs" import in markdown-it-imsize
+            path: false, // ignore "path" import in markdown-it-imsize
+        },
     },
     performance: {
         hints: false,
@@ -101,19 +118,23 @@ const config: webpack.Configuration = {
         new CopyPlugin({
             patterns: [
                 {
-                    from: path.join(
-                        CONNECT_WEB_PATH,
-                        'src',
-                        'webextension',
-                        'trezor-content-script.js',
-                    ),
+                    from: path.join(CONNECT_WEB_EXTENSION_PATH, 'trezor-content-script.js'),
                     to: `${DIST}/vendor`,
+                },
+                {
+                    from: path.join(CONNECT_WEB_EXTENSION_PATH, 'trezor-usb-permissions.js'),
+                    to: `${DIST}/vendor`,
+                },
+                {
+                    from: path.join(CONNECT_WEB_EXTENSION_PATH, 'trezor-usb-permissions.html'),
+                    to: `${DIST}`,
                 },
             ],
         }),
         new webpack.DefinePlugin({
             // eslint-disable-next-line no-underscore-dangle
             'process.env.__TREZOR_CONNECT_SRC': JSON.stringify(process.env.__TREZOR_CONNECT_SRC),
+            'process.env.COMMIT_HASH': JSON.stringify(commitHash),
         }),
     ],
 };

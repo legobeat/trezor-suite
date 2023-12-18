@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
@@ -20,7 +20,7 @@ import { isAddressValid } from '@suite-common/wallet-utils';
 import { useAlert } from '@suite-native/alerts';
 
 import { XpubImportSection } from '../components/XpubImportSection';
-import { AccountImportHeader } from '../components/AccountImportHeader';
+import { AccountImportSubHeader } from '../components/AccountImportSubHeader';
 import { DevXpub } from '../components/DevXpub';
 import { SelectableNetworkItem } from '../components/SelectableNetworkItem';
 import { XpubHint } from '../components/XpubHint';
@@ -31,6 +31,7 @@ const networkTypeToInputLabelMap: Record<NetworkType, string> = {
     cardano: 'Enter public key (XPUB) manually',
     ethereum: 'Enter receive address manually',
     ripple: 'Enter receive address manually',
+    solana: 'Enter receive address manually',
 };
 
 const FORM_BUTTON_FADE_IN_DURATION = 200;
@@ -79,6 +80,7 @@ export const XpubScanScreen = ({
         if (
             xpubAddress &&
             networkType !== 'ethereum' &&
+            networkType !== 'ripple' &&
             isAddressValid(xpubAddress, networkSymbol)
         ) {
             // we need to set timeout to avoid showing alert during screen transition, otherwise it will freeze the app
@@ -138,7 +140,7 @@ export const XpubScanScreen = ({
 
     return (
         <Screen
-            header={<AccountImportHeader activeStep={2} />}
+            screenHeader={<AccountImportSubHeader />}
             footer={<XpubHint networkType={networkType} handleOpen={handleOpenHint} />}
             extraKeyboardAvoidingViewHeight={EXTRA_KEYBOARD_AVOIDING_VIEW_HEIGHT}
         >
@@ -162,7 +164,7 @@ export const XpubScanScreen = ({
                 <Form form={form}>
                     <VStack spacing="medium">
                         <TextInputField
-                            data-testID="@accounts-import/sync-coins/xpub-input"
+                            testID="@accounts-import/sync-coins/xpub-input"
                             name="xpubAddress"
                             label={inputLabel}
                             multiline
@@ -170,7 +172,7 @@ export const XpubScanScreen = ({
                         {isXpubFormFilled && (
                             <Animated.View entering={FadeIn.duration(FORM_BUTTON_FADE_IN_DURATION)}>
                                 <Button
-                                    data-testID="@accounts-import/sync-coins/xpub-submit"
+                                    testID="@accounts-import/sync-coins/xpub-submit"
                                     onPress={onXpubFormSubmit}
                                     size="large"
                                 >

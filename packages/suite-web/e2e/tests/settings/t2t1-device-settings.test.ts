@@ -90,7 +90,7 @@ describe('T2T1 - Device settings', () => {
     });
 
     it('able to change homescreen in firmware >= 2.5.4', () => {
-        cy.task('startEmu', { wipe: true, version: '2-master' });
+        cy.task('startEmu', { wipe: true, version: '2-main' });
         cy.task('setupEmu');
 
         cy.prefixedVisit('/settings/device');
@@ -100,7 +100,7 @@ describe('T2T1 - Device settings', () => {
         cy.getTestElement('@settings/device/homescreen').scrollIntoView();
 
         cy.getTestElement('@settings/device/homescreen-gallery').click();
-        cy.get('#trezor').should('exist');
+        cy.get('#original_t2t1').should('exist');
 
         //
     });

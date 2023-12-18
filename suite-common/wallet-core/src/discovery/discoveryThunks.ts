@@ -4,9 +4,9 @@ import { notificationsActions } from '@suite-common/toast-notifications';
 import TrezorConnect, { AccountInfo, BundleProgress, UI } from '@trezor/connect';
 import { TrezorDevice } from '@suite-common/suite-types';
 import { getDerivationType, isTrezorConnectBackendType } from '@suite-common/wallet-utils';
-import { Account, Discovery, DiscoveryItem, PartialDiscovery } from '@suite-common/wallet-types';
-import { settingsCommonConfig } from '@suite-common/suite-config';
-import { networksCompatibility } from '@suite-common/wallet-config';
+import { Discovery, DiscoveryItem, PartialDiscovery } from '@suite-common/wallet-types';
+import { getTxsPerPage } from '@suite-common/suite-utils';
+import { networksCompatibility, NetworkSymbol } from '@suite-common/wallet-config';
 import { getFirmwareVersion } from '@trezor/device-utils';
 import { versionUtils } from '@trezor/utils';
 
@@ -19,15 +19,23 @@ import {
     stopDiscovery,
     updateDiscovery,
 } from './discoveryActions';
-import { selectDiscoveryByDeviceState, selectDiscovery } from './discoveryReducer';
+import {
+    selectDiscoveryByDeviceState,
+    selectDiscovery,
+    selectDiscoveryForDevice,
+} from './discoveryReducer';
 import { selectAccounts } from '../accounts/accountsReducer';
 import { accountsActions } from '../accounts/accountsActions';
+import { selectDevice, selectDevices } from '../device/deviceReducer';
 
 type ProgressEvent = BundleProgress<AccountInfo | null>['payload'];
 
-const LIMIT = 10;
+export const LIMIT = 10;
 
-const filterUnavailableNetworks = (enabledNetworks: Account['symbol'][], device?: TrezorDevice) =>
+export const filterUnavailableNetworks = (
+    enabledNetworks: NetworkSymbol[],
+    device?: TrezorDevice,
+) =>
     networksCompatibility.filter(n => {
         const firmwareVersion = getFirmwareVersion(device);
         const internalModel = device?.features?.internal_model;
@@ -114,7 +122,13 @@ const handleProgressThunk = createThunk(
                 },
             ]);
         } else {
-            dispatch(accountsActions.createAccount(deviceState, item, response));
+            dispatch(
+                accountsActions.createAccount({
+                    deviceState,
+                    discoveryItem: item,
+                    accountInfo: response,
+                }),
+            );
         }
         // calculate progress
         const progress = dispatch(
@@ -145,10 +159,7 @@ const handleProgressThunk = createThunk(
 
 export const stopDiscoveryThunk = createThunk(
     `${DISCOVERY_MODULE_PREFIX}/stop`,
-    (_, { dispatch, getState, extra }) => {
-        const {
-            selectors: { selectDiscoveryForDevice },
-        } = extra;
+    (_, { dispatch, getState }) => {
         const discovery = selectDiscoveryForDevice(getState());
         if (discovery && discovery.running) {
             dispatch(
@@ -217,10 +228,11 @@ const getBundleThunk = createThunk(
                     coin: configNetwork.symbol,
                     details: 'txs',
                     index,
-                    pageSize: settingsCommonConfig.TXS_PER_PAGE,
+                    pageSize: getTxsPerPage(configNetwork.networkType),
                     accountType,
                     networkType: configNetwork.networkType,
                     derivationType: getDerivationType(accountType),
+                    suppressBackupWarning: true,
                 });
             }
         });
@@ -228,7 +240,7 @@ const getBundleThunk = createThunk(
     },
 );
 
-const getAvailableCardanoDerivationsThunk = createThunk(
+export const getAvailableCardanoDerivationsThunk = createThunk(
     `${DISCOVERY_MODULE_PREFIX}/getAvailableCardanoDerivations`,
     async (
         { deviceState, device }: { deviceState: string; device: TrezorDevice },
@@ -239,8 +251,9 @@ const getAvailableCardanoDerivationsThunk = createThunk(
         // Ledger derivation will always result in different pub key except in shamir where all derivations are the same
         const commonParams = {
             device,
-            keepSession: true,
             useEmptyPassphrase: device.useEmptyPassphrase,
+            keepSession: true,
+            skipFinalReload: true,
             path: "m/1852'/1815'/0'",
         };
         const icarusPubKeyResult = await TrezorConnect.cardanoGetPublicKey({
@@ -310,7 +323,7 @@ export const startDiscoveryThunk = createThunk(
     `${DISCOVERY_MODULE_PREFIX}/start`,
     async (_, { dispatch, getState, extra }): Promise<void> => {
         const {
-            selectors: { selectMetadata, selectDevice, selectDiscoveryForDevice },
+            selectors: { selectMetadata },
             thunks: { initMetadata, fetchAndSaveMetadata },
             actions: { requestAuthConfirm },
         } = extra;
@@ -349,7 +362,7 @@ export const startDiscoveryThunk = createThunk(
         }
 
         const { deviceState, authConfirm } = discovery;
-        const metadataEnabled = metadata.enabled && device.metadata.status === 'disabled';
+        const metadataEnabled = metadata.enabled && !device.metadata[1]; // todo: can't import constant
 
         // start process
         if (
@@ -610,7 +623,7 @@ export const updateNetworkSettingsThunk = createThunk(
     `${DISCOVERY_MODULE_PREFIX}/updateNetworkSettings`,
     (_, { dispatch, getState, extra }) => {
         const {
-            selectors: { selectEnabledNetworks, selectDevices },
+            selectors: { selectEnabledNetworks },
         } = extra;
         const enabledNetworks = selectEnabledNetworks(getState());
         const discovery = selectDiscovery(getState());
@@ -640,10 +653,7 @@ export const updateNetworkSettingsThunk = createThunk(
 
 export const restartDiscoveryThunk = createThunk(
     `${DISCOVERY_MODULE_PREFIX}/restart`,
-    async (_, { dispatch, getState, extra }) => {
-        const {
-            selectors: { selectDiscoveryForDevice },
-        } = extra;
+    async (_, { dispatch, getState }) => {
         const discovery = selectDiscoveryForDevice(getState());
         if (!discovery) return;
         const progress = dispatch(

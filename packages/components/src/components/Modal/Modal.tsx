@@ -1,5 +1,6 @@
 /* stylelint-disable indentation */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, ReactNode, MouseEvent } from 'react';
+
 import styled, { css } from 'styled-components';
 
 import { useKeyPress } from '@trezor/react-utils';
@@ -8,7 +9,7 @@ import { Icon } from '../assets/Icon/Icon';
 import { H1 } from '../typography/Heading/Heading';
 import { variables } from '../../config';
 import { IconType } from '../../support/types';
-import { Progress } from '../loaders/Progress/Progress';
+import { ProgressBar } from '../loaders/ProgressBar/ProgressBar';
 
 const CLOSE_ICON_SIDE = 26;
 const CLOSE_ICON_PADDING = 16;
@@ -143,17 +144,18 @@ const ModalWindow = styled.div`
     position: relative;
     border-radius: 16px;
     text-align: center;
-    transition: background 0.3s, box-shadow 0.3s;
+    transition:
+        background 0.3s,
+        box-shadow 0.3s;
     max-width: 95%;
     min-width: 305px;
     max-height: 90vh;
     width: 680px;
 
-    ${({ theme }) =>
-        css`
-            background: ${theme.BG_WHITE};
-            box-shadow: 0 10px 80px 0 ${theme.BOX_SHADOW_MODAL};
-        `}
+    ${({ theme }) => css`
+        background: ${theme.BG_WHITE};
+        box-shadow: 0 10px 80px 0 ${theme.BOX_SHADOW_MODAL};
+    `}
 `;
 
 const CloseIcon = styled(Icon)`
@@ -170,21 +172,21 @@ const BackIcon = styled(Icon)`
 `;
 
 interface ModalProps {
-    children?: React.ReactNode;
-    heading?: React.ReactNode;
-    subheading?: React.ReactNode;
-    modalPrompt?: React.ReactNode;
+    children?: ReactNode;
+    heading?: ReactNode;
+    subheading?: ReactNode;
+    modalPrompt?: ReactNode;
     headerIcon?: IconType;
     isHeadingCentered?: boolean;
-    description?: React.ReactNode;
-    bottomBar?: React.ReactNode;
+    description?: ReactNode;
+    bottomBar?: ReactNode;
     isCancelable?: boolean;
     onBackClick?: () => void;
     onCancel?: () => void;
-    onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
+    onClick?: (e: MouseEvent<HTMLDivElement>) => void;
     totalProgressBarSteps?: number;
     currentProgressBarStep?: number;
-    headerComponents?: Array<React.ReactNode>;
+    headerComponent?: ReactNode;
     className?: string;
     'data-test'?: string;
 }
@@ -204,7 +206,7 @@ const Modal = ({
     onCancel,
     totalProgressBarSteps,
     currentProgressBarStep,
-    headerComponents,
+    headerComponent,
     className,
     'data-test': dataTest = '@modal',
 }: ModalProps) => {
@@ -222,7 +224,7 @@ const Modal = ({
     const showProgressBar =
         totalProgressBarSteps !== undefined && currentProgressBarStep !== undefined;
 
-    const showHeaderActions = !!headerComponents?.length || isCancelable;
+    const showHeaderActions = !!headerComponent || isCancelable;
 
     if (isCancelable && escPressed) {
         onCancel?.();
@@ -281,7 +283,7 @@ const Modal = ({
 
                         {showHeaderActions && (
                             <HeaderComponentsContainer ref={measureComponentsRef}>
-                                {headerComponents}
+                                {headerComponent}
 
                                 {isCancelable && (
                                     <CloseIcon
@@ -299,7 +301,7 @@ const Modal = ({
                 )}
 
                 {showProgressBar && (
-                    <Progress value={currentProgressBarStep} max={totalProgressBarSteps} />
+                    <ProgressBar value={currentProgressBarStep} max={totalProgressBarSteps} />
                 )}
 
                 <Body>

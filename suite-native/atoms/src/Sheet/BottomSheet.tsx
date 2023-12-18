@@ -1,22 +1,23 @@
-import React, { ReactNode, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated from 'react-native-reanimated';
 import { ScrollView, PanGestureHandler } from 'react-native-gesture-handler';
 
 import { prepareNativeStyle, useNativeStyles } from '@trezor/styles';
 
-import { Box } from '../Box';
+import { Box, BoxProps } from '../Box';
 import { BottomSheetContainer } from './BottomSheetContainer';
 import { useBottomSheetAnimation } from './useBottomSheetAnimation';
 import { BottomSheetHeader } from './BottomSheetHeader';
 
 export type BottomSheetProps = {
     isVisible: boolean;
+    isCloseDisplayed?: boolean;
     onClose: (isVisible: boolean) => void;
     children: ReactNode;
     title?: string;
     subtitle?: string;
-};
+} & BoxProps;
 
 type WrapperStyleProps = {
     insetBottom: number;
@@ -39,10 +40,12 @@ const sheetWithOverlayStyle = prepareNativeStyle(_ => ({
 
 export const BottomSheet = ({
     isVisible,
+    isCloseDisplayed = true,
     onClose,
     title,
     subtitle,
     children,
+    ...boxProps
 }: BottomSheetProps) => {
     const { applyStyle } = useNativeStyles();
     const insets = useSafeAreaInsets();
@@ -100,6 +103,7 @@ export const BottomSheet = ({
                         <BottomSheetHeader
                             title={title}
                             subtitle={subtitle}
+                            isCloseDisplayed={isCloseDisplayed}
                             onCloseSheet={closeSheetAnimated}
                         />
                         <ScrollView
@@ -111,7 +115,9 @@ export const BottomSheet = ({
                             keyboardShouldPersistTaps="handled"
                         >
                             <Animated.View>
-                                <Box paddingHorizontal="medium">{children}</Box>
+                                <Box paddingHorizontal="medium" {...boxProps}>
+                                    {children}
+                                </Box>
                             </Animated.View>
                         </ScrollView>
                     </Animated.View>

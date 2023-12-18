@@ -1,3 +1,4 @@
+import { Dispatch, SetStateAction } from 'react';
 import { FieldPath, UseFormReturn } from 'react-hook-form';
 
 import { Network } from '@suite-common/wallet-config';
@@ -30,6 +31,7 @@ export interface FormState {
     feePerUnit: string; // bitcoin/ethereum/ripple custom fee field (satB/gasPrice/drops)
     feeLimit: string; // ethereum only (gasLimit)
     estimatedFeeLimit?: string; // ethereum only (gasLimit)
+    baseFee?: number; // used by RBF from. pay for related transactions
     // advanced form inputs
     options: FormOptions[];
     bitcoinLockTime?: string; // bitcoin RBF/schedule
@@ -120,7 +122,7 @@ export type SendContextValues<TFormValues extends FormState = FormState> =
             addOpReturn: () => void;
             removeOpReturn: (index: number) => void;
             // useSendFormCompose
-            setDraftSaveRequest: React.Dispatch<React.SetStateAction<boolean>>;
+            setDraftSaveRequest: Dispatch<SetStateAction<boolean>>;
             // UTXO selection
             utxoSelection: UtxoSelectionContext;
         };

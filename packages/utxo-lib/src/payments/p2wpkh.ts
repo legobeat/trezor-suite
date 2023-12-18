@@ -1,12 +1,11 @@
 // upstream: https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/ts_src/payments/p2wpkh.ts
 
-import * as ecc from 'tiny-secp256k1';
-import * as typef from 'typeforce';
+import ecc from 'tiny-secp256k1';
 import { bech32 } from 'bech32';
 import * as bcrypto from '../crypto';
 import { bitcoin as BITCOIN_NETWORK } from '../networks';
 import * as bscript from '../script';
-import { Payment, PaymentOpts } from '../types';
+import { Payment, PaymentOpts, typeforce } from '../types';
 import * as lazy from './lazy';
 
 const { OPS } = bscript;
@@ -22,16 +21,16 @@ export function p2wpkh(a: Payment, opts?: PaymentOpts): Payment {
 
     opts = Object.assign({ validate: true }, opts || {});
 
-    typef(
+    typeforce(
         {
-            address: typef.maybe(typef.String),
-            hash: typef.maybe(typef.BufferN(20)),
-            input: typef.maybe(typef.BufferN(0)),
-            network: typef.maybe(typef.Object),
-            output: typef.maybe(typef.BufferN(22)),
-            pubkey: typef.maybe(ecc.isPoint),
-            signature: typef.maybe(bscript.isCanonicalScriptSignature),
-            witness: typef.maybe(typef.arrayOf(typef.Buffer)),
+            address: typeforce.maybe(typeforce.String),
+            hash: typeforce.maybe(typeforce.BufferN(20)),
+            input: typeforce.maybe(typeforce.BufferN(0)),
+            network: typeforce.maybe(typeforce.Object),
+            output: typeforce.maybe(typeforce.BufferN(22)),
+            pubkey: typeforce.maybe(ecc.isPoint),
+            signature: typeforce.maybe(bscript.isCanonicalScriptSignature),
+            witness: typeforce.maybe(typeforce.arrayOf(typeforce.Buffer)),
         },
         a,
     );
@@ -58,7 +57,7 @@ export function p2wpkh(a: Payment, opts?: PaymentOpts): Payment {
         return bech32.encode(network.bech32, words);
     });
     lazy.prop(o, 'hash', () => {
-        if (a.output) return a.output.slice(2, 22);
+        if (a.output) return a.output.subarray(2, 22);
         if (a.address) return _address().data;
         if (a.pubkey || o.pubkey) return bcrypto.hash160(a.pubkey! || o.pubkey!);
     });
@@ -105,9 +104,9 @@ export function p2wpkh(a: Payment, opts?: PaymentOpts): Payment {
         if (a.output) {
             if (a.output.length !== 22 || a.output[0] !== OPS.OP_0 || a.output[1] !== 0x14)
                 throw new TypeError('Output is invalid');
-            if (hash.length > 0 && !hash.equals(a.output.slice(2)))
+            if (hash.length > 0 && !hash.equals(a.output.subarray(2)))
                 throw new TypeError('Hash mismatch');
-            else hash = a.output.slice(2);
+            else hash = a.output.subarray(2);
         }
 
         if (a.pubkey) {

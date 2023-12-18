@@ -1,4 +1,4 @@
-import React from 'react';
+import { ReactNode } from 'react';
 import styled, { css } from 'styled-components';
 import { useTheme } from '../../../utils';
 import { Icon } from '../../assets/Icon/Icon';
@@ -24,7 +24,7 @@ const LoaderCell = styled.div<Required<Omit<LoadingContentProps, 'isSuccessful'>
 `;
 
 export type LoadingContentProps = {
-    children: React.ReactNode;
+    children: ReactNode;
     isLoading?: boolean;
     size?: number;
     isSuccessful?: boolean;
@@ -42,7 +42,7 @@ export const LoadingContent = ({
         <LoadingWrapper>
             <LoaderCell isLoading={isLoading} size={size}>
                 {isLoading ? (
-                    <Spinner size={size} data-test="@loading-content/loader" />
+                    <Spinner size={size} dataTest="@loading-content/loader" />
                 ) : (
                     <Icon
                         icon={isSuccessful ? 'CHECK' : 'CROSS'}

@@ -1,11 +1,9 @@
-import React from 'react';
-
 import { QRCodeScanner } from '@suite-native/qr-code';
 import {
     AccountsImportStackParamList,
     AccountsImportStackRoutes,
     Screen,
-    ScreenHeader,
+    ScreenSubHeader,
     StackProps,
 } from '@suite-native/navigation';
 import { networks, NetworkType } from '@suite-common/wallet-config';
@@ -15,6 +13,7 @@ export const networkTypeToTitleMap: Record<NetworkType, string> = {
     cardano: 'Scan public key (XPUB)',
     ethereum: 'Scan receive address',
     ripple: 'Scan receive address',
+    solana: 'Scan receive address',
 };
 
 export const ScanQRCodeModalScreen = ({
@@ -32,7 +31,7 @@ export const ScanQRCodeModalScreen = ({
     const screenTitle = networkTypeToTitleMap[networkType];
 
     return (
-        <Screen header={<ScreenHeader content={screenTitle} />}>
+        <Screen screenHeader={<ScreenSubHeader content={screenTitle} />}>
             <QRCodeScanner onCodeScanned={handleBarCodeScanned} />
         </Screen>
     );

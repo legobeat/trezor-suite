@@ -1,7 +1,10 @@
-import { onCancel, openModal, preserve, UserContextPayload } from 'src/actions/suite/modalActions';
+import { UserContextPayload } from '@suite-common/suite-types';
 import { notificationsActions } from '@suite-common/toast-notifications';
-import { GetState, Dispatch } from 'src/types/suite';
 import TrezorConnect, { Success, Unsuccessful } from '@trezor/connect';
+import { selectDevice } from '@suite-common/wallet-core';
+
+import { onCancel, openModal, preserve } from 'src/actions/suite/modalActions';
+import { GetState, Dispatch } from 'src/types/suite';
 
 export const openXpubModal =
     (params?: Pick<Extract<UserContextPayload, { type: 'xpub' }>, 'isConfirmed'>) =>
@@ -10,7 +13,7 @@ export const openXpubModal =
     };
 
 export const showXpub = () => async (dispatch: Dispatch, getState: GetState) => {
-    const { device } = getState().suite;
+    const device = selectDevice(getState());
     const { account } = getState().wallet.selectedAccount;
 
     if (!device || !account) return;
@@ -38,6 +41,9 @@ export const showXpub = () => async (dispatch: Dispatch, getState: GetState) => 
             break;
         case 'cardano':
             response = await TrezorConnect.cardanoGetPublicKey(params);
+            break;
+        case 'solana':
+            response = await TrezorConnect.solanaGetPublicKey(params);
             break;
         default:
             response = {

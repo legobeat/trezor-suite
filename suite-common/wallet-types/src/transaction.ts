@@ -5,9 +5,12 @@ import {
     FeeLevel,
     TokenInfo,
     ComposeOutput,
-    PrecomposedTransaction as PrecomposedTransactionBase,
-    CardanoInput,
-    CardanoOutput,
+    PrecomposeResultError,
+    PrecomposeResultNonFinal,
+    PrecomposeResultFinal,
+    PrecomposedTransactionErrorCardano,
+    PrecomposedTransactionNonFinalCardano,
+    PrecomposedTransactionFinalCardano,
 } from '@trezor/connect';
 import { Network, NetworkSymbol } from '@suite-common/wallet-config';
 import { TranslationKey } from '@suite-common/intl-types';
@@ -15,23 +18,26 @@ import { TranslationKey } from '@suite-common/intl-types';
 import { TimestampedRates } from './fiatRates';
 import { Account } from './account';
 
-type FinalTransaction = Extract<PrecomposedTransactionBase, { type: 'final' }>;
-export type PrecomposedTransactionFinalCardano = Omit<FinalTransaction, 'transaction'> & {
-    ttl?: number;
-    transaction: {
-        inputs: CardanoInput[];
-        outputs: CardanoOutput[];
-        unsignedTx: {
-            body: string;
-            hash: string;
-        };
-    };
-};
+export type { PrecomposedTransactionFinalCardano } from '@trezor/connect';
 
-type PrecomposedTransactionBaseCardano =
-    | Extract<PrecomposedTransactionBase, { type: 'error' }>
-    | Extract<PrecomposedTransactionBase, { type: 'nonfinal' }>
-    | PrecomposedTransactionFinalCardano;
+// extend errors from @trezor/connect + @trezor/utxo-lib with errors from sendForm actions
+type PrecomposedTransactionErrorExtended =
+    | PrecomposeResultError
+    | {
+          type: 'error';
+          error:
+              | 'AMOUNT_NOT_ENOUGH_CURRENCY_FEE'
+              | 'AMOUNT_IS_NOT_ENOUGH'
+              | 'AMOUNT_IS_TOO_LOW'
+              | 'AMOUNT_IS_LESS_THAN_RESERVE';
+      };
+
+export type TxNonFinalCardano = PrecomposedTransactionNonFinalCardano & {
+    max?: string;
+    feeLimit?: string;
+    estimatedFeeLimit?: string;
+    token?: TokenInfo;
+};
 
 export type CurrencyOption = { value: string; label: string };
 
@@ -79,29 +85,11 @@ type ComposeError = {
     };
 };
 
-export type PrecomposedTransactionError = Extract<PrecomposedTransactionBase, { type: 'error' }> &
-    ComposeError;
+export type PrecomposedTransactionError = PrecomposedTransactionErrorExtended & ComposeError;
 
-export type PrecomposedTransactionErrorCardano = Extract<
-    PrecomposedTransactionBaseCardano,
-    { type: 'error' }
-> &
-    ComposeError;
+export type TxErrorCardano = PrecomposedTransactionErrorCardano & ComposeError;
 
-export type PrecomposedTransactionNonFinal = Extract<
-    PrecomposedTransactionBase,
-    { type: 'nonfinal' }
-> & {
-    max: string | undefined;
-    feeLimit?: string;
-    estimatedFeeLimit?: string;
-    token?: TokenInfo;
-};
-
-export type PrecomposedTransactionNonFinalCardano = Extract<
-    PrecomposedTransactionBaseCardano,
-    { type: 'nonfinal' }
-> & {
+export type PrecomposedTransactionNonFinal = PrecomposeResultNonFinal & {
     max: string | undefined;
     feeLimit?: string;
     estimatedFeeLimit?: string;
@@ -109,7 +97,7 @@ export type PrecomposedTransactionNonFinalCardano = Extract<
 };
 
 // base of PrecomposedTransactionFinal
-type TxFinal = Extract<PrecomposedTransactionBase, { type: 'final' }> & {
+type TxFinal = PrecomposeResultFinal & {
     max: string | undefined;
     feeLimit?: string;
     estimatedFeeLimit?: string;
@@ -118,8 +106,8 @@ type TxFinal = Extract<PrecomposedTransactionBase, { type: 'final' }> & {
 };
 
 // base of PrecomposedTransactionFinal
-export type TxFinalCardano = Extract<PrecomposedTransactionBaseCardano, { type: 'final' }> & {
-    max: string | undefined;
+export type TxFinalCardano = PrecomposedTransactionFinalCardano & {
+    max?: string;
     feeLimit?: string;
     estimatedFeeLimit?: string;
     token?: TokenInfo;
@@ -138,12 +126,14 @@ export type PrecomposedTransactionFinal =
           feeDifference?: typeof undefined;
           useNativeRbf?: typeof undefined;
           useDecreaseOutput?: typeof undefined;
+          isTokenKnown?: typeof undefined;
       })
     | (TxFinal & {
           prevTxid: string;
           feeDifference: string;
           useNativeRbf: boolean;
           useDecreaseOutput: boolean;
+          isTokenKnown?: boolean;
       });
 
 export type PrecomposedTransaction =
@@ -151,10 +141,7 @@ export type PrecomposedTransaction =
     | PrecomposedTransactionNonFinal
     | PrecomposedTransactionFinal;
 
-export type PrecomposedTransactionCardano =
-    | PrecomposedTransactionErrorCardano
-    | PrecomposedTransactionNonFinalCardano
-    | TxFinalCardano;
+export type PrecomposedTransactionCardano = TxErrorCardano | TxNonFinalCardano | TxFinalCardano;
 
 export type PrecomposedLevels = { [key: string]: PrecomposedTransaction };
 export type PrecomposedLevelsCardano = { [key: string]: PrecomposedTransactionCardano };
@@ -193,6 +180,11 @@ export interface WalletAccountTransaction extends AccountTransaction {
      * prepending txs have deadline (blockHeight) when they should be removed from UI
      */
     deadline?: number;
+}
+
+export interface ChainedTransactions {
+    own: WalletAccountTransaction[];
+    others: WalletAccountTransaction[];
 }
 
 export interface SignTransactionData {

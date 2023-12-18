@@ -1,6 +1,6 @@
 import { MiddlewareAPI } from 'redux';
 
-import { discoveryActions } from '@suite-common/wallet-core';
+import { deviceActions, discoveryActions } from '@suite-common/wallet-core';
 import { addLog } from '@suite-common/logger';
 import { TRANSPORT, DEVICE } from '@trezor/connect';
 import { redactUserPathFromString } from '@trezor/utils';
@@ -35,9 +35,23 @@ const log =
             );
         }
 
+        if (deviceActions.addButtonRequest.match(action)) {
+            if (action.payload.buttonRequest) {
+                api.dispatch(
+                    addLog({
+                        type: action.type,
+                        payload: {
+                            code: action.payload.buttonRequest.code,
+                        },
+                    }),
+                );
+            }
+        }
+
         switch (action.type) {
             case SUITE.SET_LANGUAGE:
             case SUITE.SET_THEME:
+            case SUITE.SET_ADDRESS_DISPLAY_TYPE:
             case SUITE.SET_AUTODETECT:
             case walletSettingsActions.setLocalCurrency.type:
             case WALLET_SETTINGS.SET_HIDE_BALANCE:
@@ -74,12 +88,12 @@ const log =
                     }),
                 );
                 break;
-            case SUITE.AUTH_DEVICE:
+            case deviceActions.authDevice.type:
             case DEVICE.CONNECT:
             case DEVICE.DISCONNECT:
             case discoveryActions.completeDiscovery.type:
-            case SUITE.UPDATE_SELECTED_DEVICE:
-            case SUITE.REMEMBER_DEVICE:
+            case deviceActions.updateSelectedDevice.type:
+            case deviceActions.rememberDevice.type:
                 api.dispatch(
                     addLog({
                         type: action.type,
@@ -142,18 +156,6 @@ const log =
                         },
                     }),
                 );
-                break;
-            case SUITE.ADD_BUTTON_REQUEST:
-                if (action.payload.buttonRequest) {
-                    api.dispatch(
-                        addLog({
-                            type: action.type,
-                            payload: {
-                                code: action.payload.buttonRequest.code,
-                            },
-                        }),
-                    );
-                }
                 break;
             case PROTOCOL.SAVE_COIN_PROTOCOL:
                 api.dispatch(

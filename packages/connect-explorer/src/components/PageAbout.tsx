@@ -1,10 +1,8 @@
-import React from 'react';
+/* eslint-disable react/no-danger */
 import { useDocs } from '../hooks/useDocs';
 
 export const About = () => {
-    const docs = useDocs(
-        'https://raw.githubusercontent.com/trezor/trezor-suite/develop/docs/packages/connect/index.md',
-    );
+    const docs = useDocs('./docs/index.md');
 
     return (
         <section>

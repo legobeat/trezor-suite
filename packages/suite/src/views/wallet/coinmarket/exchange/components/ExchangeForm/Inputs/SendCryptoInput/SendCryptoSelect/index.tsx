@@ -1,5 +1,4 @@
 import { Select, CoinLogo } from '@trezor/components';
-import React from 'react';
 import { Controller } from 'react-hook-form';
 import styled from 'styled-components';
 import { getEthereumTypeNetworkSymbols } from '@suite-common/wallet-config';
@@ -28,12 +27,23 @@ const TokenLogo = styled.img`
 `;
 
 const SendCryptoSelect = () => {
-    const { control, setAmountLimits, account, setValue, exchangeInfo, composeRequest } =
-        useCoinmarketExchangeFormContext();
+    const {
+        control,
+        setAmountLimits,
+        account,
+        setValue,
+        exchangeInfo,
+        composeRequest,
+        tokensFiatValue,
+    } = useCoinmarketExchangeFormContext();
     const { shouldSendInSats } = useBitcoinAmountUnit(account.symbol);
 
     const { tokens } = account;
-    const sendCryptoOptions = getSendCryptoOptions(account, exchangeInfo?.sellSymbols || new Set());
+    const sendCryptoOptions = getSendCryptoOptions(
+        account,
+        exchangeInfo?.sellSymbols || new Set(),
+        tokensFiatValue,
+    );
 
     const ethereumTypeNetworkSymbols = getEthereumTypeNetworkSymbols();
 

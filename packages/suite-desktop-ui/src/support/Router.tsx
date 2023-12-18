@@ -1,5 +1,7 @@
-import React, { memo } from 'react';
+import { memo, ComponentType } from 'react';
 import { Switch, Route } from 'react-router-dom';
+
+import { PageName } from '@suite-common/suite-types';
 
 import routes from 'src/constants/suite/routes';
 import Index from 'src/views/dashboard';
@@ -30,12 +32,12 @@ import WalletCoinmarketSavingsSetupWaiting from 'src/views/wallet/coinmarket/sav
 import WalletCoinmarketSavingsPaymentInfo from 'src/views/wallet/coinmarket/savings/payment-info';
 import WalletCoinmarketSavingsOverview from 'src/views/wallet/coinmarket/savings/overview';
 import WalletCoinmarketRedirect from 'src/views/wallet/coinmarket/redirect';
-import { SettingsGeneral } from 'src/views/settings/general/SettingsGeneral';
-import { SettingsCoins } from 'src/views/settings/coins/SettingsCoins';
-import { SettingsDebug } from 'src/views/settings/debug/SettingsDebug';
-import { SettingsDevice } from 'src/views/settings/device/SettingsDevice';
+import { SettingsGeneral } from 'src/views/settings/SettingsGeneral/SettingsGeneral';
+import { SettingsCoins } from 'src/views/settings/SettingsCoins/SettingsCoins';
+import { SettingsDebug } from 'src/views/settings/SettingsDebug/SettingsDebug';
+import { SettingsDevice } from 'src/views/settings/SettingsDevice/SettingsDevice';
 
-const components: { [key: string]: React.ComponentType<any> } = {
+const components: Record<PageName, ComponentType<any>> = {
     'suite-index': Index,
     'notifications-index': Notification,
 
@@ -80,7 +82,7 @@ export const AppRouter = memo(() => (
                 key={route.name}
                 path={process.env.ASSET_PREFIX + route.pattern}
                 exact={route.exact}
-                component={components[route.name]}
+                component={components[route.name as PageName]}
             />
         ))}
     </Switch>

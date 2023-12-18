@@ -15,25 +15,23 @@ export interface OnboardingRootState {
 export type DeviceTutorialStatus = 'active' | 'completed' | 'cancelled' | null;
 
 export interface OnboardingState {
-    reducerEnabled: boolean;
+    isActive: boolean;
     prevDevice: Device | null;
     activeStepId: AnyStepId;
-    activeSubStep: string | null;
     path: AnyPath[];
     onboardingAnalytics: Partial<OnboardingAnalytics>;
     tutorialStatus: DeviceTutorialStatus;
 }
 
 const initialState: OnboardingState = {
-    reducerEnabled: false,
+    isActive: false,
     // todo: prevDevice is now used to solve two different things and it cant work
     // would be better to implement field "isMatchingPrevDevice" along with prevDevice
     // prevDevice is used only in firmwareUpdate so maybe move it to firmwareUpdate
     // and here leave only isMatchingPrevDevice ?
 
     prevDevice: null,
-    activeStepId: STEP.ID_WELCOME_STEP,
-    activeSubStep: null,
+    activeStepId: STEP.ID_FIRMWARE_STEP,
     path: [],
     onboardingAnalytics: {},
     tutorialStatus: null,
@@ -51,7 +49,7 @@ const removePath = (paths: AnyPath[], state: OnboardingState) =>
 
 const onboarding = (state: OnboardingState = initialState, action: Action) => {
     if (
-        !state.reducerEnabled &&
+        !state.isActive &&
         ![ONBOARDING.RESET_ONBOARDING, ONBOARDING.ENABLE_ONBOARDING_REDUCER].includes(action.type)
     ) {
         return state;
@@ -60,14 +58,10 @@ const onboarding = (state: OnboardingState = initialState, action: Action) => {
     return produce(state, draft => {
         switch (action.type) {
             case ONBOARDING.ENABLE_ONBOARDING_REDUCER:
-                draft.reducerEnabled = action.payload;
+                draft.isActive = action.payload;
                 break;
             case ONBOARDING.SET_STEP_ACTIVE:
                 draft.activeStepId = action.stepId;
-                draft.activeSubStep = null;
-                break;
-            case ONBOARDING.GO_TO_SUBSTEP:
-                draft.activeSubStep = action.subStepId;
                 break;
             case ONBOARDING.ADD_PATH:
                 draft.path = addPath(action.payload, state);
@@ -94,5 +88,7 @@ const onboarding = (state: OnboardingState = initialState, action: Action) => {
 
 export const selectOnboardingTutorialStatus = (state: OnboardingRootState) =>
     state.onboarding.tutorialStatus;
+
+export const selectIsOnboadingActive = (state: OnboardingRootState) => state.onboarding.isActive;
 
 export default onboarding;

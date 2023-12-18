@@ -18,47 +18,13 @@ import { Action } from 'src/types/suite';
 //     suite?: SuiteState;
 // }
 
-jest.mock('@trezor/connect', () => {
-    let connectResponse: any;
-
-    return {
-        ...jest.requireActual('@trezor/connect'),
-        __esModule: true, // this property makes it work
-        default: {
-            blockchainSetCustomBackend: () => {},
-            getFeatures: () => Promise.resolve(connectResponse),
-            applySettings: () => Promise.resolve(connectResponse),
-            applyFlags: () => Promise.resolve(connectResponse),
-            backupDevice: () => Promise.resolve(connectResponse),
-            resetDevice: () => Promise.resolve(connectResponse),
-            changePin: () => Promise.resolve(connectResponse),
-            recoveryDevice: () => Promise.resolve(connectResponse),
-            wipeDevice: () => Promise.resolve(connectResponse),
-        },
-        DEVICE: {
-            DISCONNECT: 'device-disconnect',
-        },
-        TRANSPORT: {},
-        BLOCKCHAIN: {},
-        UI: {
-            REQUEST_BUTTON: 'ui-button',
-            FIRMWARE_PROGRESS: 'ui-firmware-progress',
-        },
-        setTestFixtures: (f: any) => {
-            if (!f || !f.mocks || !f.mocks.connectResponse) return;
-            const { mocks } = f;
-            connectResponse = mocks.connectResponse;
-        },
-    };
-});
-
 export const getInitialState = (custom?: any) => {
     const suite = custom ? custom.suite : undefined;
     const onboarding = custom ? custom.onboarding : undefined;
     return {
         onboarding: {
             ...onboardingReducer(undefined, {} as Action),
-            reducerEnabled: true,
+            isActive: true,
             ...onboarding,
             recovery: {
                 ...recoveryReducer(undefined, { type: 'foo' } as any),
@@ -68,6 +34,7 @@ export const getInitialState = (custom?: any) => {
             ...suiteReducer(undefined, {} as Action),
             ...suite,
         },
+        device: {},
     };
 };
 

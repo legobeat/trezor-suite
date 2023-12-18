@@ -1,4 +1,3 @@
-import React from 'react';
 import styled from 'styled-components';
 import invityAPI from 'src/services/suite/invityAPI';
 import { FormattedCryptoAmount, Translation } from 'src/components/suite';
@@ -6,7 +5,8 @@ import {
     CoinmarketExchangeTopPanel,
     CoinmarketFooter,
     CoinmarketRefreshTime,
-} from 'src/components/wallet';
+    NoOffers,
+} from 'src/views/wallet/coinmarket/common';
 import { variables, Icon, CoinLogo, H2 } from '@trezor/components';
 import { useLayout } from 'src/hooks/suite';
 import { useCoinmarketExchangeOffersContext } from 'src/hooks/wallet/useCoinmarketExchangeOffers';
@@ -14,10 +14,9 @@ import { useCoinmarketNavigation } from 'src/hooks/wallet/useCoinmarketNavigatio
 import { InvityAPIReloadQuotesAfterSeconds } from 'src/constants/wallet/coinmarket/metadata';
 import List from './List';
 import SelectedOffer from './SelectedOffer';
-import NoOffers from 'src/views/wallet/coinmarket/common/no-offers';
 
 const Wrapper = styled.div`
-    padding: 0 32px 32px 32px;
+    padding: 0 32px 32px;
 
     @media screen and (max-width: ${variables.SCREEN_SIZE.LG}) {
         padding: 16px;
@@ -29,7 +28,7 @@ const Wrapper = styled.div`
 `;
 
 const Header = styled.div`
-    margin: 18px 0 24px 0;
+    margin: 18px 0 24px;
 
     @media (max-width: ${variables.SCREEN_SIZE.SM}) {
         margin: 12px 0 24px;

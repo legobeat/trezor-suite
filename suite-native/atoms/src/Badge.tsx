@@ -1,22 +1,20 @@
-import React from 'react';
-
 import { prepareNativeStyle, useNativeStyles } from '@trezor/styles';
 import { Icon, IconSize, IconName, CryptoIconName, icons, CryptoIcon } from '@suite-common/icons';
 import { Color } from '@trezor/theme';
 
 import { Text } from './Text';
 import { HStack } from './Stack';
+import { SurfaceElevation } from './types';
 
 export type BadgeVariant = 'neutral' | 'green' | 'red' | 'bold';
 export type BadgeSize = 'small' | 'medium';
-export type BadgeElevation = '0' | '1';
 type BadgeProps = {
     label: string;
     variant?: BadgeVariant;
     size?: BadgeSize;
     icon?: IconName | CryptoIconName;
     iconSize?: IconSize;
-    elevation?: BadgeElevation;
+    elevation?: SurfaceElevation;
     isDisabled?: boolean;
 };
 
@@ -30,30 +28,23 @@ type BadgeStyle = {
 type BadgeStyleProps = {
     backgroundColor: Color;
     isDisabled: boolean;
-    isIconDisplayed: boolean;
+    size?: BadgeSize;
 };
 
 const BadgeStyle = prepareNativeStyle<BadgeStyleProps>(
-    (utils, { backgroundColor, isDisabled, isIconDisplayed }) => ({
+    (utils, { backgroundColor, isDisabled, size }) => ({
         alignItems: 'center',
         justifyContent: 'center',
         alignSelf: 'flex-start',
         backgroundColor: utils.colors[backgroundColor],
-        paddingHorizontal: utils.spacings.small,
+        paddingHorizontal: utils.spacings.small - (size === 'medium' ? 0 : 2),
         paddingVertical: utils.spacings.small / 4,
         borderRadius: utils.borders.radii.round,
-
         extend: [
             {
                 condition: isDisabled,
                 style: {
                     backgroundColor: utils.colors.backgroundNeutralSubtleOnElevation0,
-                },
-            },
-            {
-                condition: isIconDisplayed,
-                style: {
-                    paddingLeft: utils.spacings.extraSmall,
                 },
             },
         ],
@@ -112,7 +103,7 @@ export const Badge = ({
 
     const badgeIcon =
         icon && icon in icons ? (
-            <Icon name={icon as IconName} color={iconColor} size={iconSize ?? size} />
+            <Icon name={icon as IconName} color={iconColor} size={iconSize ?? 'small'} />
         ) : (
             <CryptoIcon
                 symbol={icon as CryptoIconName}
@@ -124,8 +115,8 @@ export const Badge = ({
         <HStack
             style={applyStyle(BadgeStyle, {
                 backgroundColor,
-                isIconDisplayed: !!icon,
                 isDisabled,
+                size,
             })}
             spacing={utils.spacings.extraSmall}
         >

@@ -1,5 +1,3 @@
-import React from 'react';
-
 import styled, { keyframes } from 'styled-components';
 
 const StyledLoaderWrapper = styled.div`
@@ -47,7 +45,7 @@ const StyledLoader = styled.div`
 `;
 
 const Circular = styled.div`
-    padding-top: 0px;
+    padding-top: 0;
     width: 100%;
     height: 100%;
     animation: ${rotateAnimation} 2s linear infinite;
@@ -64,7 +62,9 @@ const Route = styled.circle`
 const Path = styled.circle`
     stroke-dasharray: 1, 200;
     stroke-dashoffset: 0;
-    animation: ${dashAnimation} 1.5s ease-in-out infinite, color 6s ease-in-out infinite;
+    animation:
+        ${dashAnimation} 1.5s ease-in-out infinite,
+        color 6s ease-in-out infinite;
     animation-delay: 200ms;
     transition-delay: 200ms;
     stroke-linecap: round;
@@ -74,12 +74,15 @@ const Path = styled.circle`
         0% {
             stroke: #01b757;
         }
+
         40% {
             stroke: #01b757;
         }
+
         66% {
             stroke: #00ab51;
         }
+
         80%,
         90% {
             stroke: #009546;

@@ -1,15 +1,15 @@
-import * as suiteActions from 'src/actions/suite/suiteActions';
+import { initMessageSystemThunk } from '@suite-common/message-system';
+import * as trezorConnectActions from '@suite-common/connect-init';
+import { initBlockchainThunk, initDevices } from '@suite-common/wallet-core';
+
 import * as routerActions from 'src/actions/suite/routerActions';
 import * as analyticsActions from 'src/actions/suite/analyticsActions';
 import * as metadataActions from 'src/actions/suite/metadataActions';
-import { initMessageSystemThunk } from '@suite-common/message-system';
 import * as languageActions from 'src/actions/settings/languageActions';
 import type { Dispatch, GetState } from 'src/types/suite';
 
-import * as trezorConnectActions from '@suite-common/connect-init';
-import { initBlockchainThunk } from '@suite-common/wallet-core';
-
 import { SUITE } from './constants';
+import { onSuiteReady } from './suiteActions';
 
 export const init = () => async (dispatch: Dispatch, getState: GetState) => {
     const {
@@ -23,7 +23,7 @@ export const init = () => async (dispatch: Dispatch, getState: GetState) => {
 
     dispatch({ type: SUITE.INIT });
 
-    dispatch(suiteActions.initDevices());
+    dispatch(initDevices());
 
     // right after storage is loaded, we might start:
 
@@ -61,8 +61,8 @@ export const init = () => async (dispatch: Dispatch, getState: GetState) => {
     // 8. fetch metadata. metadata is not saved together with other data in storage.
     // historically it was saved in indexedDB together with devices and accounts and we did not need to load them
     // immediately after suite start.
-    dispatch(metadataActions.fetchAndSaveMetadata());
+    dispatch(metadataActions.fetchAndSaveMetadataForAllDevices());
 
     // 9. backend connected, suite is ready to use
-    dispatch({ type: SUITE.READY });
+    dispatch(onSuiteReady());
 };

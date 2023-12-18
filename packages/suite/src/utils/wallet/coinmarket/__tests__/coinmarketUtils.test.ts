@@ -8,7 +8,7 @@ import {
     getSendCryptoOptions,
     getTagAndInfoNote,
 } from '../coinmarketUtils';
-import { accountBtc, accountEth } from '../__fixtures__/coinmarketUtils';
+import { accountBtc, accountEth, tokensFiatValue } from '../__fixtures__/coinmarketUtils';
 
 describe('coinmarket utils', () => {
     it('buildOption', () => {
@@ -17,7 +17,7 @@ describe('coinmarket utils', () => {
 
     it('symbolToInvityApiSymbol', () => {
         expect(symbolToInvityApiSymbol('btc')).toStrictEqual('btc');
-        expect(symbolToInvityApiSymbol('usdt')).toStrictEqual('usdt20');
+        expect(symbolToInvityApiSymbol('usdt')).toStrictEqual('usdt');
     });
 
     it('getUnusedAddressFromAccount', () => {
@@ -58,19 +58,57 @@ describe('coinmarket utils', () => {
             },
         ]);
         expect(
-            getSendCryptoOptions(accountEth as Account, new Set(['eth', 'usdt20', 'usdc', 'dai'])),
+            getSendCryptoOptions(
+                accountEth as Account,
+                new Set(['eth', 'usdt20', 'usdt', 'usdc', 'dai']),
+            ),
         ).toStrictEqual([
             {
                 value: 'ETH',
                 label: 'ETH',
             },
             {
-                value: 'USDT20',
-                label: 'USDT20',
+                value: 'USDT',
+                label: 'USDT',
+                token: {
+                    type: 'ERC20',
+                    contract: '0x1234123412341234123412341234123412341234',
+                    symbol: 'usdt',
+                    decimals: 18,
+                },
             },
             {
                 label: 'USDC',
                 value: 'USDC',
+                token: {
+                    type: 'ERC20',
+                    contract: '0x1234123412341234123412341234123412341235',
+                    symbol: 'usdc',
+                    decimals: 18,
+                },
+            },
+        ]);
+
+        expect(
+            getSendCryptoOptions(
+                accountEth as Account,
+                new Set(['eth', 'usdt20', 'usdc', 'dai']),
+                tokensFiatValue,
+            ),
+        ).toStrictEqual([
+            {
+                value: 'ETH',
+                label: 'ETH',
+            },
+            {
+                label: 'USDC',
+                value: 'USDC',
+                token: {
+                    type: 'ERC20',
+                    contract: '0x1234123412341234123412341234123412341235',
+                    symbol: 'usdc',
+                    decimals: 18,
+                },
             },
         ]);
     });

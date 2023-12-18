@@ -1,11 +1,10 @@
 // https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/ts_src/payments/p2pk.ts
 
-import * as ecc from 'tiny-secp256k1';
-import * as typef from 'typeforce';
+import ecc from 'tiny-secp256k1';
 import { bitcoin as BITCOIN_NETWORK } from '../networks';
 import * as bscript from '../script';
 import * as lazy from './lazy';
-import { Payment, PaymentOpts, StackFunction } from '../types';
+import { Payment, PaymentOpts, StackFunction, typeforce } from '../types';
 
 const { OPS } = bscript;
 
@@ -17,14 +16,14 @@ export function p2pk(a: Payment, opts?: PaymentOpts): Payment {
 
     opts = Object.assign({ validate: true }, opts || {});
 
-    typef(
+    typeforce(
         {
-            network: typef.maybe(typef.Object),
-            output: typef.maybe(typef.Buffer),
-            pubkey: typef.maybe(ecc.isPoint),
+            network: typeforce.maybe(typeforce.Object),
+            output: typeforce.maybe(typeforce.Buffer),
+            pubkey: typeforce.maybe(ecc.isPoint),
 
-            signature: typef.maybe(bscript.isCanonicalScriptSignature),
-            input: typef.maybe(typef.Buffer),
+            signature: typeforce.maybe(bscript.isCanonicalScriptSignature),
+            input: typeforce.maybe(typeforce.Buffer),
         },
         a,
     );
@@ -40,7 +39,7 @@ export function p2pk(a: Payment, opts?: PaymentOpts): Payment {
     });
     lazy.prop(o, 'pubkey', () => {
         if (!a.output) return;
-        return a.output.slice(1, -1);
+        return a.output.subarray(1, -1);
     });
     lazy.prop(o, 'signature', () => {
         if (!a.input) return;

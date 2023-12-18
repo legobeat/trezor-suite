@@ -1,13 +1,13 @@
 import { OnboardingAnalytics } from '@trezor/suite-analytics';
 import TrezorConnect from '@trezor/connect';
+import { selectDevice } from '@suite-common/wallet-core';
 
 import { ONBOARDING } from 'src/actions/onboarding/constants';
 import * as STEP from 'src/constants/onboarding/steps';
 import { AnyStepId, AnyPath } from 'src/types/onboarding';
 import steps from 'src/config/onboarding/steps';
-import { findNextStep, findPrevStep, isStepInPath } from 'src/utils/onboarding/steps';
+import { findNextStep, findPrevStep, isStepUsed } from 'src/utils/onboarding/steps';
 import { GetState, Dispatch } from 'src/types/suite';
-import { selectDevice } from 'src/reducers/suite/suiteReducer';
 import { DeviceTutorialStatus } from 'src/reducers/onboarding/onboardingReducer';
 
 export type OnboardingAction =
@@ -27,10 +27,6 @@ export type OnboardingAction =
           payload: AnyPath;
       }
     | {
-          type: typeof ONBOARDING.GO_TO_SUBSTEP;
-          subStepId: string | null;
-      }
-    | {
           type: typeof ONBOARDING.SET_STEP_ACTIVE;
           stepId: AnyStepId;
       }
@@ -48,11 +44,6 @@ const goToStep = (stepId: AnyStepId): OnboardingAction => ({
     stepId,
 });
 
-const goToSubStep = (subStepId: string | null): OnboardingAction => ({
-    type: ONBOARDING.GO_TO_SUBSTEP,
-    subStepId,
-});
-
 const addPath = (payload: AnyPath): OnboardingAction => ({
     type: ONBOARDING.ADD_PATH,
     payload,
@@ -67,9 +58,10 @@ const goToNextStep = (stepId?: AnyStepId) => (dispatch: Dispatch, getState: GetS
     if (stepId) {
         return dispatch(goToStep(stepId));
     }
-    const { activeStepId, path } = getState().onboarding;
-    const stepsInPath = steps.filter(step => isStepInPath(step, path));
-    const nextStep = findNextStep(activeStepId, stepsInPath);
+
+    const stepsInPath = steps.filter(step => isStepUsed(step, getState));
+
+    const nextStep = findNextStep(getState().onboarding.activeStepId, stepsInPath);
     dispatch(goToStep(nextStep.id));
 };
 
@@ -77,9 +69,10 @@ const goToPreviousStep = (stepId?: AnyStepId) => (dispatch: Dispatch, getState: 
     if (stepId) {
         return dispatch(goToStep(stepId));
     }
-    const { activeStepId, path } = getState().onboarding;
-    const stepsInPath = steps.filter(step => isStepInPath(step, path));
-    const prevStep = findPrevStep(activeStepId, stepsInPath);
+
+    const stepsInPath = steps.filter(step => isStepUsed(step, getState));
+
+    const prevStep = findPrevStep(getState().onboarding.activeStepId, stepsInPath);
     // steps listed in case statements contain path decisions, so we need
     // to remove saved paths from reducers to let user change it again.
     switch (prevStep.id) {
@@ -120,7 +113,7 @@ const setDeviceTutorialStatus = (status: DeviceTutorialStatus): OnboardingAction
     payload: status,
 });
 
-const beginOnbordingTutorial = () => async (dispatch: Dispatch, getState: GetState) => {
+const beginOnboardingTutorial = () => async (dispatch: Dispatch, getState: GetState) => {
     const device = selectDevice(getState());
     if (!device) return;
 
@@ -138,7 +131,6 @@ const beginOnbordingTutorial = () => async (dispatch: Dispatch, getState: GetSta
 export {
     enableOnboardingReducer,
     goToNextStep,
-    goToSubStep,
     goToStep,
     goToPreviousStep,
     addPath,
@@ -146,5 +138,5 @@ export {
     resetOnboarding,
     updateAnalytics,
     setDeviceTutorialStatus,
-    beginOnbordingTutorial,
+    beginOnboardingTutorial,
 };

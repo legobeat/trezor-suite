@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useDispatch, useSelector } from 'src/hooks/suite';
 import styled from 'styled-components';
 
@@ -74,7 +74,7 @@ const StyledCheckbox = styled(Checkbox)`
 `;
 
 const StyledButton = styled(Button)`
-    margin: 24px auto 0 auto;
+    margin: 24px auto 0;
 
     :disabled {
         background: ${({ theme }) => theme.STROKE_GREY};

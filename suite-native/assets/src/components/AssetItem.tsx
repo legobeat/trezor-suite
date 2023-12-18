@@ -1,18 +1,17 @@
-import React from 'react';
+import { memo } from 'react';
 import { TouchableOpacity } from 'react-native';
 import { useSelector } from 'react-redux';
 
 import { useNavigation } from '@react-navigation/native';
 
 import { CryptoIconName, CryptoIconWithPercentage, Icon } from '@suite-common/icons';
-import { prepareNativeStyle, useNativeStyles } from '@trezor/styles';
 import { NetworkSymbol } from '@suite-common/wallet-config';
-import { Box, Text } from '@suite-native/atoms';
 import {
     AccountsRootState,
-    selectAccountsAmountPerSymbol,
-    selectAccountsByNetworkAndDevice,
+    DeviceRootState,
+    selectAccountsByNetworkSymbol,
 } from '@suite-common/wallet-core';
+import { Box, Text } from '@suite-native/atoms';
 import { CryptoAmountFormatter, FiatAmountFormatter } from '@suite-native/formatters';
 import {
     AppTabsParamList,
@@ -21,7 +20,7 @@ import {
     RootStackRoutes,
     TabToStackCompositeNavigationProp,
 } from '@suite-native/navigation';
-import { HIDDEN_DEVICE_STATE } from '@suite-native/module-devices';
+import { prepareNativeStyle, useNativeStyles } from '@trezor/styles';
 
 type AssetItemProps = {
     cryptoCurrencySymbol: NetworkSymbol;
@@ -53,7 +52,13 @@ const iconStyle = prepareNativeStyle(() => ({
     marginRight: 6,
 }));
 
-export const AssetItem = React.memo(
+type NavigationType = TabToStackCompositeNavigationProp<
+    AppTabsParamList,
+    AppTabsRoutes.HomeStack,
+    RootStackParamList
+>;
+
+export const AssetItem = memo(
     ({
         cryptoCurrencySymbol,
         cryptoCurrencyValue,
@@ -65,20 +70,12 @@ export const AssetItem = React.memo(
         onPress,
     }: AssetItemProps) => {
         const { applyStyle } = useNativeStyles();
-        const navigation =
-            useNavigation<
-                TabToStackCompositeNavigationProp<
-                    AppTabsParamList,
-                    AppTabsRoutes.HomeStack,
-                    RootStackParamList
-                >
-            >();
-        const accountsPerAsset = useSelector((state: AccountsRootState) =>
-            selectAccountsAmountPerSymbol(state, cryptoCurrencySymbol),
+        const navigation = useNavigation<NavigationType>();
+
+        const accountsForNetworkSymbol = useSelector((state: AccountsRootState & DeviceRootState) =>
+            selectAccountsByNetworkSymbol(state, cryptoCurrencySymbol),
         );
-        const accountsForNetworkSymbol = useSelector((state: AccountsRootState) =>
-            selectAccountsByNetworkAndDevice(state, HIDDEN_DEVICE_STATE, cryptoCurrencySymbol),
-        );
+        const accountsPerAsset = accountsForNetworkSymbol.length;
 
         const handleAssetPress = () => {
             if (accountsPerAsset === 1) {

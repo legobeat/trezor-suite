@@ -1,5 +1,6 @@
-import TrezorConnect, { FeeLevel, RipplePayment } from '@trezor/connect';
 import BigNumber from 'bignumber.js';
+
+import TrezorConnect, { FeeLevel, RipplePayment } from '@trezor/connect';
 import { notificationsActions } from '@suite-common/toast-notifications';
 import {
     calculateTotal,
@@ -17,7 +18,10 @@ import {
     PrecomposedTransactionFinal,
     ExternalOutput,
 } from '@suite-common/wallet-types';
+import { selectDevice } from '@suite-common/wallet-core';
+
 import { Dispatch, GetState } from 'src/types/suite';
+import { AddressDisplayOptions, selectAddressDisplayType } from 'src/reducers/suite/suiteReducer';
 
 const calculate = (
     availableBalance: string,
@@ -54,30 +58,29 @@ const calculate = (
     }
 
     const payloadData = {
-        type: 'nonfinal',
+        type: 'nonfinal' as const,
         totalSpent: totalSpent.toString(),
         max,
         fee: feeInSatoshi,
         feePerByte: feeLevel.feePerUnit,
         bytes: 0, // TODO: calculate
-    } as const;
+        inputs: [],
+    };
 
-    if (output.type === 'send-max' || output.type === 'external') {
+    if (output.type === 'send-max' || output.type === 'payment') {
         return {
             ...payloadData,
             type: 'final',
             // compatibility with BTC PrecomposedTransaction from @trezor/connect
-            transaction: {
-                inputs: [],
-                outputsPermutation: [0],
-                outputs: [
-                    {
-                        address: output.address,
-                        amount,
-                        script_type: 'PAYTOADDRESS',
-                    },
-                ],
-            },
+            inputs: [],
+            outputsPermutation: [0],
+            outputs: [
+                {
+                    address: output.address,
+                    amount,
+                    script_type: 'PAYTOADDRESS',
+                },
+            ],
         };
     }
     return payloadData;
@@ -110,6 +113,7 @@ export const composeTransaction =
             const accountResponse = await TrezorConnect.getAccountInfo({
                 descriptor: address,
                 coin: account.symbol,
+                suppressBackupWarning: true,
             });
             if (accountResponse.success && accountResponse.payload.empty) {
                 requiredAmount = new BigNumber(accountResponse.payload.misc!.reserve!);
@@ -177,7 +181,7 @@ export const signTransaction =
     (formValues: FormState, transactionInfo: PrecomposedTransactionFinal) =>
     async (dispatch: Dispatch, getState: GetState) => {
         const { selectedAccount } = getState().wallet;
-        const { device } = getState().suite;
+        const device = selectDevice(getState());
         if (
             selectedAccount.status !== 'loaded' ||
             !device ||
@@ -187,6 +191,8 @@ export const signTransaction =
             return;
         const { account } = selectedAccount;
         if (account.networkType !== 'ripple') return;
+
+        const addressDisplayType = selectAddressDisplayType(getState());
 
         const payment: RipplePayment = {
             destination: formValues.outputs[0].address,
@@ -211,9 +217,10 @@ export const signTransaction =
                 sequence: account.misc.sequence,
                 payment,
             },
+            chunkify: addressDisplayType === AddressDisplayOptions.CHUNKED,
         });
         if (!signedTx.success) {
-            // catch manual error from ReviewTransaction modal
+            // catch manual error from TransactionReviewModal
             if (signedTx.payload.error === 'tx-cancelled') return;
             dispatch(
                 notificationsActions.addToast({

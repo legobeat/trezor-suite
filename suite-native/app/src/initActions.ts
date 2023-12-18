@@ -1,9 +1,12 @@
 import { createThunk } from '@suite-common/redux-utils';
 import { connectInitThunk } from '@suite-common/connect-init';
-import { initBlockchainThunk } from '@suite-common/wallet-core';
+import { createImportedDeviceThunk, initBlockchainThunk } from '@suite-common/wallet-core';
 import { initAnalyticsThunk } from '@suite-native/analytics';
 import { periodicFetchFiatRatesThunk } from '@suite-native/fiat-rates';
 import { selectFiatCurrencyCode } from '@suite-native/module-settings';
+import { getJWSPublicKey } from '@suite-native/config';
+import { initMessageSystemThunk } from '@suite-common/message-system';
+import { wipeDisconnectedDevicesDataThunk } from '@suite-native/device';
 
 import { setIsAppReady, setIsConnectInitialized } from '../../state/src/appSlice';
 
@@ -19,14 +22,13 @@ export const applicationInit = createThunk(
         try {
             dispatch(initAnalyticsThunk());
 
-            // TODO: uncomment or revert commit when UI is ready for message system
-            // dispatch(initMessageSystemThunk({ jwsPublicKey: getJWSPublicKey() }));
+            dispatch(initMessageSystemThunk({ jwsPublicKey: getJWSPublicKey() }));
 
-            await dispatch(connectInitThunk()).unwrap();
+            await dispatch(connectInitThunk());
 
             dispatch(setIsConnectInitialized(true));
 
-            dispatch(initBlockchainThunk()).unwrap();
+            dispatch(initBlockchainThunk());
 
             dispatch(
                 periodicFetchFiatRatesThunk({
@@ -34,6 +36,15 @@ export const applicationInit = createThunk(
                     localCurrency: selectFiatCurrencyCode(getState()),
                 }),
             );
+
+            // We need to make sure to have imported device in state
+            // Since devices are not persisted,
+            // we need to create device instance on app start
+            dispatch(createImportedDeviceThunk());
+
+            // In case that user closed the app while device was connected,
+            // remove its persistent data on app init if the device is not connected anymore.
+            dispatch(wipeDisconnectedDevicesDataThunk());
         } catch (error) {
             console.error(error);
         } finally {

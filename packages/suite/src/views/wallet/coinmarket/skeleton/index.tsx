@@ -1,8 +1,9 @@
-import React from 'react';
 import styled from 'styled-components';
+
 import { variables } from '@trezor/components';
+
 import { useLoadingSkeleton } from 'src/hooks/suite';
-import { SkeletonRectangle, Spread } from 'src/components/suite/Skeleton';
+import { SkeletonRectangle, SkeletonSpread } from 'src/components/suite';
 import {
     Wrapper,
     Left,
@@ -15,6 +16,7 @@ import {
 const SkeletonWrapper = styled.div`
     display: flex;
     width: 100%;
+
     @media screen and (max-width: ${variables.SCREEN_SIZE.LG}) {
         flex-direction: column;
     }
@@ -35,6 +37,7 @@ const StyledLeft = styled(Left)`
     @media screen and (max-width: ${variables.SCREEN_SIZE.LG}) {
         width: 100%;
     }
+
     @media screen and (max-width: ${variables.SCREEN_SIZE.MD}) {
         margin-left: 0;
         justify-content: center;
@@ -51,6 +54,7 @@ const StyledRight = styled(Right)`
         width: 100%;
         justify-content: flex-end;
     }
+
     @media screen and (max-width: ${variables.SCREEN_SIZE.MD}) {
         margin-top: 20px;
         justify-content: center;
@@ -77,10 +81,10 @@ export const CoinmarketSkeleton = () => {
             </SkeletonWrapper>
             <FooterSkeletonWrapper>
                 <StyledLeft>
-                    <Spread childMargin="0 8px 0 0" alignItems="center">
+                    <SkeletonSpread childMargin="0 8px 0 0" alignItems="center">
                         <SkeletonRectangle height="20px" width="68px" animate={shouldAnimate} />
                         <SkeletonRectangle height="20px" width="180px" animate={shouldAnimate} />
-                    </Spread>
+                    </SkeletonSpread>
                 </StyledLeft>
                 <StyledRight>
                     <SkeletonRectangle height="38px" width="200px" animate={shouldAnimate} />

@@ -1,6 +1,6 @@
 // origin: https://github.com/trezor/connect/blob/develop/src/js/core/methods/GetAccountInfo.js
 
-import { AbstractMethod, MethodReturnType } from '../core/AbstractMethod';
+import { AbstractMethod, MethodReturnType, DEFAULT_FIRMWARE_RANGE } from '../core/AbstractMethod';
 import { Discovery } from './common/Discovery';
 import { validateParams, getFirmwareRange } from './common/paramsValidator';
 import { validatePath, getSerializedPath } from '../utils/pathUtils';
@@ -10,7 +10,7 @@ import { getCoinInfo } from '../data/coinInfo';
 import { PROTO, ERRORS } from '../constants';
 import { UI, createUiMessage } from '../events';
 import { isBackendSupported, initBlockchain } from '../backend/BlockchainLink';
-import type { CoinInfo, AccountInfo, AccountUtxo } from '../types';
+import type { CoinInfo, AccountInfo, AccountUtxo, DerivationPath } from '../types';
 import type { GetAccountInfo as GetAccountInfoParams } from '../types/api/getAccountInfo';
 
 type Request = GetAccountInfoParams & { address_n: number[]; coinInfo: CoinInfo };
@@ -55,6 +55,7 @@ export default class GetAccountInfo extends AbstractMethod<'getAccountInfo', Req
                 { name: 'marker', type: 'object' },
                 { name: 'defaultAccountType', type: 'string' },
                 { name: 'derivationType', type: 'number' },
+                { name: 'suppressBackupWarning', type: 'boolean' },
             ]);
 
             // validate coin info
@@ -117,7 +118,7 @@ export default class GetAccountInfo extends AbstractMethod<'getAccountInfo', Req
             );
         } else {
             const keys: {
-                [coin: string]: { coinInfo: CoinInfo; values: Array<string | number[]> };
+                [coin: string]: { coinInfo: CoinInfo; values: DerivationPath[] };
             } = {};
             this.params.forEach(b => {
                 if (!keys[b.coinInfo.label]) {
@@ -161,7 +162,10 @@ export default class GetAccountInfo extends AbstractMethod<'getAccountInfo', Req
         return uiResp.payload;
     }
 
-    async noBackupConfirmation() {
+    async noBackupConfirmation(allowSuppression?: boolean) {
+        if (allowSuppression && this.params.every(batch => batch.suppressBackupWarning)) {
+            return true;
+        }
         // wait for popup window
         await this.getPopupPromise().promise;
         // initialize user response promise
@@ -188,15 +192,15 @@ export default class GetAccountInfo extends AbstractMethod<'getAccountInfo', Req
             return super.checkFirmwareRange(isUsingPopup);
         }
         // for trusted mode check each batch and return error with invalid bundle indexes
-        const defaultRange = {
-            1: { min: '1.0.0', max: '0' },
-            2: { min: '2.0.0', max: '0' },
-        };
         // find invalid ranges
         const invalid = [];
         for (let i = 0; i < this.params.length; i++) {
             // set FW range for current batch
-            this.firmwareRange = getFirmwareRange(this.name, this.params[i].coinInfo, defaultRange);
+            this.firmwareRange = getFirmwareRange(
+                this.name,
+                this.params[i].coinInfo,
+                DEFAULT_FIRMWARE_RANGE,
+            );
             const exception = await super.checkFirmwareRange(false);
             if (exception) {
                 invalid.push({

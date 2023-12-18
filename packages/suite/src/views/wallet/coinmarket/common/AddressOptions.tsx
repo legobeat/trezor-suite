@@ -1,13 +1,17 @@
-import React, { useEffect } from 'react';
+import { useEffect, ReactElement } from 'react';
+import { UseFormReturn, Control, Controller } from 'react-hook-form';
+import type { MenuPlacement } from 'react-select';
 import styled from 'styled-components';
+
 import type { AccountAddress } from '@trezor/connect';
 import { Translation, FiatValue, FormattedCryptoAmount } from 'src/components/suite';
 import { variables, Select } from '@trezor/components';
-import { UseFormReturn, Control, Controller } from 'react-hook-form';
 import { formatNetworkAmount } from '@suite-common/wallet-utils';
 import type { Account } from 'src/types/wallet';
 import { useAccountAddressDictionary } from 'src/hooks/wallet/useAccounts';
-import type { MenuPlacement } from 'react-select';
+import { AddressOptionsFormState } from 'src/types/wallet/coinmarketBuyOffers';
+import { selectLabelingDataForAccount } from 'src/reducers/suite/metadataReducer';
+import { useSelector } from 'src/hooks/suite';
 
 const AddressWrapper = styled.div`
     display: flex;
@@ -19,7 +23,7 @@ const FiatWrapper = styled.div`
 `;
 
 const PathWrapper = styled.div`
-    padding: 0 3px 0 3px;
+    padding: 0 3px;
 `;
 
 const Amount = styled.div`
@@ -47,7 +51,7 @@ const buildOptions = (addresses: Account['addresses']) => {
     if (!addresses) return undefined;
 
     interface Options {
-        label: React.ReactElement;
+        label: ReactElement;
         options: AccountAddress[];
     }
 
@@ -62,10 +66,6 @@ const buildOptions = (addresses: Account['addresses']) => {
     };
 
     return [unused, used];
-};
-
-export type AddressOptionsFormState = {
-    address?: string;
 };
 
 interface AddressOptionsProps<TFieldValues extends AddressOptionsFormState>
@@ -89,6 +89,9 @@ export const AddressOptions = <TFieldValues extends AddressOptionsFormState>({
     const addresses = account?.addresses;
     const addressDictionary = useAccountAddressDictionary(account);
     const value = address ? addressDictionary[address] : undefined;
+    const accountMetadata = useSelector(state =>
+        selectLabelingDataForAccount(state, account?.key || ''),
+    );
 
     useEffect(() => {
         if (!address && addresses) {
@@ -117,7 +120,10 @@ export const AddressOptions = <TFieldValues extends AddressOptionsFormState>({
                         return (
                             <Option>
                                 <AddressWrapper>
-                                    <Address>{accountAddress.address}</Address>
+                                    <Address>
+                                        {accountMetadata.addressLabels[accountAddress.address] ||
+                                            accountAddress.address}
+                                    </Address>
                                     <Amount>
                                         <CryptoWrapper>
                                             <FormattedCryptoAmount

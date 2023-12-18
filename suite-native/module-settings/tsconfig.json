@@ -12,11 +12,13 @@
         {
             "path": "../../suite-common/suite-constants"
         },
-        { "path": "../alerts" },
         { "path": "../analytics" },
         { "path": "../atoms" },
         { "path": "../biometrics" },
         { "path": "../config" },
+        { "path": "../device-manager" },
+        { "path": "../feature-flags" },
+        { "path": "../intl" },
         { "path": "../link" },
         { "path": "../navigation" },
         { "path": "../storage" },

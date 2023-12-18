@@ -1,73 +1,60 @@
-import { promisify } from 'util';
+/* eslint-disable no-console */
+
+import { Page, _electron as electron } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
-import { Page, _electron as electron } from '@playwright/test';
-
-const mkdir = promisify(fs.mkdir);
-const fileExists = promisify(fs.exists);
-const copyFile = promisify(fs.copyFile);
-const chmod = promisify(fs.chmod);
 
 export const launchSuite = async () => {
+    const appDir = path.join(__dirname, '../../../suite-desktop');
+    const desiredLogLevel = process.env.LOGLEVEL ?? 'error';
     const electronApp = await electron.launch({
-        cwd: path.join(__dirname, '../../../suite-desktop'),
-        args: ['./dist/app.js', '--log-level=debug', '--bridge-test'],
+        cwd: appDir,
+        args: [
+            path.join(appDir, './dist/app.js'),
+            `--log-level=${desiredLogLevel}`,
+            '--bridge-test',
+        ],
         // when testing electron, video needs to be setup like this. it works locally but not in docker
         // recordVideo: { dir: 'test-results' },
     });
+
+    electronApp.process().stdout?.on('data', data => console.log(data.toString()));
+    electronApp.process().stderr?.on('data', data => console.error(data.toString()));
+
+    await electronApp.evaluate(
+        (_, [resourcesPath]) => {
+            // This runs in the main Electron process.
+            // override global variable defined in app.ts
+            global.resourcesPath = resourcesPath;
+            return global.resourcesPath;
+        },
+        [path.join(appDir, 'build/static')],
+    );
+
     const window = await electronApp.firstWindow();
-    return { electronApp, window };
-};
+    const localDataDir = await electronApp.evaluate(({ app }) => app.getPath('userData'));
 
-export const patchBinaries = async () => {
-    const binResourcesPathFrom = path.join(__dirname, '../../..', 'suite-data/files/bin');
-    const binResourcesPathTo = path.join(
-        __dirname,
-        '../../../..',
-        '/node_modules/electron/dist/resources/bin',
-    );
-
-    const trezordPathFrom = path.join(binResourcesPathFrom, '/bridge/linux-x64/trezord');
-    const trezordPathTo = path.join(binResourcesPathTo, 'bridge');
-    if (!(await fileExists(trezordPathTo))) {
-        await mkdir(trezordPathTo, {
-            recursive: true,
-        });
-    }
-    await copyFile(trezordPathFrom, `${trezordPathTo}/trezord`);
-
-    const torPathFrom = path.join(binResourcesPathFrom, '/tor/linux-x64/tor');
-    const torPathTo = path.join(binResourcesPathTo, 'tor');
-    if (!(await fileExists(torPathTo))) {
-        await mkdir(torPathTo, {
-            recursive: true,
-        });
-    }
-
-    await copyFile(torPathFrom, `${torPathTo}/tor`);
-
-    const coinjoinMiddlewarePathFrom = path.join(
-        binResourcesPathFrom,
-        '/coinjoin/linux-x64/WalletWasabi.WabiSabiClientLibrary',
-    );
-    const coinjoinMiddlewarePathTo = path.join(binResourcesPathTo, 'coinjoin');
-
-    if (!(await fileExists(coinjoinMiddlewarePathTo))) {
-        await mkdir(coinjoinMiddlewarePathTo, {
-            recursive: true,
-        });
-    }
-
-    await copyFile(
-        coinjoinMiddlewarePathFrom,
-        `${coinjoinMiddlewarePathTo}/WalletWasabi.WabiSabiClientLibrary`,
-    );
-    // todo: for some reason, wabisabiclient lib needs to update permissions
-    await chmod(
-        `${coinjoinMiddlewarePathTo}/WalletWasabi.WabiSabiClientLibrary`,
-        fs.constants.S_IXOTH,
-    );
+    return { electronApp, window, localDataDir };
 };
 
 export const waitForDataTestSelector = (window: Page, selector: string, options = {}) =>
     window.waitForSelector(`[data-test="${selector}"]`, options);
+
+// TODO: usage of .click is discouraged by playwright devs. Refactor all usage to locator.click()
+export const clickDataTest = (window: Page, selector: string) => {
+    window.click(`[data-test="${selector}"]`);
+};
+
+export const rmDirRecursive = (folder: string) => {
+    if (fs.existsSync(folder)) {
+        fs.readdirSync(folder).forEach(file => {
+            const curPath = `${folder}/${file}`;
+            if (fs.lstatSync(curPath).isDirectory()) {
+                rmDirRecursive(curPath);
+            } else {
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(folder);
+    }
+};

@@ -1,17 +1,15 @@
 import { combineReducers, createReducer } from '@reduxjs/toolkit';
+
 import { configureMockStore, initPreloadedState, testMocks } from '@suite-common/test-utils';
 
 import { accountsReducer } from 'src/reducers/wallet';
 import { coinjoinReducer } from 'src/reducers/wallet/coinjoinReducer';
 import selectedAccountReducer from 'src/reducers/wallet/selectedAccountReducer';
+import { CoinjoinService } from 'src/services/coinjoin/coinjoinService';
+
 import * as coinjoinAccountActions from '../coinjoinAccountActions';
 import * as coinjoinClientActions from '../coinjoinClientActions';
 import * as fixtures from '../__fixtures__/coinjoinAccountActions';
-import { CoinjoinService } from 'src/services/coinjoin/coinjoinService';
-
-jest.mock('@trezor/connect', () => global.JestMocks.getTrezorConnect({}));
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const TrezorConnect = require('@trezor/connect').default;
 
 jest.mock('src/services/coinjoin/coinjoinService', () => {
     const mock = jest.requireActual('../__fixtures__/mockCoinjoinService');
@@ -24,14 +22,13 @@ const rootReducer = combineReducers({
     suite: createReducer(
         {
             locks: [],
-            device: DEVICE,
             settings: {
                 debug: {},
             },
         },
         () => ({}),
     ),
-    devices: createReducer([DEVICE], () => ({})),
+    device: createReducer({ devices: [DEVICE], selectedDevice: DEVICE }, () => ({})),
     modal: () => ({}),
     wallet: combineReducers({
         coinjoin: coinjoinReducer,
@@ -43,7 +40,7 @@ const rootReducer = combineReducers({
 });
 
 type State = ReturnType<typeof rootReducer>;
-type Wallet = Partial<State['wallet']> & { devices?: State['devices'] };
+type Wallet = Partial<State['wallet']> & { devices?: State['device']['devices'] };
 
 const initStore = ({ accounts, coinjoin, devices }: Wallet = {}) =>
     // State != suite AppState, therefore <any>
@@ -51,7 +48,7 @@ const initStore = ({ accounts, coinjoin, devices }: Wallet = {}) =>
         reducer: rootReducer,
         preloadedState: initPreloadedState({
             rootReducer,
-            partialState: { devices, wallet: { accounts, coinjoin } },
+            partialState: { device: { devices }, wallet: { accounts, coinjoin } },
         }),
     });
 
@@ -66,7 +63,7 @@ describe('coinjoinAccountActions', () => {
     fixtures.createCoinjoinAccount.forEach(f => {
         it(`createCoinjoinAccount: ${f.description}`, async () => {
             const store = initStore();
-            TrezorConnect.setTestFixtures(f.connect);
+            testMocks.setTrezorConnectFixtures(f.connect);
             jest.spyOn(console, 'log').mockImplementation(() => {});
 
             await store.dispatch(coinjoinAccountActions.createCoinjoinAccount(f.params as any)); // params are incomplete
@@ -79,7 +76,7 @@ describe('coinjoinAccountActions', () => {
     fixtures.startCoinjoinSession.forEach(f => {
         it(`startCoinjoinSession: ${f.description}`, async () => {
             const store = initStore(f.state as Wallet);
-            TrezorConnect.setTestFixtures(f.connect);
+            testMocks.setTrezorConnectFixtures(f.connect);
             // @ts-expect-error params are incomplete
             await store.dispatch(coinjoinAccountActions.startCoinjoinSession(f.params, {}));
 

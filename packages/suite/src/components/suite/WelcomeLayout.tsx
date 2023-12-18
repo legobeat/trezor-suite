@@ -1,20 +1,22 @@
-import React from 'react';
+import { ReactNode } from 'react';
 import styled from 'styled-components';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { H1, TrezorLogo, Button, variables, SVG_IMAGES } from '@trezor/components';
 import { useOnce } from '@trezor/react-utils';
 import { Translation } from 'src/components/suite';
+// importing directly, otherwise unit tests fail, seems to be a styled-components issue
+import { TrezorLink } from 'src/components/suite/TrezorLink';
 import { useSelector } from 'src/hooks/suite';
 import { selectBannerMessage } from '@suite-common/message-system';
-import MessageSystemBanner from 'src/components/suite/Banners/MessageSystemBanner';
-import TrezorLink from 'src/components/suite/TrezorLink';
+import { MessageSystemBanner } from 'src/components/suite/banners';
 import { isWeb } from '@trezor/env-utils';
 import { TREZOR_URL, SUITE_URL } from '@trezor/urls';
 import { resolveStaticPath } from '@suite-common/suite-utils';
 import { GuideButton, GuidePanel } from 'src/components/guide';
 import { useGuide } from 'src/hooks/guide';
-import { NavSettings } from 'src/components/suite/NavigationBar/components/NavigationActions/components/NavSettings';
+import { NavSettings } from 'src/components/suite/Preloader/SuiteLayout/NavigationBar/NavigationActions/NavSettings';
+import { MAX_WIDTH } from 'src/constants/suite/layout';
 
 const Wrapper = styled.div`
     display: flex;
@@ -57,13 +59,17 @@ const MotionWelcome = styled(motion.div)`
 
 const WelcomeTitle = styled(H1)`
     font-size: 60px;
+    line-height: 1;
+    text-align: center;
     font-weight: bold;
     margin-top: 32px;
 `;
 
-const Bottom = styled.div`
+const LinksContainer = styled.div`
+    position: absolute;
+    bottom: 0;
     display: flex;
-    margin: 24px 0px;
+    margin: 24px 0;
 `;
 
 const Content = styled.div`
@@ -92,11 +98,22 @@ const StyledTrezorLink = styled(TrezorLink)`
 `;
 
 const SettingsWrapper = styled.div`
+    position: absolute;
     align-self: flex-end;
 `;
 
+const ChildrenWrapper = styled.div`
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: ${MAX_WIDTH};
+`;
+
 interface WelcomeLayoutProps {
-    children: React.ReactNode;
+    children: ReactNode;
 }
 
 // WelcomeLayout is a top-level wrapper similar to @suite-components/SuiteLayout
@@ -111,6 +128,7 @@ export const WelcomeLayout = ({ children }: WelcomeLayoutProps) => {
     return (
         <Wrapper>
             {bannerMessage && <MessageSystemBanner message={bannerMessage} />}
+
             <Body data-test="@welcome-layout/body">
                 <WelcomeWrapper>
                     <AnimatePresence>
@@ -133,11 +151,13 @@ export const WelcomeLayout = ({ children }: WelcomeLayoutProps) => {
                             >
                                 <Expander>
                                     <TrezorLogo type="suite" width="128px" />
+
                                     <WelcomeTitle data-test="@welcome/title">
                                         <Translation id="TR_ONBOARDING_WELCOME_HEADING" />
                                     </WelcomeTitle>
                                 </Expander>
-                                <Bottom>
+
+                                <LinksContainer>
                                     {isWeb() && (
                                         <StyledTrezorLink
                                             size="small"
@@ -153,6 +173,7 @@ export const WelcomeLayout = ({ children }: WelcomeLayoutProps) => {
                                             </Button>
                                         </StyledTrezorLink>
                                     )}
+
                                     <TrezorLink size="small" variant="nostyle" href={TREZOR_URL}>
                                         <Button
                                             variant="tertiary"
@@ -162,16 +183,18 @@ export const WelcomeLayout = ({ children }: WelcomeLayoutProps) => {
                                             trezor.io
                                         </Button>
                                     </TrezorLink>
-                                </Bottom>
+                                </LinksContainer>
                             </MotionWelcome>
                         )}
                     </AnimatePresence>
                 </WelcomeWrapper>
+
                 <Content>
                     <SettingsWrapper>
                         <NavSettings />
                     </SettingsWrapper>
-                    {children}
+
+                    <ChildrenWrapper>{children}</ChildrenWrapper>
                 </Content>
 
                 <GuideButton />

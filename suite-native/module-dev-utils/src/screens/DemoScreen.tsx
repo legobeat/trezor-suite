@@ -1,10 +1,10 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { TextInput, View } from 'react-native';
 
+import { Link } from '@suite-native/link';
 import {
     Text,
     Box,
-    NumPadButton,
     Hint,
     SearchInput,
     Radio,
@@ -24,9 +24,14 @@ import {
     HStack,
     ButtonSize,
     TextButton,
+    NumPadButton,
+    TextButtonVariant,
+    Card,
+    ListItemSkeleton,
+    AlertBox,
 } from '@suite-native/atoms';
 import { prepareNativeStyle, useNativeStyles } from '@trezor/styles';
-import { Screen, ScreenHeader } from '@suite-native/navigation';
+import { Screen, ScreenSubHeader } from '@suite-native/navigation';
 import { CryptoIcon, tokenIcons, Icon, IconName, icons } from '@suite-common/icons';
 import { CoinsSettings } from '@suite-native/module-settings';
 import { isDevelopOrDebugEnv } from '@suite-native/config';
@@ -66,7 +71,6 @@ export const DemoScreen = () => {
     const [isCheckBox4Checked, setIsCheckBox4Checked] = useState(true);
     const [isSwitchActive, setIsSwitchActive] = useState<boolean>(true);
     const [isSwitch2Active, setIsSwitch2Active] = useState<boolean>(false);
-    const [inputText, setInputText] = useState<string>('');
     const demoInputRef = useRef<TextInput | null>(null);
 
     const buttonColorSchemes = [
@@ -76,6 +80,7 @@ export const DemoScreen = () => {
         'dangerElevation0',
     ] satisfies ButtonColorScheme[];
 
+    const textButtonVariants = ['primary', 'tertiary'] satisfies TextButtonVariant[];
     const badgeVariants = ['neutral', 'green', 'red', 'bold'] satisfies BadgeVariant[];
 
     const handleRadioPress = (value: string | number) => {
@@ -85,7 +90,7 @@ export const DemoScreen = () => {
     if (!isDevelopOrDebugEnv()) return null;
 
     return (
-        <Screen header={<ScreenHeader />}>
+        <Screen screenHeader={<ScreenSubHeader />}>
             <VStack spacing="medium">
                 <VStack>
                     <Text variant="titleSmall">Badge:</Text>
@@ -175,22 +180,30 @@ export const DemoScreen = () => {
                 </VStack>
                 <VStack>
                     <Text variant="titleSmall">TextButton:</Text>
-                    <HStack flexDirection="row" justifyContent="space-around" alignItems="center">
-                        {buttonSizes.map(buttonSize => (
-                            <TextButton key={buttonSize} iconLeft="trezorT" size={buttonSize}>
-                                {buttonSize}
-                            </TextButton>
-                        ))}
-                    </HStack>
+                    {textButtonVariants.map(variant => (
+                        <HStack
+                            key="variant"
+                            flexDirection="row"
+                            justifyContent="space-around"
+                            alignItems="center"
+                        >
+                            {buttonSizes.map(buttonSize => (
+                                <TextButton
+                                    variant={variant}
+                                    key={buttonSize}
+                                    iconLeft="trezorT"
+                                    size={buttonSize}
+                                >
+                                    {buttonSize}
+                                </TextButton>
+                            ))}
+                        </HStack>
+                    ))}
                 </VStack>
                 <Divider />
                 <Divider />
                 <Box>
-                    <SearchInput
-                        value={inputText}
-                        onChange={setInputText}
-                        placeholder="Type here.."
-                    />
+                    <SearchInput onChange={() => {}} placeholder="Type here.." />
                     <Box marginVertical="medium">
                         <VStack style={applyStyle(inputStackStyle)} spacing="small">
                             <InputWrapper label="Recipient">
@@ -301,13 +314,7 @@ export const DemoScreen = () => {
                             />
                         </Box>
                     </Box>
-
-                    <NumPadButton
-                        value={5}
-                        onPress={value =>
-                            console.warn('Press num pad button. No implementation yet.', value)
-                        }
-                    />
+                    <NumPadButton value={2} onPress={() => null} />
                     <Box marginVertical="medium">
                         <ListItem
                             iconName="warningCircle"
@@ -334,6 +341,33 @@ export const DemoScreen = () => {
                             value="firstSelectable"
                             isChecked={radioChecked === 'firstSelectable'}
                         />
+                    </Box>
+                    <Box marginTop="medium" marginBottom="medium">
+                        <Text>AlertBox:</Text>
+                        <VStack spacing="medium">
+                            <AlertBox variant="info" title="Info" isStandalone />
+                            <AlertBox variant="success" title="Success" isStandalone />
+                            <AlertBox variant="error" title="Error" isStandalone />
+                            <Box>
+                                <AlertBox variant="warning" title="Warning" isStandalone />
+                            </Box>
+                            <AlertBox
+                                variant="info"
+                                title={
+                                    <>
+                                        Info AlerBox with a longer text that does not fit one row
+                                        and it can also contain{' '}
+                                        <Link
+                                            href="https://trezor.io"
+                                            label="for example link"
+                                            isUnderlined
+                                            textColor="textDefault"
+                                        />
+                                    </>
+                                }
+                                isStandalone
+                            />
+                        </VStack>
                     </Box>
                     <Box marginTop="medium">
                         <Text variant="titleMedium">Icons</Text>
@@ -369,6 +403,12 @@ export const DemoScreen = () => {
                             ))}
                         </HStack>
                     </Box>
+                    <VStack marginTop="medium">
+                        <Text variant="titleMedium">Skeleton</Text>
+                        <Card>
+                            <ListItemSkeleton />
+                        </Card>
+                    </VStack>
                     <CoinsSettings />
                 </Box>
             </VStack>

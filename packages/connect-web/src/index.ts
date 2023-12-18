@@ -32,7 +32,7 @@ import webUSBButton from './webusb/button';
 import { parseConnectSettings } from './connectSettings';
 
 const eventEmitter = new EventEmitter();
-const _log = initLog('@trezor/connect');
+const _log = initLog('@trezor/connect-web');
 
 let _settings = parseConnectSettings();
 let _popupManager: popup.PopupManager | undefined;
@@ -133,7 +133,7 @@ const handleMessage = (messageEvent: PostMessageEvent) => {
             break;
 
         default:
-            _log.log('Undefined message', message.event, messageEvent);
+            _log.log('Undefined message', message.event, messageEvent.data);
     }
 };
 
@@ -169,6 +169,12 @@ const init = async (settings: Partial<ConnectSettings> = {}): Promise<void> => {
     window.addEventListener('unload', dispose);
 
     await iframe.init(_settings);
+
+    // sharedLogger can be disable but it is enable by default.
+    if (_settings.sharedLogger !== false) {
+        // connect-web is running in third-party domain so we use iframe to pass logs to shared worker.
+        iframe.initIframeLogger();
+    }
 };
 
 const call: CallMethod = async params => {

@@ -1,118 +1,80 @@
-import * as BN from 'bn.js';
-import * as BitcoinJsAddress from '../address';
-import { p2data } from '../payments/embed';
-import { Permutation } from './permutation';
-import { reverseBuffer } from '../bufferutils';
+import BN from 'bn.js';
 import {
+    ComposeRequest,
+    CoinSelectSuccess,
     ComposeInput,
+    ComposeChangeAddress,
     ComposeFinalOutput,
-    ComposedTxInput,
-    ComposedTxOutput,
     ComposedTransaction,
-    CoinSelectInput,
     CoinSelectOutputFinal,
 } from '../types';
-import type { Network } from '../networks';
-
-function convertInput(utxo: ComposeInput, basePath: number[]): ComposedTxInput {
-    return {
-        hash: reverseBuffer(Buffer.from(utxo.transactionHash, 'hex')),
-        index: utxo.index,
-        path: basePath.concat([...utxo.addressPath]),
-        amount: utxo.value,
-    };
-}
-
-function convertOpReturnOutput(opReturnData: string) {
-    const opReturnDataBuffer = Buffer.from(opReturnData, 'hex');
-    const output = {
-        opReturnData: opReturnDataBuffer,
-        value: undefined,
-    };
-    const script = p2data({ data: [opReturnDataBuffer] }).output as Buffer;
-    return {
-        output,
-        script,
-    };
-}
 
 function convertOutput(
-    address: string,
-    value: string,
-    network: Network,
-    basePath: number[],
-    changeId: number,
-    isChange: boolean,
+    selectedOutput: CoinSelectOutputFinal,
+    composeOutput: ComposeFinalOutput | ({ type: 'change' } & ComposeChangeAddress),
 ) {
-    const output: ComposedTxOutput = isChange
-        ? {
-              path: [...basePath, 1, changeId],
-              value,
-          }
-        : {
-              address,
-              value,
-          };
-
-    return {
-        output,
-        script: BitcoinJsAddress.toOutputScript(address, network),
-    };
-}
-
-function inputComparator(aHash: Buffer, aVout: number, bHash: Buffer, bVout: number) {
-    return reverseBuffer(aHash).compare(reverseBuffer(bHash)) || aVout - bVout;
-}
-
-function outputComparator(aScript: Buffer, aValue: string, bScript: Buffer, bValue: string) {
-    return new BN(aValue).cmp(new BN(bValue)) || aScript.compare(bScript);
-}
-
-export function createTransaction(
-    allInputs: ComposeInput[],
-    selectedInputs: CoinSelectInput[],
-    allOutputs: ComposeFinalOutput[],
-    selectedOutputs: CoinSelectOutputFinal[],
-    basePath: number[],
-    changeId: number,
-    changeAddress: string,
-    network: Network,
-    skipPermutation?: boolean,
-): ComposedTransaction {
-    const convertedInputs = selectedInputs.map(input => convertInput(allInputs[input.i], basePath));
-    const convertedOutputs = selectedOutputs.map((output, i) => {
-        // change is always last
-        const isChange = i === allOutputs.length;
-
-        const original = allOutputs[i]; // null if change
-
-        if (original && original.type === 'opreturn') {
-            return convertOpReturnOutput(original.dataHex);
-        }
-        const address = !original ? changeAddress : original.address;
-        const amount = output.value;
-        return convertOutput(address, amount, network, basePath, changeId, isChange);
-    });
-
-    if (skipPermutation) {
+    if (composeOutput.type === 'change') {
         return {
-            inputs: convertedInputs,
-            outputs: new Permutation(
-                convertedOutputs.map(o => o.output),
-                convertedOutputs.map((_o, i) => i),
-            ),
+            ...composeOutput,
+            amount: selectedOutput.value,
         };
     }
 
-    convertedInputs.sort((a, b) => inputComparator(a.hash, a.index, b.hash, b.index));
-    const permutedOutputs = Permutation.fromFunction(convertedOutputs, (a, b) => {
-        const aValue = typeof a.output.value === 'string' ? a.output.value : '0';
-        const bValue = typeof b.output.value === 'string' ? b.output.value : '0';
-        return outputComparator(a.script, aValue, b.script, bValue);
-    }).map(o => o.output);
+    if (composeOutput.type === 'opreturn') {
+        return composeOutput;
+    }
 
     return {
-        inputs: convertedInputs,
-        outputs: permutedOutputs,
+        ...composeOutput,
+        type: 'payment' as const,
+        amount: selectedOutput.value,
+    };
+}
+
+function inputComparator(a: ComposeInput, b: ComposeInput) {
+    return Buffer.from(a.txid, 'hex').compare(Buffer.from(b.txid, 'hex')) || a.vout - b.vout;
+}
+
+function outputComparator(a: CoinSelectOutputFinal, b: CoinSelectOutputFinal) {
+    return (
+        new BN(a.value).cmp(new BN(b.value)) ||
+        (Buffer.isBuffer(a.script) && Buffer.isBuffer(b.script)
+            ? a.script.compare(b.script)
+            : a.script.length - b.script.length)
+    );
+}
+
+export function createTransaction<Input extends ComposeInput, Change extends ComposeChangeAddress>(
+    request: ComposeRequest<Input, ComposeFinalOutput, Change>,
+    result: CoinSelectSuccess,
+): ComposedTransaction<Input, ComposeFinalOutput, Change> {
+    const convertedInputs = result.inputs.map(input => request.utxos[input.i]);
+
+    const defaultPermutation: number[] = [];
+    const convertedOutputs = result.outputs.map((output, index) => {
+        defaultPermutation.push(index);
+        if (request.outputs[index]) {
+            return convertOutput(output, request.outputs[index]);
+        }
+        return convertOutput(output, { type: 'change', ...request.changeAddress });
+    });
+
+    if (request.skipPermutation) {
+        return {
+            inputs: convertedInputs,
+            outputs: convertedOutputs,
+            outputsPermutation: defaultPermutation,
+        };
+    }
+
+    const permutation = defaultPermutation.sort((a, b) =>
+        outputComparator(result.outputs[a], result.outputs[b]),
+    );
+    const sortedOutputs = permutation.map(index => convertedOutputs[index]);
+
+    return {
+        inputs: convertedInputs.sort(inputComparator),
+        outputs: sortedOutputs,
+        outputsPermutation: permutation,
     };
 }

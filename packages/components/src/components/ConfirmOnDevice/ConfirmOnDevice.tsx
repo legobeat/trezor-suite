@@ -1,9 +1,10 @@
-import React from 'react';
+import { ReactNode } from 'react';
 import styled, { css } from 'styled-components';
 import { Image } from '../Image/Image';
 import { variables, animations } from '../../config';
 import { Icon } from '../assets/Icon/Icon';
 import { DeviceModelInternal } from '@trezor/connect';
+import { DeviceAnimation } from '../animations/DeviceAnimation';
 
 enum AnimationDirection {
     Up,
@@ -128,13 +129,14 @@ const isStepActive = (index: number, activeStep?: number) => {
 };
 
 export interface ConfirmOnDeviceProps {
-    title: React.ReactNode;
-    successText?: React.ReactNode;
-    deviceModelInternal?: DeviceModelInternal;
+    title: ReactNode;
+    successText?: ReactNode;
     steps?: number;
     activeStep?: number;
     isConfirmed?: boolean;
     onCancel?: () => void;
+    deviceModelInternal?: DeviceModelInternal;
+    deviceUnitColor?: number;
 }
 
 export const ConfirmOnDevice = ({
@@ -142,9 +144,10 @@ export const ConfirmOnDevice = ({
     steps,
     activeStep,
     onCancel,
-    deviceModelInternal,
     successText,
     isConfirmed,
+    deviceModelInternal,
+    deviceUnitColor,
 }: ConfirmOnDeviceProps) => {
     const hasSteps = steps && activeStep !== undefined;
 
@@ -154,7 +157,15 @@ export const ConfirmOnDevice = ({
             data-test="@prompts/confirm-on-device"
         >
             <Left>
-                {deviceModelInternal && (
+                {deviceModelInternal === DeviceModelInternal.T2B1 && (
+                    <DeviceAnimation
+                        type="ROTATE"
+                        size={34}
+                        deviceModelInternal={deviceModelInternal}
+                        deviceUnitColor={deviceUnitColor}
+                    />
+                )}
+                {deviceModelInternal && deviceModelInternal !== DeviceModelInternal.T2B1 && (
                     <StyledImage alt="Trezor" image={`TREZOR_${deviceModelInternal}`} />
                 )}
             </Left>

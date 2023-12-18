@@ -31,6 +31,8 @@ export const hasHexPrefix = (str: string) => str.slice(0, 2).toLowerCase() === '
 
 export const stripHexPrefix = (str: string) => (hasHexPrefix(str) ? str.slice(2) : str);
 
+export const addHexPrefix = (str: string) => (str && !hasHexPrefix(str) ? `0x${str}` : str);
+
 // from (isHexString) https://github.com/ethjs/ethjs-util/blob/master/src/index.js
 const isHexString = (value: string, length?: number) => {
     if (typeof value !== 'string' || !value.match(/^(0x|0X)?[0-9A-Fa-f]*$/)) {
@@ -56,4 +58,23 @@ export const messageToHex = (message: string) => {
         buffer = Buffer.from(message);
     }
     return buffer.toString('hex');
+};
+
+export const deepTransform = (transform: (str: string) => string) => {
+    const recursion = <T>(value: T): T => {
+        if (typeof value === 'string') {
+            return transform(value) as T;
+        }
+        if (Array.isArray(value)) {
+            return value.map(recursion) as T;
+        }
+        if (value && typeof value === 'object') {
+            return Object.entries(value).reduce(
+                (obj, [k, v]) => ({ ...obj, [k]: recursion(v) }),
+                {},
+            ) as T;
+        }
+        return value;
+    };
+    return recursion;
 };

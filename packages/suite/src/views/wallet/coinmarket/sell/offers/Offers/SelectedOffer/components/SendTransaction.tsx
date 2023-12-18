@@ -1,4 +1,3 @@
-import React from 'react';
 import styled from 'styled-components';
 import { Translation, AccountLabeling } from 'src/components/suite';
 import { Button, variables, Spinner } from '@trezor/components';
@@ -15,7 +14,7 @@ const WaitingWrapper = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 60px 20px 60px 20px;
+    padding: 60px 20px;
     flex-direction: column;
 `;
 
@@ -63,8 +62,15 @@ export const SendTransaction = () => {
     const t = trade?.data || selectedQuote;
     if (!t || !t.exchange) return null;
 
-    const { exchange, destinationAddress, status } = t;
+    const {
+        exchange,
+        destinationAddress,
+        destinationPaymentExtraId,
+        destinationPaymentExtraIdDescription,
+        status,
+    } = t;
     const providerName = sellInfo?.providerInfos[exchange]?.companyName || exchange;
+
     return (
         <Wrapper>
             {status === 'SEND_CRYPTO' && destinationAddress ? (
@@ -85,6 +91,27 @@ export const SendTransaction = () => {
                             <Address>{destinationAddress}</Address>
                         </Value>
                     </Row>
+
+                    {destinationPaymentExtraId && (
+                        <Row>
+                            <LabelText>
+                                {destinationPaymentExtraIdDescription?.name ? (
+                                    <Translation
+                                        id="TR_SELL_EXTRA_FIELD"
+                                        values={{
+                                            extraFieldName:
+                                                destinationPaymentExtraIdDescription.name,
+                                        }}
+                                    />
+                                ) : (
+                                    <Translation id="DESTINATION_TAG" />
+                                )}
+                            </LabelText>
+                            <Value>
+                                <Address>{destinationPaymentExtraId}</Address>
+                            </Value>
+                        </Row>
+                    )}
 
                     <ButtonWrapper>
                         <StyledButton isLoading={callInProgress} onClick={sendTransaction}>

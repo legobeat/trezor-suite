@@ -10,6 +10,14 @@ import { networks, NetworkSymbol } from '@suite-common/wallet-config';
 import { selectCoins, FiatRatesRootState } from '../fiat-rates/fiatRatesReducer';
 import { accountsActions } from './accountsActions';
 import { formattedAccountTypeMap } from './constants';
+import {
+    DeviceRootState,
+    selectDevice,
+    selectIsNoPhysicalDeviceConnected,
+    selectIsSelectedDeviceImported,
+    selectPersistedDevicesStates,
+} from '../device/deviceReducer';
+import { DiscoveryRootState, selectIsDeviceDiscoveryActive } from '../discovery/discoveryReducer';
 
 export const accountsInitialState: Account[] = [];
 
@@ -77,6 +85,23 @@ export const prepareAccountsReducer = createReducerWithExtraDeps(
                 };
                 state.push(account);
             })
+            .addCase(accountsActions.createIndexLabeledAccount, (state, action) => {
+                const { deviceState, symbol } = action.payload;
+                const deviceNetworkAccounts = state.filter(
+                    account => account.deviceState === deviceState && account.symbol === symbol,
+                );
+
+                const indexOfLastAccount = deviceNetworkAccounts.length;
+                const networkName = networks[symbol].name;
+                const accountLabel = `${networkName} #${indexOfLastAccount + 1}`;
+
+                const account = {
+                    ...action.payload,
+                    accountLabel,
+                    history: enhanceHistory(action.payload.history),
+                };
+                state.push(account);
+            })
             .addCase(accountsActions.updateAccount, (state, action) => {
                 update(state, action.payload);
             })
@@ -111,9 +136,35 @@ export const prepareAccountsReducer = createReducerWithExtraDeps(
 
 export const selectAccounts = (state: AccountsRootState) => state.wallet.accounts;
 
-export const selectMainnetAccounts = memoize((state: AccountsRootState) =>
+export const selectAccountsByDeviceState = (
+    state: AccountsRootState,
+    deviceState: string,
+): Account[] =>
     pipe(
         selectAccounts(state),
+        A.filter(account => account.deviceState === deviceState),
+    ) as Account[];
+
+export const selectDeviceAccounts = (state: AccountsRootState & DeviceRootState) => {
+    const device = selectDevice(state);
+
+    if (!device?.state) return [];
+
+    return selectAccountsByDeviceState(state, device.state);
+};
+
+export const selectDeviceAccountsLengthPerNetwork = (state: AccountsRootState & DeviceRootState) =>
+    pipe(
+        selectDeviceAccounts(state),
+        A.groupBy(account => account.symbol),
+        Object.entries,
+        A.map(([symbol, accounts]) => [symbol, accounts.length]),
+        pairs => Object.fromEntries(pairs),
+    );
+
+export const selectDeviceMainnetAccounts = memoize((state: AccountsRootState & DeviceRootState) =>
+    pipe(
+        selectDeviceAccounts(state),
         A.filter(account => !isTestnet(account.symbol)),
     ),
 );
@@ -123,7 +174,9 @@ export const selectNumberOfAccounts = (state: AccountsRootState) => selectAccoun
 export const selectUserHasAccounts = (state: AccountsRootState): boolean =>
     pipe(selectAccounts(state), A.isNotEmpty);
 
-export const selectAccountByKey = (state: AccountsRootState, accountKey: AccountKey) => {
+export const selectAccountByKey = (state: AccountsRootState, accountKey?: AccountKey) => {
+    if (!accountKey) return null;
+
     const accounts = selectAccounts(state);
 
     return accounts.find(account => account.key === accountKey) ?? null;
@@ -136,10 +189,10 @@ export const selectHasAccountTransactions = (state: AccountsRootState, accountKe
 };
 
 export const selectAccountsByNetworkSymbol = memoizeWithArgs(
-    (state: AccountsRootState, networkSymbol: NetworkSymbol | null) => {
+    (state: AccountsRootState & DeviceRootState, networkSymbol: NetworkSymbol | null) => {
         if (G.isNull(networkSymbol)) return [];
 
-        const accounts = selectAccounts(state);
+        const accounts = selectDeviceAccounts(state);
 
         return A.filter(accounts, account => account.symbol === networkSymbol);
     },
@@ -163,7 +216,7 @@ export const selectAccountsByNetworkAndDevice = memoizeWithArgs(
 
 export const selectAccountLabel = (
     state: AccountsRootState,
-    accountKey: AccountKey,
+    accountKey?: AccountKey,
 ): string | null => {
     const account = selectAccountByKey(state, accountKey);
 
@@ -174,7 +227,7 @@ export const selectAccountLabel = (
 
 export const selectAccountNetworkSymbol = (
     state: AccountsRootState,
-    accountKey: AccountKey,
+    accountKey?: AccountKey,
 ): NetworkSymbol | null => {
     const account = selectAccountByKey(state, accountKey);
 
@@ -188,7 +241,8 @@ export const selectFormattedAccountType = (
     accountKey: AccountKey,
 ): string | null => {
     const account = selectAccountByKey(state, accountKey);
-    if (!account) return null;
+
+    if (!account || account?.networkType !== 'bitcoin') return null;
 
     return formattedAccountTypeMap[account.accountType] ?? null;
 };
@@ -205,12 +259,12 @@ export const selectIsTestnetAccount = (state: AccountsRootState, accountKey: Acc
     return account ? isTestnet(account.symbol) : false;
 };
 
-export const selectAccountByDescriptorAndNetworkSymbol = (
-    state: AccountsRootState,
+export const selectDeviceAccountByDescriptorAndNetworkSymbol = (
+    state: AccountsRootState & DeviceRootState,
     accountDescriptor: string,
     networkSymbol: NetworkSymbol,
 ) => {
-    const accounts = selectAccounts(state);
+    const accounts = selectDeviceAccounts(state);
 
     return (
         A.find(
@@ -220,32 +274,19 @@ export const selectAccountByDescriptorAndNetworkSymbol = (
     );
 };
 
-export const selectAccountKeyByDescriptorAndNetworkSymbol = (
-    state: AccountsRootState,
+export const selectDeviceAccountKeyByDescriptorAndNetworkSymbol = (
+    state: AccountsRootState & DeviceRootState,
     accountDescriptor?: string,
     networkSymbol?: NetworkSymbol,
 ): AccountKey | null => {
     if (!accountDescriptor || !networkSymbol) return null;
-    const account = selectAccountByDescriptorAndNetworkSymbol(
+    const account = selectDeviceAccountByDescriptorAndNetworkSymbol(
         state,
         accountDescriptor,
         networkSymbol,
     );
 
     return account?.key ?? null;
-};
-
-export const selectAccountsAmountPerSymbol = (
-    state: AccountsRootState,
-    networkSymbol: NetworkSymbol,
-) => {
-    const accounts = selectAccounts(state);
-
-    return pipe(
-        accounts,
-        A.filter(account => account.symbol === networkSymbol),
-        A.length,
-    );
 };
 
 export const selectAccountsSymbols = memoize(
@@ -270,4 +311,43 @@ export const selectIsAccountWithRatesByKey = (
     const rates = selectCoins(state);
 
     return !!rates.find(rate => rate.symbol === account.symbol);
+};
+
+export const selectIsAccountsListEmpty = (state: AccountsRootState & DeviceRootState) =>
+    pipe(selectDeviceAccounts(state), A.isEmpty);
+
+export const selectIsPortfolioEmpty = (
+    state: AccountsRootState & DeviceRootState & DiscoveryRootState,
+) => {
+    const isAccountsListEmpty = selectIsAccountsListEmpty(state);
+    const isDiscoveryActive = selectIsDeviceDiscoveryActive(state);
+
+    return isAccountsListEmpty && !isDiscoveryActive;
+};
+
+export const selectDevicelessAccounts = (state: AccountsRootState & DeviceRootState) => {
+    const persistedDevicesStates = selectPersistedDevicesStates(state);
+
+    return pipe(
+        selectAccounts(state),
+        A.filter(account => !persistedDevicesStates.includes(account.deviceState)),
+    ) as Account[];
+};
+
+export const selectAreAllDevicesDisconnectedOrAccountless = (
+    state: AccountsRootState & DeviceRootState & DiscoveryRootState,
+) => {
+    const isPortfolioEmpty = selectIsPortfolioEmpty(state);
+    const isNoPhysicalDeviceConnected = selectIsNoPhysicalDeviceConnected(state);
+
+    return isPortfolioEmpty && isNoPhysicalDeviceConnected;
+};
+
+export const selectIsPortfolioTrackerEmpty = (
+    state: AccountsRootState & DeviceRootState & DiscoveryRootState,
+) => {
+    const isDeviceImported = selectIsSelectedDeviceImported(state);
+    const isPortfolioEmpty = selectIsPortfolioEmpty(state);
+
+    return isDeviceImported && isPortfolioEmpty;
 };

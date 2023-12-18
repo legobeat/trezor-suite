@@ -1,14 +1,14 @@
-import React from 'react';
+import { ReactNode } from 'react';
 import styled from 'styled-components';
 
-import { Card } from 'src/components/suite';
+import { Card, Translation } from 'src/components/suite';
 import { useSelector } from 'src/hooks/suite';
 import { WalletLayout } from 'src/components/wallet';
 import { useSendForm, SendContext, UseSendFormProps } from 'src/hooks/wallet/useSendForm';
 import { Header } from './components/Header';
 import Outputs from './components/Outputs';
-import Options from './components/Options';
-import { SendFees } from './components/Fees';
+import { Options } from './components/Options/Options';
+import { SendFees } from './components/SendFees';
 import { TotalSent } from './components/TotalSent';
 import { ReviewButton } from './components/ReviewButton';
 import Raw from './components/Raw';
@@ -16,6 +16,7 @@ import {
     selectTargetAnonymityByAccountKey,
     selectRegisteredUtxosByAccountKey,
 } from 'src/reducers/wallet/coinjoinReducer';
+import { Warning } from '@trezor/components';
 
 const StyledCard = styled(Card)`
     display: flex;
@@ -24,8 +25,12 @@ const StyledCard = styled(Card)`
     padding: 0;
 `;
 
+const StyledWarning = styled(Warning)`
+    margin-top: 8px;
+`;
+
 interface SendProps {
-    children: React.ReactNode;
+    children: ReactNode;
 }
 
 interface SendLoadedProps extends SendProps {
@@ -49,6 +54,8 @@ const SendLoaded = ({ children, selectedAccount }: SendLoadedProps) => {
 
     const sendContextValues = useSendForm({ ...props, selectedAccount });
 
+    const { symbol } = selectedAccount.account;
+
     return (
         <WalletLayout title="TR_NAV_SEND" account={selectedAccount}>
             <SendContext.Provider value={sendContextValues}>
@@ -61,6 +68,11 @@ const SendLoaded = ({ children, selectedAccount }: SendLoadedProps) => {
                         </StyledCard>
                         <SendFees />
                         <TotalSent />
+                        {symbol === 'dsol' && (
+                            <StyledWarning withIcon>
+                                <Translation id="TR_SOLANA_DEVNET_SHORTCUT_WARNING" />
+                            </StyledWarning>
+                        )}
                         <ReviewButton />
                         {children}
                     </>

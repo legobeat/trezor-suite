@@ -3,10 +3,11 @@ import { combineReducers } from '@reduxjs/toolkit';
 import {
     prepareAccountsReducer,
     prepareBlockchainReducer,
+    prepareDeviceReducer,
+    prepareDiscoveryReducer,
     prepareTransactionsReducer,
 } from '@suite-common/wallet-core';
 import { prepareFiatRatesReducer } from '@suite-native/fiat-rates';
-import { devicesReducer } from '@suite-native/module-devices';
 import { appSettingsReducer, appSettingsPersistWhitelist } from '@suite-native/module-settings';
 import { logsSlice } from '@suite-common/logger';
 import { migrateAccountLabel, preparePersistReducer } from '@suite-native/storage';
@@ -14,6 +15,8 @@ import { prepareAnalyticsReducer } from '@suite-common/analytics';
 import { prepareMessageSystemReducer } from '@suite-common/message-system';
 import { notificationsReducer } from '@suite-common/toast-notifications';
 import { graphReducer, graphPersistWhitelist } from '@suite-native/graph';
+import { discoveryConfigPersistWhitelist, discoveryConfigReducer } from '@suite-native/discovery';
+import { featureFlagsPersistedKeys, featureFlagsReducer } from '@suite-native/feature-flags';
 
 import { extraDependencies } from './extraDependencies';
 import { appReducer } from './appSlice';
@@ -24,6 +27,8 @@ const fiatRatesReducer = prepareFiatRatesReducer(extraDependencies);
 const blockchainReducer = prepareBlockchainReducer(extraDependencies);
 const analyticsReducer = prepareAnalyticsReducer(extraDependencies);
 const messageSystem = prepareMessageSystemReducer(extraDependencies);
+const deviceReducer = prepareDeviceReducer(extraDependencies);
+const discoveryReducer = prepareDiscoveryReducer(extraDependencies);
 
 export const prepareRootReducers = async () => {
     const appSettingsPersistedReducer = await preparePersistReducer({
@@ -38,6 +43,7 @@ export const prepareRootReducers = async () => {
         blockchain: blockchainReducer,
         fiat: fiatRatesReducer,
         transactions: transactionsReducer,
+        discovery: discoveryReducer,
     });
 
     const walletPersistedReducer = await preparePersistReducer({
@@ -69,15 +75,31 @@ export const prepareRootReducers = async () => {
         version: 1,
     });
 
+    const discoveryConfigPersistedReducer = await preparePersistReducer({
+        reducer: discoveryConfigReducer,
+        persistedKeys: discoveryConfigPersistWhitelist,
+        key: 'discoveryConfig',
+        version: 1,
+    });
+
+    const featureFlagsPersistedReducer = await preparePersistReducer({
+        reducer: featureFlagsReducer,
+        persistedKeys: featureFlagsPersistedKeys,
+        key: 'featureFlags',
+        version: 1,
+    });
+
     return combineReducers({
         app: appReducer,
         analytics: analyticsPersistedReducer,
         appSettings: appSettingsPersistedReducer,
         wallet: walletPersistedReducer,
+        featureFlags: featureFlagsPersistedReducer,
         graph: graphPersistedReducer,
-        devices: devicesReducer,
+        device: deviceReducer,
         logs: logsSlice.reducer,
         notifications: notificationsReducer,
+        discoveryConfig: discoveryConfigPersistedReducer,
         messageSystem,
     });
 };

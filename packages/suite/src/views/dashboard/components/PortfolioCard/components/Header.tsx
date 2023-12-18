@@ -1,19 +1,17 @@
-import React, { useCallback } from 'react';
-
+import { useCallback } from 'react';
 import styled, { css } from 'styled-components';
-import { Translation, HiddenPlaceholder } from 'src/components/suite';
-import { RangeSelector } from 'src/components/suite/TransactionsGraph/components/RangeSelector';
-import { updateGraphData } from 'src/actions/wallet/graphActions';
-import { useFastAccounts } from 'src/hooks/wallet';
 
 import { useFormatters } from '@suite-common/formatters';
 import { H2, Button, LoadingContent } from '@trezor/components';
+
+import { GraphRangeSelector, HiddenPlaceholder, Translation } from 'src/components/suite';
+import { updateGraphData } from 'src/actions/wallet/graphActions';
+import { useFastAccounts } from 'src/hooks/wallet';
 import { GraphRange } from 'src/types/wallet/graph';
 
 const Wrapper = styled.div<{ hideBorder: boolean }>`
     display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
+    flex-flow: row wrap;
     padding: 20px;
     ${props =>
         !props.hideBorder &&
@@ -93,7 +91,7 @@ export const Header = (props: HeaderProps) => {
                 </>
             );
         } else if (props.showGraphControls) {
-            actions = <RangeSelector onSelectedRange={onSelectedRange} align="right" />;
+            actions = <GraphRangeSelector onSelectedRange={onSelectedRange} align="right" />;
         }
     }
 

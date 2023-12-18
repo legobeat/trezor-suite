@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, ReactNode } from 'react';
 import { DateRange } from 'react-date-range';
 import styled, { css } from 'styled-components';
 
@@ -17,8 +17,8 @@ export type TimerangeSelection = {
     selection: Selection;
 };
 
-/* stylelint-disable no-descending-specificity */
 const datepickerStyle = css`
+    /* stylelint-disable */
     .rdrCalendarWrapper {
         box-sizing: border-box;
         display: inline-flex;
@@ -589,6 +589,7 @@ const Calendar = styled.div`
         background: ${({ theme }) => theme.BG_LIGHT_GREEN};
     }
 `;
+/* stylelint-enable */
 
 export interface TimerangeProps {
     onSubmit: (startDate: Date, endDate: Date) => any;
@@ -596,8 +597,8 @@ export interface TimerangeProps {
     startDate?: Date;
     endDate?: Date;
     locale?: Locale;
-    ctaCancel: React.ReactNode | string;
-    ctaSubmit: React.ReactNode | string;
+    ctaCancel: ReactNode | string;
+    ctaSubmit: ReactNode | string;
 }
 
 const Timerange = (props: TimerangeProps) => {

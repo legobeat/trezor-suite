@@ -1,78 +1,38 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable global-require */
-
-import { prepareFirmwareReducer } from '@suite-common/wallet-core';
-import { ArrayElement } from '@trezor/type-utils';
+import { testMocks } from '@suite-common/test-utils';
+import { prepareFirmwareReducer, State as DeviceState } from '@suite-common/wallet-core';
 import { DeviceModelInternal } from '@trezor/connect';
 
 import { configureStore, filterThunkActionTypes } from 'src/support/tests/configureStore';
 import suiteReducer from 'src/reducers/suite/suiteReducer';
-import { TrezorDevice } from 'src/types/suite';
 import { extraDependencies } from 'src/support/extraDependencies';
 
 import { actions, reducerActions } from '../__fixtures__/firmwareActions';
 
 const firmwareReducer = prepareFirmwareReducer(extraDependencies);
 
-type Fixture = ArrayElement<typeof actions>;
-
 type SuiteState = ReturnType<typeof suiteReducer>;
 type FirmwareState = ReturnType<typeof firmwareReducer>;
 interface InitialState {
     suite?: Partial<SuiteState>;
     firmware?: Partial<FirmwareState>;
-    devices?: TrezorDevice[];
+    device?: Partial<DeviceState>;
 }
 
-jest.mock('@trezor/connect', () => {
-    let fixture: Fixture;
-
-    // mocked function
-    const firmwareUpdate = () => {
-        // this error applies only for tests
-        if (typeof fixture === 'undefined' || !fixture.mocks || !fixture.mocks.connect) {
-            return 'Default error. Fixtures not set';
-        }
-
-        return Promise.resolve(fixture.mocks.connect);
-    };
-
-    const { PROTO, DeviceModelInternal, FirmwareType } = jest.requireActual('@trezor/connect');
-
-    return {
-        __esModule: true, // this property makes it work
-        default: {
-            getFeatures: () => {},
-            firmwareUpdate,
-            blockchainSetCustomBackend: () => {},
-        },
-        DEVICE: {
-            DISCONNECT: 'device-disconnect',
-        },
-        TRANSPORT: {},
-        BLOCKCHAIN: {},
-        UI: {
-            REQUEST_BUTTON: 'ui-button',
-            FIRMWARE_PROGRESS: 'ui-firmware-progress',
-        },
-        setTestFixtures: (f: Fixture) => {
-            fixture = f;
-        },
-        PROTO,
-        DeviceModelInternal,
-        FirmwareType,
-    };
-});
-
-jest.mock('@trezor/suite-analytics', () => global.JestMocks.getAnalytics());
+jest.doMock('@trezor/suite-analytics', () => testMocks.getAnalytics());
 
 export const getInitialState = (override?: InitialState): any => {
     const suite = override ? override.suite : undefined;
-    const devices = override ? override.devices : [];
+    const device = override ? override.device : undefined;
 
     return {
         suite: {
-            device: {
+            locks: [],
+            flags: {},
+            ...suite,
+        },
+        firmware: firmwareReducer(undefined, { type: 'foo' } as any),
+        device: {
+            selectedDevice: {
                 connected: true,
                 type: 'acquired',
                 features: {
@@ -80,12 +40,8 @@ export const getInitialState = (override?: InitialState): any => {
                     internal_model: DeviceModelInternal.T2T1,
                 },
             },
-            locks: [],
-            flags: {},
-            ...suite,
+            ...device,
         },
-        firmware: firmwareReducer(undefined, { type: 'foo' } as any),
-        devices,
         analytics: {
             enabled: false,
         },
@@ -120,7 +76,7 @@ describe('Firmware Actions', () => {
     actions.forEach(f => {
         it(f.description, async () => {
             // set fixtures
-            require('@trezor/connect').setTestFixtures(f);
+            testMocks.setTrezorConnectFixtures(f.mocks?.connect);
 
             const state = getInitialState(f.initialState);
             const store = mockStore(state);

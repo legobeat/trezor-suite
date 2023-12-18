@@ -1,6 +1,6 @@
 {
     "name": "@trezor/env-utils",
-    "version": "1.0.5",
+    "version": "1.0.10",
     "homepage": "https://github.com/trezor/trezor-suite/tree/develop/packages/env-utils",
     "npmPublishAccess": "public",
     "license": "See LICENSE.md in repo root",
@@ -12,25 +12,31 @@
         "url": "https://github.com/trezor/trezor-suite/issues"
     },
     "sideEffects": false,
-    "main": "src/index.ts",
+    "main": "lib/index",
+    "files": [
+        "lib/",
+        "!**/*.map"
+    ],
     "scripts": {
         "lint:js": "yarn g:eslint '**/*.{ts,tsx,js}'",
         "type-check": "tsc --build",
+        "build:lib": "rimraf ./lib && yarn tsc --build tsconfig.lib.json",
         "prepublishOnly": "yarn tsx ../../scripts/prepublishNPM.js",
         "prepublish": "yarn tsx ../../scripts/prepublish.js"
     },
     "dependencies": {
-        "ua-parser-js": "^1.0.35"
+        "ua-parser-js": "^1.0.37"
     },
     "devDependencies": {
-        "rimraf": "^5.0.1",
-        "tsx": "^3.12.7",
-        "typescript": "4.9.5"
+        "rimraf": "^5.0.5",
+        "tsx": "^4.6.2",
+        "typescript": "5.3.2"
     },
     "peerDependencies": {
         "expo-localization": "^14.1.1",
         "react-native": "0.71.8",
-        "react-native-config": "^1.5.0"
+        "react-native-config": "^1.5.0",
+        "tslib": "^2.6.2"
     },
     "peerDependenciesMeta": {
         "expo-localization": {

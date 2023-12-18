@@ -1,10 +1,11 @@
-import React, { lazy, memo, Suspense } from 'react';
+import { lazy, memo, Suspense, LazyExoticComponent, ComponentType } from 'react';
 import { Switch, Route } from 'react-router-dom';
 
 import routes from 'src/constants/suite/routes';
 import { BundleLoader } from 'src/components/suite';
+import { PageName } from '@suite-common/suite-types';
 
-const components: { [key: string]: React.LazyExoticComponent<any> } = {
+const components: Record<PageName, LazyExoticComponent<ComponentType<any>>> = {
     'suite-index': lazy(() => import(/* webpackChunkName: "dashboard" */ 'src/views/dashboard')),
     'notifications-index': lazy(
         () => import(/* webpackChunkName: "notifications" */ 'src/views/suite/notifications'),
@@ -118,23 +119,23 @@ const components: { [key: string]: React.LazyExoticComponent<any> } = {
     // settings
     'settings-index': lazy(() =>
         import(
-            /* webpackChunkName: "settings" */ 'src/views/settings/general/SettingsGeneral'
+            /* webpackChunkName: "settings" */ 'src/views/settings/SettingsGeneral/SettingsGeneral'
         ).then(({ SettingsGeneral }) => ({ default: SettingsGeneral })),
     ),
     'settings-coins': lazy(() =>
-        import(/* webpackChunkName: "settings" */ 'src/views/settings/coins/SettingsCoins').then(
-            ({ SettingsCoins }) => ({ default: SettingsCoins }),
-        ),
+        import(
+            /* webpackChunkName: "settings" */ 'src/views/settings/SettingsCoins/SettingsCoins'
+        ).then(({ SettingsCoins }) => ({ default: SettingsCoins })),
     ),
     'settings-debug': lazy(() =>
-        import(/* webpackChunkName: "settings" */ 'src/views/settings/debug/SettingsDebug').then(
-            ({ SettingsDebug }) => ({ default: SettingsDebug }),
-        ),
+        import(
+            /* webpackChunkName: "settings" */ 'src/views/settings/SettingsDebug/SettingsDebug'
+        ).then(({ SettingsDebug }) => ({ default: SettingsDebug })),
     ),
     'settings-device': lazy(() =>
-        import(/* webpackChunkName: "settings" */ 'src/views/settings/device/SettingsDevice').then(
-            ({ SettingsDevice }) => ({ default: SettingsDevice }),
-        ),
+        import(
+            /* webpackChunkName: "settings" */ 'src/views/settings/SettingsDevice/SettingsDevice'
+        ).then(({ SettingsDevice }) => ({ default: SettingsDevice })),
     ),
 };
 
@@ -142,7 +143,7 @@ const AppRouter = () => (
     // inititating strict mode higher would throw an error from react-helmet
     // TODO: replace react-helmet with a maintained alternative
     // strict mode is commented out because of its interplay with compose errors in send form
-    // <React.StrictMode>
+    // <StrictMode>
     <Suspense fallback={<BundleLoader />}>
         <Switch>
             {routes.map(route => (
@@ -150,12 +151,12 @@ const AppRouter = () => (
                     key={route.name}
                     path={process.env.ASSET_PREFIX + route.pattern}
                     exact={route.exact}
-                    component={components[route.name]}
+                    component={components[route.name as PageName]}
                 />
             ))}
         </Switch>
     </Suspense>
-    // </React.StrictMode>
+    // </StrictMode>
 );
 
 export default memo(AppRouter);

@@ -1,10 +1,9 @@
-import React from 'react';
 import styled from 'styled-components';
 
 import { Card, Notifications, Translation } from 'src/components/suite';
-import { Section } from 'src/components/dashboard';
+import { DashboardSection } from 'src/components/dashboard';
 
-const StyledSection = styled(Section)`
+const StyledSection = styled(DashboardSection)`
     width: 100%;
 `;
 

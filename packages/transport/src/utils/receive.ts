@@ -1,27 +1,15 @@
-import ByteBuffer from 'bytebuffer';
 import { Root } from 'protobufjs/light';
 
 import { decode as decodeProtobuf, createMessageFromType } from '@trezor/protobuf';
-import { v1 as protocolV1, bridge as bridgeProtocol } from '@trezor/protocol';
-
-export function receiveOne(messages: Root, data: string) {
-    const bytebuffer = ByteBuffer.wrap(data, 'hex');
-
-    const { typeId, buffer } = bridgeProtocol.decode(bytebuffer);
-    const { Message, messageName } = createMessageFromType(messages, typeId);
-    const message = decodeProtobuf(Message, buffer);
-    return {
-        message,
-        type: messageName,
-    };
-}
+import { TransportProtocolDecode } from '@trezor/protocol';
 
 async function receiveRest(
-    parsedInput: ByteBuffer,
+    result: Buffer,
     receiver: () => Promise<ArrayBuffer>,
+    offset: number,
     expectedLength: number,
 ): Promise<void> {
-    if (parsedInput.offset >= expectedLength) {
+    if (offset >= expectedLength) {
         return;
     }
     const data = await receiver();
@@ -29,27 +17,35 @@ async function receiveRest(
     if (data == null) {
         throw new Error('Received no data.');
     }
-    parsedInput.append(data.slice(1));
+    const length = offset + data.byteLength - 1;
+    Buffer.from(data).copy(result, offset, 1, length);
 
-    return receiveRest(parsedInput, receiver, expectedLength);
+    return receiveRest(result, receiver, length, expectedLength);
 }
 
-async function receiveBuffer(receiver: () => Promise<ArrayBuffer>) {
+async function receiveBuffer(
+    receiver: () => Promise<ArrayBuffer>,
+    decoder: TransportProtocolDecode,
+) {
     const data = await receiver();
-    const { length, typeId, restBuffer } = protocolV1.decodeChunked(data);
-    const decoded = new ByteBuffer(length);
+    const { length, typeId, buffer } = decoder(data);
+    const result = Buffer.alloc(length);
 
     if (length) {
-        decoded.append(restBuffer);
+        buffer.copy(result);
     }
-    await receiveRest(decoded, receiver, length);
-    return { received: decoded, typeId };
+
+    await receiveRest(result, receiver, buffer.length, length);
+    return { received: result, typeId };
 }
 
-export async function receiveAndParse(messages: Root, receiver: () => Promise<ArrayBuffer>) {
-    const { received, typeId } = await receiveBuffer(receiver);
+export async function receiveAndParse(
+    messages: Root,
+    receiver: () => Promise<ArrayBuffer>,
+    decoder: TransportProtocolDecode,
+) {
+    const { received, typeId } = await receiveBuffer(receiver, decoder);
     const { Message, messageName } = createMessageFromType(messages, typeId);
-    received.reset();
     const message = decodeProtobuf(Message, received);
     return {
         message,

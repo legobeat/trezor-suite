@@ -8,6 +8,7 @@ import {
     parseCapabilities,
     parseRevision,
 } from '../deviceFeaturesUtils';
+import { Features, DeviceModelInternal } from '../../types';
 
 describe('utils/deviceFeaturesUtils', () => {
     beforeEach(() => {
@@ -28,8 +29,7 @@ describe('utils/deviceFeaturesUtils', () => {
             major_version: 2,
         };
         // default T1B1
-        // @ts-expect-error - incomplete features
-        expect(parseCapabilities(featT1B1)).toEqual([
+        expect(parseCapabilities(featT1B1 as Features)).toEqual([
             'Capability_Bitcoin',
             'Capability_Bitcoin_like',
             'Capability_Crypto',
@@ -39,9 +39,8 @@ describe('utils/deviceFeaturesUtils', () => {
             'Capability_U2F',
         ]);
 
-        // default T2
-        // @ts-expect-error - incomplete features
-        expect(parseCapabilities(featT2T1)).toEqual([
+        // default T2T1
+        expect(parseCapabilities(featT2T1 as Features)).toEqual([
             'Capability_Bitcoin',
             'Capability_Bitcoin_like',
             'Capability_Binance',
@@ -81,11 +80,10 @@ describe('utils/deviceFeaturesUtils', () => {
 
         // bitcoin only
         expect(
-            // @ts-expect-error incomplete features
             parseCapabilities({
                 major_version: 1,
                 capabilities: ['Capability_Bitcoin'],
-            }),
+            } as Features),
         ).toEqual(['Capability_Bitcoin']);
 
         // no features
@@ -95,14 +93,17 @@ describe('utils/deviceFeaturesUtils', () => {
 
     describe('getUnavailableCapabilities', () => {
         const coins = getAllNetworks();
+        beforeEach(() => {
+            jest.resetModules();
+        });
 
         const featT2T1 = {
             major_version: 2,
             minor_version: 3,
             patch_version: 3,
             capabilities: undefined,
-        };
-        // @ts-expect-error incomplete features
+            internal_model: DeviceModelInternal.T2T1,
+        } as unknown as Features;
         featT2T1.capabilities = parseCapabilities(featT2T1);
 
         const featT1B1 = {
@@ -110,16 +111,21 @@ describe('utils/deviceFeaturesUtils', () => {
             minor_version: 8,
             patch_version: 3,
             capabilities: undefined,
-        };
-        // @ts-expect-error incomplete features
+            internal_model: DeviceModelInternal.T1B1,
+        } as unknown as Features;
         featT1B1.capabilities = parseCapabilities(featT1B1);
 
-        it('getUnavailableCapabilities capabilities 3', () => {
-            jest.resetModules();
-            const coins = getAllNetworks();
+        const featT2B1 = {
+            major_version: 2,
+            minor_version: 6,
+            patch_version: 1,
+            capabilities: undefined,
+            internal_model: DeviceModelInternal.T2B1,
+        } as unknown as Features;
+        featT2B1.capabilities = parseCapabilities(featT2B1);
 
-            // default Capabilities T1B1
-            // @ts-expect-error incomplete features
+        it('default T1B1', () => {
+            const coins = getAllNetworks();
 
             expect(getUnavailableCapabilities(featT1B1, coins)).toEqual({
                 ada: 'no-support',
@@ -127,6 +133,8 @@ describe('utils/deviceFeaturesUtils', () => {
                 bnb: 'no-support',
                 eos: 'no-support',
                 ppc: 'update-required',
+                sol: 'no-support',
+                dsol: 'no-support',
                 sys: 'update-required',
                 tppc: 'update-required',
                 txrp: 'no-support',
@@ -143,12 +151,16 @@ describe('utils/deviceFeaturesUtils', () => {
                 taproot: 'update-required',
                 tsep: 'update-required',
                 tgor: 'update-required',
+                thol: 'update-required',
                 coinjoin: 'update-required',
                 signMessageNoScriptType: 'update-required',
+                chunkify: 'no-support',
             });
+        });
 
-            // default Capabilities T2T1
-            // @ts-expect-error incomplete features
+        it('default T2T1', () => {
+            const coins = getAllNetworks();
+
             expect(getUnavailableCapabilities(featT2T1, coins)).toEqual({
                 replaceTransaction: 'update-required',
                 amountUnit: 'update-required',
@@ -158,11 +170,37 @@ describe('utils/deviceFeaturesUtils', () => {
                 taproot: 'update-required',
                 tsep: 'update-required',
                 tgor: 'update-required',
+                thol: 'update-required',
                 coinjoin: 'update-required',
                 signMessageNoScriptType: 'update-required',
+                sol: 'no-capability',
+                dsol: 'no-capability',
+                chunkify: 'update-required',
             });
         });
-        it('getUnavailable 1', done => {
+
+        it('default T2B1', () => {
+            const coins = getAllNetworks();
+
+            expect(getUnavailableCapabilities(featT2B1, coins)).toEqual({
+                btg: 'no-support',
+                tbtg: 'no-support',
+                dash: 'no-support',
+                tdash: 'no-support',
+                dcr: 'no-support',
+                tdcr: 'no-support',
+                dgb: 'no-support',
+                eos: 'no-support',
+                nmc: 'no-support',
+                sol: 'no-capability',
+                dsol: 'no-capability',
+                vtc: 'no-support',
+                xem: 'no-support',
+                chunkify: 'update-required',
+            });
+        });
+
+        it('T2T1 update-required', done => {
             jest.resetModules();
 
             jest.mock('../../data/config', () => ({
@@ -170,7 +208,7 @@ describe('utils/deviceFeaturesUtils', () => {
                 config: {
                     supportedFirmware: [
                         {
-                            min: ['0', '2.99.99'],
+                            min: { T1B1: '0', T2T1: '2.99.99' },
                             capabilities: ['newCapabilityOrFeature'],
                         },
                     ],
@@ -179,7 +217,6 @@ describe('utils/deviceFeaturesUtils', () => {
 
             import('../deviceFeaturesUtils').then(({ getUnavailableCapabilities }) => {
                 // added new capability
-                // @ts-expect-error incomplete features
                 expect(getUnavailableCapabilities(featT2T1, coins)).toEqual({
                     newCapabilityOrFeature: 'update-required',
                 });
@@ -187,14 +224,15 @@ describe('utils/deviceFeaturesUtils', () => {
             });
         });
 
-        it('getUnavailable 2', done => {
+        it('T2T1 no-support', done => {
             jest.resetModules();
+
             jest.mock('../../data/config', () => ({
                 __esModule: true,
                 config: {
                     supportedFirmware: [
                         {
-                            min: ['0', '0'],
+                            min: { T1B1: '0', T2T1: '0' },
                             capabilities: ['newCapabilityOrFeature'],
                         },
                     ],
@@ -203,7 +241,6 @@ describe('utils/deviceFeaturesUtils', () => {
 
             import('../deviceFeaturesUtils').then(({ getUnavailableCapabilities }) => {
                 // added new capability
-                // @ts-expect-error incomplete features
                 expect(getUnavailableCapabilities(featT2T1, coins)).toEqual({
                     newCapabilityOrFeature: 'no-support',
                 });

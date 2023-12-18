@@ -1,4 +1,4 @@
-import React from 'react';
+import { ReactNode } from 'react';
 
 import styled from 'styled-components';
 
@@ -6,15 +6,15 @@ import { H3, P, variables } from '@trezor/components';
 
 const Title = styled(H3)`
     font-size: 19px;
-    color: #333333;
+    color: #333;
     font-weight: ${variables.FONT_WEIGHT.DEMI_BOLD};
 `;
 
 const StyledP = styled(P)`
     margin: 0 20%;
     font-size: 15px;
-    font-weight: ${variables.FONT_WEIGHT.LIGHT}
-    color: #757575
+    font-weight: ${variables.FONT_WEIGHT.LIGHT};
+    color: #757575;
 `;
 
 const Buttons = styled.div``;
@@ -33,21 +33,21 @@ const Body = styled.div``;
 
 // common. each view should have title and optionally buttons
 type ViewPropsBase = {
-    title?: React.ReactNode;
+    title?: ReactNode;
     // todo: consider more detailed description of buttons (cta, alt...)
-    buttons?: React.ReactNode;
+    buttons?: ReactNode;
 };
 
 // most of the components will be like this, description and image
 type ViewPropsStrict = ViewPropsBase & {
-    description: React.ReactNode;
+    description: ReactNode;
     // todo: depends on how we will end up defining images, we could either pass component or only string identifier
-    image: React.ReactNode;
+    image: ReactNode;
 };
 
 // some of the components might be more complicated so we will need to pass custom body
 type ViewPropsLoose = ViewPropsBase & {
-    children: React.ReactNode;
+    children: ReactNode;
 };
 
 export const View = (props: ViewPropsStrict | ViewPropsLoose) => (

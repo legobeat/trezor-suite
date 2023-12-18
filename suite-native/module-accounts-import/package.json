@@ -17,7 +17,7 @@
         "@react-navigation/native": "^6.1.3",
         "@react-navigation/native-stack": "^6.9.11",
         "@reduxjs/toolkit": "1.9.5",
-        "@shopify/react-native-skia": "0.1.188",
+        "@shopify/react-native-skia": "0.1.225",
         "@suite-common/formatters": "workspace:*",
         "@suite-common/icons": "workspace:*",
         "@suite-common/redux-utils": "workspace:*",
@@ -30,11 +30,12 @@
         "@suite-native/analytics": "workspace:*",
         "@suite-native/atoms": "workspace:*",
         "@suite-native/config": "workspace:*",
+        "@suite-native/device-manager": "workspace:*",
         "@suite-native/ethereum-tokens": "workspace:*",
         "@suite-native/fiat-rates": "workspace:*",
         "@suite-native/formatters": "workspace:*",
         "@suite-native/forms": "workspace:*",
-        "@suite-native/module-devices": "workspace:*",
+        "@suite-native/intl": "workspace:*",
         "@suite-native/module-settings": "workspace:*",
         "@suite-native/navigation": "workspace:*",
         "@suite-native/qr-code": "workspace:*",
@@ -48,11 +49,11 @@
         "lottie-react-native": "^5.1.5",
         "react": "18.2.0",
         "react-native": "0.71.8",
-        "react-native-reanimated": "3.3.0",
+        "react-native-reanimated": "3.6.1",
         "react-redux": "8.0.7"
     },
     "devDependencies": {
-        "jest": "^26.6.3",
-        "typescript": "4.9.5"
+        "jest": "29.5.0",
+        "typescript": "5.3.2"
     }
 }

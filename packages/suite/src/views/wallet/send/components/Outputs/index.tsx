@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import styled, { css } from 'styled-components';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSendFormContext } from 'src/hooks/wallet';
@@ -33,7 +33,7 @@ const OutputWrapper = styled.div<{ index: number }>`
 `;
 
 const Row = styled.div`
-    padding: 0 0 10px 0;
+    padding: 0 0 10px;
 
     &:last-child {
         padding: 0;

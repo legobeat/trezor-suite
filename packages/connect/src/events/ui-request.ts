@@ -164,7 +164,12 @@ export interface UiRequestPermission {
 export interface UiRequestConfirmation {
     type: typeof UI_REQUEST.REQUEST_CONFIRMATION;
     payload: {
-        view: string;
+        view:
+            | 'no-backup'
+            | 'export-xpub'
+            | 'export-address'
+            | 'export-account-info'
+            | 'device-management';
         label?: string;
         customConfirmButton?: {
             className: string;
@@ -287,4 +292,4 @@ export const createUiMessage: MessageFactoryFn<typeof UI_EVENT, UiEvent> = (type
         event: UI_EVENT,
         type,
         payload,
-    } as any);
+    }) as any;

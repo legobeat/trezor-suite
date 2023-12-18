@@ -1,5 +1,4 @@
 import TrezorConnect from '@trezor/connect';
-import React from 'react';
 import { screen } from '@testing-library/react';
 import { configureMockStore, initPreloadedState } from '@suite-common/test-utils';
 import * as fixtures from '../__fixtures__/useRbfForm';
@@ -9,17 +8,24 @@ import {
     actionSequence,
     findByTestId,
 } from 'src/support/tests/hooksHelper';
-import { ChangeFee } from 'src/components/suite/modals/TransactionDetail/components/ChangeFee';
+import { ChangeFee } from 'src/components/suite/modals/ReduxModal/UserContextModal/TxDetailModal/ChangeFee/ChangeFee';
 import { useRbfContext } from '../useRbfForm';
+
+// do not mock
+jest.unmock('@trezor/connect');
 
 jest.mock('src/actions/suite/routerActions', () => ({
     goto: () => ({ type: 'mock-redirect' }),
 }));
 
-jest.mock('react-svg', () => ({ ReactSVG: () => 'SVG' }));
-
 // render only Translation['id']
 jest.mock('src/components/suite/Translation', () => ({ Translation: ({ id }: any) => id }));
+
+// since we are NOT(!) mocking @trezor/connect it fetch real bridge at init
+jest.mock('cross-fetch', () => ({
+    __esModule: true,
+    default: () => Promise.resolve({ ok: false }),
+}));
 
 // TrezorConnect.composeTransaction is trying to connect to blockchain, to get current block height.
 // Mock whole module to avoid internet connection.
@@ -27,16 +33,20 @@ jest.mock('@trezor/blockchain-link', () => ({
     __esModule: true,
     default: class BlockchainLink {
         name = 'jest-mocked-module';
+        listeners: Record<string, () => void> = {};
         constructor(args: any) {
             this.name = args.name;
         }
-
-        on() {}
-
-        connect() {}
-
+        on(...args: any[]) {
+            const [type, fn] = args;
+            this.listeners[type] = fn;
+        }
+        connect() {
+            this.listeners.connected();
+        }
+        disconnect() {}
+        removeAllListeners() {}
         dispose() {}
-
         getInfo() {
             return {
                 url: this,
@@ -47,6 +57,9 @@ jest.mock('@trezor/blockchain-link', () => ({
                 blockHeight: 10000000,
                 blockHash: 'abcd',
             };
+        }
+        estimateFee(params: { blocks: number[] }) {
+            return params.blocks.map(() => ({ feePerUnit: '-1' }));
         }
     },
 }));
@@ -96,7 +109,6 @@ describe('useRbfForm hook', () => {
                 appUrl: '@trezor/suite',
             },
         });
-
         jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
     });
     afterAll(async () => {
@@ -113,7 +125,7 @@ describe('useRbfForm hook', () => {
             const { unmount } = renderWithProviders(
                 store,
                 // @ts-expect-error f.tx is not exact
-                <ChangeFee tx={f.tx} finalize={false} chainedTxs={[]} showChained={() => {}}>
+                <ChangeFee tx={f.tx} chainedTxs={f.chainedTxs} showChained={() => {}}>
                     <Component callback={callback} />
                 </ChangeFee>,
             );

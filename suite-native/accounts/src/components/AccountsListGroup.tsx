@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { G } from '@mobily/ts-belt';
 
 import { Box } from '@suite-native/atoms';
@@ -21,6 +19,7 @@ const accountListGroupStyle = prepareNativeStyle(utils => ({
 
 export const AccountsListGroup = ({ accounts, onSelectAccount }: AccountsListGroupProps) => {
     const { applyStyle } = useNativeStyles();
+
     if (G.isNull(accounts)) return null;
 
     return (

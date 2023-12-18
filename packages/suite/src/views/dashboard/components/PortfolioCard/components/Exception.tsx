@@ -1,8 +1,12 @@
-import React from 'react';
+import { ComponentProps } from 'react';
 
 import styled from 'styled-components';
 
-import { restartDiscoveryThunk as restartDiscovery } from '@suite-common/wallet-core';
+import {
+    authConfirm,
+    authorizeDevice,
+    restartDiscoveryThunk as restartDiscovery,
+} from '@suite-common/wallet-core';
 import * as accountUtils from '@suite-common/wallet-utils';
 import { variables, Button, IconProps, H3, Image } from '@trezor/components';
 import { Discovery } from '@suite-common/wallet-types';
@@ -10,9 +14,9 @@ import { Discovery } from '@suite-common/wallet-types';
 import { Translation } from 'src/components/suite';
 import { useDevice, useDispatch } from 'src/hooks/suite';
 import { applySettings } from 'src/actions/settings/deviceSettingsActions';
-import { authConfirm, authorizeDevice } from 'src/actions/suite/suiteActions';
 import { goto } from 'src/actions/suite/routerActions';
 import { DiscoveryStatusType } from 'src/types/wallet';
+import { TranslationKey } from 'src/components/suite/Translation';
 
 const Wrapper = styled.div`
     display: flex;
@@ -34,7 +38,7 @@ const Description = styled.div`
 `;
 
 const StyledImage = styled(props => <Image {...props} />)`
-    margin: 24px 0px;
+    margin: 24px 0;
 `;
 
 const Actions = styled.div`
@@ -45,15 +49,15 @@ const Actions = styled.div`
 `;
 
 interface CTA {
-    label?: React.ComponentProps<typeof Translation>['id'];
-    variant?: React.ComponentProps<typeof Button>['variant'];
+    label?: TranslationKey;
+    variant?: ComponentProps<typeof Button>['variant'];
     action: () => void;
     icon?: IconProps['icon'];
 }
 
 interface ContainerProps {
-    title: React.ComponentProps<typeof Translation>['id'];
-    description: React.ComponentProps<typeof Translation>['id'] | JSX.Element;
+    title: TranslationKey;
+    description?: TranslationKey | JSX.Element;
     cta: CTA | CTA[];
     dataTestBase: string;
 }
@@ -68,9 +72,15 @@ const Container = ({ title, description, cta, dataTestBase }: ContainerProps) =>
             <Title>
                 <Translation id={title} />
             </Title>
-            <Description>
-                {typeof description === 'string' ? <Translation id={description} /> : description}
-            </Description>
+            {description && (
+                <Description>
+                    {typeof description === 'string' ? (
+                        <Translation id={description} />
+                    ) : (
+                        description
+                    )}
+                </Description>
+            )}
             <Actions>
                 {actions.map(a => (
                     <Button
@@ -121,7 +131,9 @@ export const Exception = ({ exception, discovery }: ExceptionProps) => {
                 <Container
                     title="TR_ACCOUNT_EXCEPTION_AUTH_ERROR"
                     description="TR_ACCOUNT_EXCEPTION_AUTH_ERROR_DESC"
-                    cta={{ action: () => dispatch(authorizeDevice()) }}
+                    cta={{
+                        action: () => dispatch(authorizeDevice()),
+                    }}
                     dataTestBase={exception.type}
                 />
             );
@@ -129,7 +141,6 @@ export const Exception = ({ exception, discovery }: ExceptionProps) => {
             return (
                 <Container
                     title="TR_AUTH_CONFIRM_FAILED_TITLE"
-                    description="TR_AUTH_CONFIRM_FAILED_DESC"
                     cta={{ action: () => dispatch(authConfirm()) }}
                     dataTestBase={exception.type}
                 />

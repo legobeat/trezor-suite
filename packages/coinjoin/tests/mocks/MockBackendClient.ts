@@ -1,4 +1,3 @@
-import * as http from '../../src/utils/http';
 import { CoinjoinBackendClient } from '../../src/backend/CoinjoinBackendClient';
 import { COINJOIN_BACKEND_SETTINGS } from '../fixtures/config.fixture';
 
@@ -22,7 +21,6 @@ export class MockBackendClient extends CoinjoinBackendClient {
         this.mempool = [];
         this.transactions = [];
 
-        jest.spyOn(http, 'httpGet').mockImplementation(this.getWabisabiMock.bind(this));
         jest.spyOn(this.websockets, 'getOrCreate').mockImplementation(
             this.getBlockbookMock.bind(this),
         );
@@ -36,37 +34,6 @@ export class MockBackendClient extends CoinjoinBackendClient {
         this.blocks = blocks;
         this.mempool = mempool;
         this.transactions = blocks.flatMap(block => block.txs).concat(mempool);
-    }
-
-    private mockResponse(status: number, content?: any) {
-        const defaultContent = status === 404 ? 'Not found' : undefined;
-        return Promise.resolve({
-            status,
-            json: () => Promise.resolve(content ?? defaultContent),
-        } as Response);
-    }
-
-    private getWabisabiMock(url: string, { bestKnownBlockHash, count }: Record<string, any> = {}) {
-        if (url.endsWith('Blockchain/filters')) {
-            if (typeof bestKnownBlockHash !== 'string') this.mockResponse(404);
-            if (typeof count !== 'number') return this.mockResponse(404);
-            if (this.blocks[this.blocks.length - 1].hash === bestKnownBlockHash)
-                return this.mockResponse(204);
-            const from = this.blocks.findIndex(
-                ({ previousBlockHash }) => previousBlockHash === bestKnownBlockHash,
-            );
-            if (from >= 0)
-                return this.mockResponse(200, {
-                    bestHeight: -1,
-                    filters: this.blocks
-                        .slice(from, from + count)
-                        .map(
-                            ({ height, hash, filter, previousBlockHash }) =>
-                                `${height}:${hash}:${filter}:${previousBlockHash}:${999}`,
-                        ),
-                });
-        }
-        return this.mockResponse(404);
     }
 
     private getBlockbookMock() {
@@ -90,6 +57,9 @@ export class MockBackendClient extends CoinjoinBackendClient {
 
     private getBlockbookProxyHandler(method: string | symbol, ...params: any[]) {
         switch (method) {
+            case 'getServerInfo': {
+                return Promise.resolve({ bestHeight: this.blocks[this.blocks.length - 1].height });
+            }
             case 'getTransaction': {
                 const tx = this.transactions.find(t => t.txid === params[0]);
                 if (tx) return Promise.resolve(tx as any);
@@ -106,6 +76,23 @@ export class MockBackendClient extends CoinjoinBackendClient {
                         this.mempool.map(({ txid, filter }) => [txid, filter]),
                     ),
                 });
+            }
+            case 'getBlockFiltersBatch': {
+                const bestKnownBlockHash = params[0];
+                const count = params[1];
+
+                if (this.blocks[this.blocks.length - 1].hash === bestKnownBlockHash)
+                    return Promise.resolve({ blockFiltersBatch: [] });
+                const from = this.blocks.findIndex(
+                    ({ previousBlockHash }) => previousBlockHash === bestKnownBlockHash,
+                );
+                if (from >= 0)
+                    return Promise.resolve({
+                        blockFiltersBatch: this.blocks
+                            .slice(from, from + count)
+                            .map(({ height, hash, filter }) => `${height}:${hash}:${filter}`),
+                    });
+                return Promise.reject(new Error('Block not found'));
             }
             // no default
         }

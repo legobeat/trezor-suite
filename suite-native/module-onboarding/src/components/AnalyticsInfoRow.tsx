@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { Icon, IconName } from '@suite-common/icons';
 import { prepareNativeStyle, useNativeStyles } from '@trezor/styles';
 import { Box, Text } from '@suite-native/atoms';
@@ -21,7 +19,7 @@ const iconWrapper = prepareNativeStyle(utils => ({
 
 const rowContentStyle = prepareNativeStyle(_ => ({
     marginLeft: 12,
-    maxWidth: '80%',
+    marginRight: 48,
 }));
 
 export const AnalyticsInfoRow = ({ iconName, title, description }: AnalyticsInfoRowProps) => {

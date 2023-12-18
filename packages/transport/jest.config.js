@@ -1,11 +1,10 @@
-const { testPathIgnorePatterns } = require('../../jest.config.base');
+const { testPathIgnorePatterns, ...baseConfig } = require('../../jest.config.base');
 
 module.exports = {
-    preset: '../../jest.config.base.js',
+    ...baseConfig,
     testEnvironment: 'node',
-    testMatch: ['**/tests/*.test.ts'],
-    modulePathIgnorePatterns: ['node_modules', '<rootDir>/lib', '<rootDir>/libDev'],
     collectCoverage: true,
     collectCoverageFrom: ['src/**/*.ts'],
     testPathIgnorePatterns: [...testPathIgnorePatterns, 'e2e'],
+    watchPathIgnorePatterns: ['<rootDir>/libDev', '<rootDir>/lib'],
 };

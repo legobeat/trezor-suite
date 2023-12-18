@@ -1,11 +1,8 @@
-import React, { useEffect, useState } from 'react';
 import { Dimensions, View } from 'react-native';
 import ReactQRCode from 'react-qr-code';
 
-import * as Brightness from 'expo-brightness';
-
-import { prepareNativeStyle, useNativeStyles } from '@trezor/styles';
 import { Box } from '@suite-native/atoms';
+import { prepareNativeStyle, useNativeStyles } from '@trezor/styles';
 import { colorVariants } from '@trezor/theme';
 
 type QRCodeProps = {
@@ -30,26 +27,6 @@ const qrCodeContainerStyle = prepareNativeStyle(_ => ({
 
 export const QRCode = ({ data }: QRCodeProps) => {
     const { applyStyle } = useNativeStyles();
-    const [originalBrightnessValue, setOriginalBrightnessValue] = useState<number>();
-
-    useEffect(() => {
-        const storeBrightnessValue = async () => {
-            const brightnessValue = await Brightness.getBrightnessAsync();
-            setOriginalBrightnessValue(brightnessValue);
-        };
-
-        // Set brightness to maximum and store the original value.
-        storeBrightnessValue();
-        Brightness.setBrightnessAsync(1);
-    }, []);
-
-    useEffect(
-        // Restore the original brightness value when the QR code is unmounted.
-        () => () => {
-            if (originalBrightnessValue) Brightness.setBrightnessAsync(originalBrightnessValue);
-        },
-        [originalBrightnessValue],
-    );
 
     return (
         <Box alignItems="center">

@@ -27,6 +27,7 @@ const initialSettings: ConnectSettings = {
     lazyLoad: false,
     timestamp: new Date().getTime(),
     interactionTimeout: 600, // 5 minutes
+    sharedLogger: true,
 };
 
 const parseManifest = (manifest?: Manifest) => {
@@ -65,6 +66,11 @@ export const parseConnectSettings = (input: Partial<ConnectSettings> = {}) => {
         } else if (typeof input.debug === 'string') {
             settings.debug = input.debug === 'true';
         }
+    }
+
+    // trust level can only be lowered by implementator!
+    if (input.trustedHost === false) {
+        settings.trustedHost = input.trustedHost;
     }
 
     if (typeof input.connectSrc === 'string' && input.connectSrc?.startsWith('http')) {
@@ -121,6 +127,10 @@ export const parseConnectSettings = (input: Partial<ConnectSettings> = {}) => {
 
     if (typeof input.manifest === 'object') {
         settings.manifest = parseManifest(input.manifest);
+    }
+
+    if (typeof input.sharedLogger === 'boolean') {
+        settings.sharedLogger = input.sharedLogger;
     }
 
     return settings;

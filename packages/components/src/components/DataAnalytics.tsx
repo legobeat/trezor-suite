@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { Fragment, useState, ReactNode } from 'react';
 import styled from 'styled-components';
 
 import { FormattedMessage } from 'react-intl';
@@ -105,19 +105,25 @@ const collectedData = [
     },
 ];
 
-type DataAnalyticsProps = {
+interface DataAnalyticsProps {
     onConfirm: (trackingEnabled: boolean) => void;
-    analyticsLink?: (chunks: React.ReactNode[]) => JSX.Element;
-    tosLink?: (chunks: React.ReactNode[]) => JSX.Element;
-};
+    analyticsLink?: (chunks: ReactNode[]) => JSX.Element;
+    tosLink?: (chunks: ReactNode[]) => JSX.Element;
+    className?: string;
+}
 
 // This component is used in connect-ui, therefore it's located in this library,
 // although in the future it should be moved elsewhere.
-export const DataAnalytics = ({ onConfirm, analyticsLink, tosLink }: DataAnalyticsProps) => {
+export const DataAnalytics = ({
+    onConfirm,
+    analyticsLink,
+    tosLink,
+    className,
+}: DataAnalyticsProps) => {
     const [trackingEnabled, setTrackingEnabled] = useState<boolean>(true);
 
     return (
-        <StyledCard data-test="@analytics/consent">
+        <StyledCard data-test="@analytics/consent" className={className}>
             <Wrapper>
                 <Heading>
                     <FormattedMessage
@@ -148,12 +154,12 @@ export const DataAnalytics = ({ onConfirm, analyticsLink, tosLink }: DataAnalyti
                     <Category>
                         {collectedData.map((category, i) => (
                             // eslint-disable-next-line react/no-array-index-key
-                            <React.Fragment key={i}>
+                            <Fragment key={i}>
                                 <CategoryName>{category.name}</CategoryName>
                                 <CategoryItems>
                                     <Label>{category.item}</Label>
                                 </CategoryItems>
-                            </React.Fragment>
+                            </Fragment>
                         ))}
                     </Category>
                 </CollapsibleBox>

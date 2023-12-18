@@ -7,6 +7,7 @@ import {
     BridgeTransport,
     WebUsbTransport,
     NodeUsbTransport,
+    UdpTransport,
     Transport,
     TRANSPORT,
     Descriptor,
@@ -60,6 +61,8 @@ export class DeviceList extends TypedEmitter<DeviceListEvents> {
 
     penalizedDevices: { [deviceID: string]: number } = {};
 
+    transportFirstEventPromise: Promise<void> | undefined;
+
     constructor() {
         super();
 
@@ -105,16 +108,26 @@ export class DeviceList extends TypedEmitter<DeviceListEvents> {
                             }),
                         );
                         break;
+                    case 'UdpTransport':
+                        this.transports.push(
+                            new UdpTransport({
+                                logger: transportLogger,
+                                messages: this.messages,
+                            }),
+                        );
+                        break;
                     default:
                         throw ERRORS.TypedError(
                             'Runtime',
                             `DeviceList.init: transports[] of unexpected type: ${transportType}`,
                         );
-                    // not implemented
-                    // case 'UdpTransport':
                 }
             } else if (transportType instanceof Transport) {
-                this.transports.unshift(transportType);
+                // custom Transport might be initialized without messages, update them if so
+                if (!transportType.getMessage()) {
+                    transportType.updateMessages(this.messages);
+                }
+                this.transports.push(transportType);
             } else {
                 // runtime check
                 throw ERRORS.TypedError(
@@ -210,7 +223,7 @@ export class DeviceList extends TypedEmitter<DeviceListEvents> {
                         // have the intention of acquiring it again)
                         // and if the device is still reelased and has never been acquired before, acquire it here.
                         if (!device.isUsed() && device.isUnacquired() && !device.isInconsistent()) {
-                            _log.debug('Create device from unacquired', device);
+                            _log.debug('Create device from unacquired', device.toMessageObject());
                             await this._createAndSaveDevice(descriptor);
                         }
                     }
@@ -235,7 +248,7 @@ export class DeviceList extends TypedEmitter<DeviceListEvents> {
                     d.forEach(descriptor => {
                         const path = descriptor.path.toString();
                         const device = this.devices[path];
-                        _log.debug('Event', e, device);
+                        _log.debug('Event', e, device.toMessageObject());
                         if (device) {
                             this.emit(e, device.toMessageObject());
                         }
@@ -310,7 +323,7 @@ export class DeviceList extends TypedEmitter<DeviceListEvents> {
     }
 
     async waitForTransportFirstEvent() {
-        await new Promise<void>(resolve => {
+        this.transportFirstEventPromise = new Promise<void>(resolve => {
             const handler = () => {
                 this.removeListener(TRANSPORT.START, handler);
                 this.removeListener(TRANSPORT.ERROR, handler);
@@ -319,6 +332,7 @@ export class DeviceList extends TypedEmitter<DeviceListEvents> {
             this.on(TRANSPORT.START, handler);
             this.on(TRANSPORT.ERROR, handler);
         });
+        await this.transportFirstEventPromise;
     }
 
     private async _createAndSaveDevice(descriptor: Descriptor) {

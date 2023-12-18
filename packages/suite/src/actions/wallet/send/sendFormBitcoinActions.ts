@@ -1,5 +1,6 @@
-import TrezorConnect, { FeeLevel, Params, PROTO, SignTransaction } from '@trezor/connect';
 import BigNumber from 'bignumber.js';
+
+import TrezorConnect, { FeeLevel, Params, PROTO, SignTransaction } from '@trezor/connect';
 import { notificationsActions } from '@suite-common/toast-notifications';
 import {
     formatNetworkAmount,
@@ -16,7 +17,10 @@ import {
     PrecomposedTransaction,
     PrecomposedTransactionFinal,
 } from '@suite-common/wallet-types';
+import { selectDevice } from '@suite-common/wallet-core';
+
 import { Dispatch, GetState } from 'src/types/suite';
+import { AddressDisplayOptions, selectAddressDisplayType } from 'src/reducers/suite/suiteReducer';
 
 export const composeTransaction =
     (formValues: FormState, formState: ComposeActionContext) =>
@@ -26,7 +30,7 @@ export const composeTransaction =
         const {
             settings: { bitcoinAmountUnit },
         } = getState().wallet;
-        const { device } = getState().suite;
+        const device = selectDevice(getState());
 
         const isSatoshis =
             bitcoinAmountUnit === PROTO.AmountUnit.SATOSHI &&
@@ -38,9 +42,7 @@ export const composeTransaction =
         const composeOutputs = getBitcoinComposeOutputs(formValues, account.symbol, isSatoshis);
         if (composeOutputs.length < 1) return;
 
-        // clone FeeLevels in rbf, the will be modified later
-        const levels = formValues.rbfParams ? feeInfo.levels.map(l => ({ ...l })) : feeInfo.levels;
-        const predefinedLevels = levels.filter(l => l.label !== 'custom');
+        const predefinedLevels = feeInfo.levels.filter(l => l.label !== 'custom');
         // in case when selectedFee is set to 'custom' construct this FeeLevel from values
         if (formValues.selectedFee === 'custom') {
             predefinedLevels.push({
@@ -50,18 +52,7 @@ export const composeTransaction =
             });
         }
 
-        // FeeLevels in rbf form are increased by original/prev rate
-        // decrease it since the calculation (in connect) is based on the baseFee not the prev rate
-        const origRate = formValues.rbfParams
-            ? parseFloat(formValues.rbfParams.feeRate)
-            : undefined;
-        if (origRate) {
-            predefinedLevels.forEach(l => {
-                l.feePerUnit = Number(parseFloat(l.feePerUnit) - origRate).toString();
-            });
-        }
-
-        let sequence = 0;
+        let sequence; // Must be undefined for final transaction.
         if (formValues.options.includes('bitcoinRBF')) {
             // RBF is set, add sequence to inputs
             sequence = BTC_RBF_SEQUENCE;
@@ -69,8 +60,6 @@ export const composeTransaction =
             // locktime is set, add sequence to inputs
             sequence = BTC_LOCKTIME_SEQUENCE;
         }
-
-        const baseFee = formValues.rbfParams ? formValues.rbfParams.baseFee : 0;
 
         // exclude unspendable utxos if coin control is not enabled
         // unspendable utxos are defined in `useSendForm` hook
@@ -97,10 +86,10 @@ export const composeTransaction =
                 utxo,
             },
             feeLevels: predefinedLevels,
-            baseFee,
+            baseFee: formValues.baseFee,
             sequence,
             outputs: composeOutputs,
-            skipPermutation: baseFee > 0,
+            skipPermutation: !!formValues.rbfParams,
             coin: account.symbol,
         };
 
@@ -174,7 +163,7 @@ export const composeTransaction =
                 if (typeof tx.max === 'string') {
                     tx.max = isSatoshis ? tx.max : formatNetworkAmount(tx.max, account.symbol);
                 }
-            } else if (tx.error === 'NOT-ENOUGH-FUNDS') {
+            } else if (['MISSING-UTXOS', 'NOT-ENOUGH-FUNDS'].includes(tx.error)) {
                 const getErrorMessage = () => {
                     const isLowAnonymity =
                         account.accountType === 'coinjoin' &&
@@ -196,7 +185,7 @@ export const composeTransaction =
                 dispatch(
                     notificationsActions.addToast({
                         type: 'sign-tx-error',
-                        error: tx.error,
+                        error: 'message' in tx ? tx.message : tx.error, // tx.error = 'COINSELECT' contains additional message
                     }),
                 );
             }
@@ -213,7 +202,7 @@ export const signTransaction =
             selectedAccount,
             settings: { bitcoinAmountUnit },
         } = state.wallet;
-        const { device } = state.suite;
+        const device = selectDevice(state);
 
         if (
             selectedAccount.status !== 'loaded' ||
@@ -224,9 +213,10 @@ export const signTransaction =
             return;
         }
 
+        const addressDisplayType = selectAddressDisplayType(getState());
+
         // transactionInfo needs some additional changes:
         const { account } = selectedAccount;
-        const { transaction } = transactionInfo;
 
         const signEnhancement: Partial<SignTransaction> = {};
 
@@ -256,7 +246,7 @@ export const signTransaction =
             // it's possible to add change-output if it not exists in original tx AND new utxo was added/used
             // it's possible to remove original change-output completely (give up all as a fee)
             // it's possible to decrease external output in favour of fee
-            signEnhancement.inputs = transaction.inputs.map((input, i) => {
+            signEnhancement.inputs = transactionInfo.inputs.map((input, i) => {
                 if (utxo[i]) {
                     return { ...input, orig_index: i, orig_hash: txid };
                 }
@@ -265,7 +255,11 @@ export const signTransaction =
             // NOTE: Rearranging of original outputs is not supported by the FW. Restoring original order.
             // edge-case: original tx have change-output on index 0 while new tx doesn't have change-output at all
             // or it's moved to the last position by @trezor/connect composeTransaction process.
-            signEnhancement.outputs = restoreOrigOutputsOrder(transaction.outputs, outputs, txid);
+            signEnhancement.outputs = restoreOrigOutputsOrder(
+                transactionInfo.outputs,
+                outputs,
+                txid,
+            );
         }
 
         if (
@@ -286,19 +280,20 @@ export const signTransaction =
                 state: device.state,
             },
             useEmptyPassphrase: device.useEmptyPassphrase,
-            inputs: transaction.inputs,
-            outputs: transaction.outputs,
+            inputs: transactionInfo.inputs,
+            outputs: transactionInfo.outputs,
             account: {
                 addresses: account.addresses!,
                 transactions: refTxs,
             },
             coin: account.symbol,
+            chunkify: addressDisplayType === AddressDisplayOptions.CHUNKED,
             ...signEnhancement,
         };
 
         const response = await TrezorConnect.signTransaction(signPayload);
         if (!response.success) {
-            // catch manual error from ReviewTransaction modal
+            // catch manual error from TransactionReviewModal
             if (response.payload.error === 'tx-cancelled') return;
             dispatch(
                 notificationsActions.addToast({

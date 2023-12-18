@@ -1,52 +1,94 @@
-import React from 'react';
-
 import { prepareNativeStyle, useNativeStyles } from '@trezor/styles';
+import { Color } from '@trezor/theme';
+import { Icon, IconName } from '@suite-common/icons';
 
 import { Box } from './Box';
 import { Text } from './Text';
-import { RoundedIcon } from './RoundedIcon';
 
-type AlertBoxProps = {
-    title: string;
-    isIconVisible?: boolean;
+type AlertBoxVariant = 'info' | 'success' | 'warning' | 'error';
+
+type AlertBoxStyle = {
+    backgroundColor: Color;
+    contentColor: Color;
 };
 
-const alertWrapperStyle = prepareNativeStyle(utils => ({
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: utils.spacings.medium,
-    borderRadius: utils.borders.radii.medium,
-    backgroundColor: utils.colors.backgroundAlertBlueSubtleOnElevation0,
-}));
+type AlertWrapperStyleType = {
+    isStandalone: boolean;
+    backgroundColor: Color;
+};
 
-const textWidthStyle = prepareNativeStyle(_ => ({
+const alertWrapperStyle = prepareNativeStyle<AlertWrapperStyleType>(
+    (utils, { isStandalone, backgroundColor }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: utils.borders.radii.small,
+        backgroundColor: utils.colors[backgroundColor],
+        paddingVertical: utils.spacings.small,
+        paddingHorizontal: utils.spacings.medium,
+        gap: utils.spacings.small,
+
+        extend: {
+            condition: !isStandalone,
+            style: {
+                borderRadius: 0,
+                borderTopLeftRadius: utils.borders.radii.medium,
+                borderTopRightRadius: utils.borders.radii.medium,
+            },
+        },
+    }),
+);
+
+const textStyle = prepareNativeStyle(_ => ({
     flex: 1,
 }));
 
-const titleStyle = prepareNativeStyle<{ isIconVisible: boolean }>((_, { isIconVisible }) => ({
-    textAlign: isIconVisible ? 'left' : 'center',
-}));
+const variantToColorMap = {
+    info: {
+        backgroundColor: 'backgroundAlertBlueSubtleOnElevation0',
+        contentColor: 'iconAlertBlue',
+    },
+    success: {
+        backgroundColor: 'backgroundPrimarySubtleOnElevation0',
+        contentColor: 'textSecondaryHighlight',
+    },
+    warning: {
+        backgroundColor: 'backgroundAlertYellowSubtleOnElevation0',
+        contentColor: 'textAlertYellow',
+    },
+    error: {
+        backgroundColor: 'backgroundAlertRedSubtleOnElevation0',
+        contentColor: 'textAlertRed',
+    },
+} as const satisfies Record<AlertBoxVariant, AlertBoxStyle>;
 
-export const AlertBox = ({ title, isIconVisible = true }: AlertBoxProps) => {
+const variantToIconName = {
+    info: 'info',
+    success: 'checkCircle',
+    warning: 'warningTriangle',
+    error: 'warningTriangle',
+} as const satisfies Record<AlertBoxVariant, IconName>;
+
+export type AlertBoxProps = {
+    variant: AlertBoxVariant;
+    title?: React.ReactNode;
+    isStandalone?: boolean;
+};
+
+export const AlertBox = ({ title, isStandalone = false, variant = 'info' }: AlertBoxProps) => {
     const { applyStyle } = useNativeStyles();
+    const { contentColor, backgroundColor } = variantToColorMap[variant];
 
     return (
-        <Box style={applyStyle(alertWrapperStyle)}>
-            {isIconVisible && (
-                <Box marginRight="medium">
-                    <RoundedIcon
-                        name="info"
-                        color="iconAlertBlue"
-                        iconSize="medium"
-                        backgroundColor="backgroundAlertBlueSubtleOnElevation1"
-                    />
-                </Box>
-            )}
-            <Box style={applyStyle(textWidthStyle)}>
-                <Text color="textAlertBlue" style={applyStyle(titleStyle, { isIconVisible })}>
-                    {title}
-                </Text>
-            </Box>
+        <Box
+            style={applyStyle(alertWrapperStyle, {
+                isStandalone,
+                backgroundColor,
+            })}
+        >
+            <Icon name={variantToIconName[variant]} color={contentColor} size="mediumLarge" />
+            <Text color={contentColor} variant="label" style={applyStyle(textStyle)}>
+                {title}
+            </Text>
         </Box>
     );
 };

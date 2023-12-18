@@ -1,5 +1,5 @@
-import React, { ReactNode, useEffect, useContext } from 'react';
-import { Platform, StatusBar, View } from 'react-native';
+import { useEffect, useContext, ReactNode } from 'react';
+import { Platform, ScrollViewProps, StatusBar, View } from 'react-native';
 import { useSafeAreaInsets, EdgeInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 
@@ -9,29 +9,31 @@ import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 
 import { prepareNativeStyle, useNativeStyles } from '@trezor/styles';
 import { Color, nativeSpacings } from '@trezor/theme';
-import { Box, Divider } from '@suite-native/atoms';
 import { selectIsAnyBannerMessageActive } from '@suite-common/message-system';
+import { Box } from '@suite-native/atoms';
 
-import { ScreenContent } from './ScreenContent';
+import { ScreenContentWrapper } from './ScreenContentWrapper';
 
 type ScreenProps = {
     children: ReactNode;
-    header?: ReactNode;
     footer?: ReactNode;
-    hasDivider?: boolean;
+    subheader?: ReactNode;
+    screenHeader?: ReactNode;
     hasStatusBar?: boolean;
     isScrollable?: boolean;
     backgroundColor?: Color;
     customVerticalPadding?: number;
     customHorizontalPadding?: number;
     extraKeyboardAvoidingViewHeight?: number;
+    hasBottomInset?: boolean;
+    refreshControl?: ScrollViewProps['refreshControl'];
 };
 
 const screenContainerStyle = prepareNativeStyle<{
     backgroundColor: Color;
     insets: EdgeInsets;
     customVerticalPadding: number;
-    isTabBarVisible: boolean;
+    hasPaddingBottom: boolean;
     isMessageBannerDisplayed: boolean;
 }>(
     (
@@ -40,7 +42,7 @@ const screenContainerStyle = prepareNativeStyle<{
             backgroundColor,
             customVerticalPadding,
             insets,
-            isTabBarVisible,
+            hasPaddingBottom,
             isMessageBannerDisplayed,
         },
     ) => ({
@@ -49,7 +51,7 @@ const screenContainerStyle = prepareNativeStyle<{
         paddingTop: Math.max(insets.top, customVerticalPadding),
         extend: [
             {
-                condition: !isTabBarVisible,
+                condition: hasPaddingBottom,
                 style: {
                     paddingBottom: Math.max(insets.bottom, customVerticalPadding),
                 },
@@ -66,34 +68,51 @@ const screenContainerStyle = prepareNativeStyle<{
     }),
 );
 
-const screenHeaderStyle = prepareNativeStyle<{
+const screenContentBaseStyle = prepareNativeStyle<{
     insets: EdgeInsets;
     customHorizontalPadding: number;
-}>((utils, { insets, customHorizontalPadding }) => ({
-    paddingLeft: Math.max(insets.left, customHorizontalPadding),
-    paddingRight: Math.max(insets.right, customHorizontalPadding),
-    paddingTop: utils.spacings.large,
-    paddingBottom: utils.spacings.extraLarge,
-}));
+    customVerticalPadding: number;
+    isScrollable: boolean;
+}>((_, { customHorizontalPadding, customVerticalPadding, insets, isScrollable }) => {
+    const { left, right } = insets;
+
+    return {
+        flexGrow: 1,
+        paddingTop: customVerticalPadding,
+        paddingLeft: Math.max(left, customHorizontalPadding),
+        paddingRight: Math.max(right, customHorizontalPadding),
+
+        extend: {
+            // Scrollable screen takes the whole height of the screen. This padding is needed to
+            // prevent the content being "sticked" to the bottom navbar.
+            condition: isScrollable,
+            style: {
+                paddingBottom: customVerticalPadding,
+            },
+        },
+    };
+});
 
 export const Screen = ({
     children,
-    header,
     footer,
-    hasDivider = false,
+    screenHeader,
+    subheader,
     isScrollable = true,
     hasStatusBar = true,
     backgroundColor = 'backgroundSurfaceElevation0',
     customVerticalPadding = nativeSpacings.small,
     customHorizontalPadding = nativeSpacings.small,
     extraKeyboardAvoidingViewHeight = 0,
+    hasBottomInset = true,
+    refreshControl,
 }: ScreenProps) => {
     const {
         applyStyle,
         utils: { colors, isDarkColor },
     } = useNativeStyles();
 
-    const isTabBarVisible = !!useContext(BottomTabBarHeightContext);
+    const hasPaddingBottom = !useContext(BottomTabBarHeightContext) && hasBottomInset;
     const insets = useSafeAreaInsets();
     const backgroundCSSColor = colors[backgroundColor];
     const barStyle = isDarkColor(backgroundCSSColor) ? 'light-content' : 'dark-content';
@@ -116,7 +135,7 @@ export const Screen = ({
                 backgroundColor,
                 customVerticalPadding,
                 insets,
-                isTabBarVisible,
+                hasPaddingBottom,
                 isMessageBannerDisplayed,
             })}
         >
@@ -126,34 +145,25 @@ export const Screen = ({
                 translucent={false}
                 backgroundColor={backgroundCSSColor}
             />
-            {header && (
-                <>
-                    <View
-                        style={[
-                            applyStyle(screenHeaderStyle, {
-                                insets,
-                                customHorizontalPadding,
-                            }),
-                        ]}
-                    >
-                        {header}
-                    </View>
-                    {hasDivider && (
-                        <Box marginTop="small">
-                            <Divider />
-                        </Box>
-                    )}
-                </>
-            )}
-            <ScreenContent
-                footer={footer}
+            {screenHeader}
+            <ScreenContentWrapper
                 isScrollable={isScrollable}
-                customVerticalPadding={customVerticalPadding}
-                customHorizontalPadding={customHorizontalPadding}
                 extraKeyboardAvoidingViewHeight={extraKeyboardAvoidingViewHeight}
+                refreshControl={refreshControl}
             >
-                {children}
-            </ScreenContent>
+                {subheader}
+                <Box
+                    style={applyStyle(screenContentBaseStyle, {
+                        insets,
+                        customHorizontalPadding,
+                        customVerticalPadding,
+                        isScrollable,
+                    })}
+                >
+                    {children}
+                </Box>
+            </ScreenContentWrapper>
+            {footer}
         </View>
     );
 };

@@ -1,22 +1,22 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
-import { IntlProvider } from 'react-intl';
 
 import * as SplashScreen from 'expo-splash-screen';
 import * as Sentry from '@sentry/react-native';
 
-// FIXME this is only temporary until Intl refactor will be finished
-import enMessages from '@trezor/suite-data/files/translations/en.json';
+import TrezorConnect from '@trezor/connect';
 import { selectIsAppReady, selectIsConnectInitialized, StoreProvider } from '@suite-native/state';
-import { NotificationRenderer } from '@suite-native/notifications';
+// import { NotificationRenderer } from '@suite-native/notifications';
 import { ToastRenderer } from '@suite-native/toasts';
 import { FormatterProvider } from '@suite-common/formatters';
 import { AlertRenderer } from '@suite-native/alerts';
 import { NavigationContainerWithAnalytics } from '@suite-native/navigation';
 import { AuthenticatorProvider } from '@suite-native/biometrics';
-import { MessageSystemRenderer } from '@suite-native/message-system';
+import { FeatureMessageScreen, MessageSystemBannerRenderer } from '@suite-native/message-system';
+import { IntlProvider } from '@suite-native/intl';
+import { useTransactionCache } from '@suite-native/accounts';
 
 import { RootStackNavigator } from './navigation/RootStackNavigator';
 import { StylesProvider } from './StylesProvider';
@@ -33,6 +33,35 @@ const APP_STARTED_TIMESTAMP = Date.now();
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
+// NOTE: This is a workaround wrapper for connect methods to prevent sending useEmptyPassphrase as undefined until we will implement passphrase behavior in mobile.
+type ConnectKey = keyof typeof TrezorConnect;
+const wrappedMethods = [
+    'getAccountInfo',
+    'blockchainEstimateFee',
+    'blockchainSetCustomBackend',
+    'blockchainSubscribeFiatRates',
+    'blockchainGetCurrentFiatRates',
+    'blockchainSubscribe',
+    'blockchainUnsubscribe',
+    'cardanoGetPublicKey',
+    'getDeviceState',
+    'getAccountDescriptor',
+    'blockchainGetAccountBalanceHistory',
+    'blockchainUnsubscribeFiatRates',
+];
+
+wrappedMethods.forEach(key => {
+    const original: any = TrezorConnect[key as ConnectKey];
+    if (!original) return;
+    (TrezorConnect[key as ConnectKey] as any) = async (params: any) => {
+        const result = await original({
+            ...params,
+            useEmptyPassphrase: true,
+        });
+        return result;
+    };
+});
+
 const AppComponent = () => {
     const dispatch = useDispatch();
     const formattersConfig = useFormattersConfig();
@@ -40,6 +69,7 @@ const AppComponent = () => {
     const isConnectInitialized = useSelector(selectIsConnectInitialized);
 
     useReportAppInitToAnalytics(APP_STARTED_TIMESTAMP);
+    useTransactionCache();
 
     useEffect(() => {
         if (!isConnectInitialized) {
@@ -56,24 +86,30 @@ const AppComponent = () => {
     if (!isAppReady) return null;
 
     return (
-        <FormatterProvider config={formattersConfig}>
-            <AuthenticatorProvider>
-                <AlertRenderer>
-                    <MessageSystemRenderer />
-                    <NotificationRenderer>
+        <>
+            <FormatterProvider config={formattersConfig}>
+                <AuthenticatorProvider>
+                    <AlertRenderer>
+                        {/* Notifications are disabled until the problem with after-import notifications flooding is solved. */}
+                        {/* More here: https://github.com/trezor/trezor-suite/issues/7721  */}
+                        {/* <NotificationRenderer> */}
                         <ToastRenderer>
+                            <MessageSystemBannerRenderer />
                             <RootStackNavigator />
                         </ToastRenderer>
-                    </NotificationRenderer>
-                </AlertRenderer>
-            </AuthenticatorProvider>
-        </FormatterProvider>
+                        {/* </NotificationRenderer> */}
+                    </AlertRenderer>
+                </AuthenticatorProvider>
+            </FormatterProvider>
+            {/* NOTE: Rendered as last item so that it covers the whole app screen */}
+            <FeatureMessageScreen />
+        </>
     );
 };
 
 const PureApp = () => (
     <GestureHandlerRootView style={{ flex: 1 }}>
-        <IntlProvider locale="en" defaultLocale="en" messages={enMessages}>
+        <IntlProvider>
             <StoreProvider>
                 <SentryProvider>
                     <SafeAreaProvider>

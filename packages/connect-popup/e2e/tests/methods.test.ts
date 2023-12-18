@@ -7,13 +7,16 @@ import { TrezorUserEnvLink } from '@trezor/trezor-user-env-link';
 import { fixtures } from './__fixtures__/methods';
 import { buildOverview } from '../support/buildOverview';
 import { ensureDirectoryExists } from '@trezor/node-utils';
+import { getContexts, log, openPopup } from '../support/helpers';
 
 const url = process.env.URL || 'http://localhost:8088/';
+
 const emuScreenshots: Record<string, string> = {};
 
-const log = (...val: string[]) => {
-    console.log(`[===]`, ...val);
-};
+let device = {};
+let context: any = null;
+
+const isWebExtension = process.env.IS_WEBEXTENSION === 'true';
 
 const screenshotEmu = async (path: string) => {
     const { response } = await TrezorUserEnvLink.send({
@@ -26,13 +29,28 @@ test.beforeAll(async () => {
     await TrezorUserEnvLink.connect();
 });
 
+test.afterEach(async () => {
+    if (context) {
+        // BrowserContext has to start fresh each test.
+        // https://playwright.dev/docs/api/class-browsercontext#browser-context-close
+        await context.close();
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+});
+
 test.afterAll(() => {
     buildOverview({ emuScreenshots });
 });
 
-let device = {};
-
-fixtures.forEach(f => {
+// Some methods are not allowed in web extension because of isManagementRestricted
+const methodsUrlToSkipInWebExtension = ['wipeDevice', 'recoverDevice'];
+const filteredFixtures = fixtures.filter(f => {
+    if (isWebExtension && methodsUrlToSkipInWebExtension.includes(f.url)) {
+        return false;
+    }
+    return true;
+});
+filteredFixtures.forEach(f => {
     // @ts-expect-error
     test(f.title || f.url, async ({ page }, { retry }) => {
         log(f.url, 'start');
@@ -61,23 +79,27 @@ fixtures.forEach(f => {
 
         const screenshotsPath = await ensureDirectoryExists(`./e2e/screenshots/${f.url}`);
 
-        await page.goto(`${url}#/method/${f.url}`);
+        const { explorerPage, exploreUrl, browserContext } = await getContexts(
+            page,
+            url,
+            isWebExtension,
+        );
+        context = browserContext;
+
+        await explorerPage.goto(`${exploreUrl}#/method/${f.url}`);
 
         // screenshot request
         log(f.url, 'screenshot @trezor/connect call params');
 
-        const code = page.locator('[data-test="@code"]');
+        const code = explorerPage.locator('[data-test="@code"]');
         await code.screenshot({ path: `${screenshotsPath}/1-request.png` });
 
         log(f.url, 'submitting in connect explorer');
-        await page.waitForSelector("button[data-test='@submit-button']", { state: 'visible' });
+        await explorerPage.waitForSelector("button[data-test='@submit-button']", {
+            state: 'visible',
+        });
         log(f.url, 'waiting for popup promise');
-        const [popup] = await Promise.all([
-            // It is important to call waitForEvent before click to set up waiting.
-            page.waitForEvent('popup'),
-            // Opens popup.
-            page.click("button[data-test='@submit-button']"),
-        ]);
+        const [popup] = await openPopup(context, explorerPage, isWebExtension);
         await popup.waitForLoadState('load');
         log(f.url, 'popup promise resolved');
 
@@ -142,7 +164,7 @@ fixtures.forEach(f => {
 
         // screenshot response
         log(f.url, 'screenshot response');
-        const response = page.locator('[data-test="@response"]');
+        const response = explorerPage.locator('[data-test="@response"]');
         await response.screenshot({ path: `${screenshotsPath}/4-response.png` });
         log(f.url, 'method finished');
     });

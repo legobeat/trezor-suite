@@ -1,7 +1,8 @@
 // original file https://github.com/trezor/connect/blob/develop/src/js/device/DeviceCommands.js
 
-import randombytes from 'randombytes';
+import { randomBytes } from 'crypto';
 import { Transport, Messages } from '@trezor/transport';
+import { versionUtils } from '@trezor/utils';
 import { ERRORS, NETWORK } from '../constants';
 import { DEVICE } from '../events';
 import * as hdnodeUtils from '../utils/hdnodeUtils';
@@ -14,7 +15,6 @@ import {
     toHardened,
 } from '../utils/pathUtils';
 import { getAccountAddressN } from '../utils/accountUtils';
-import { versionCompare } from '../utils/versionUtils';
 import { getSegwitNetwork, getBech32Network } from '../data/coinInfo';
 import { initLog } from '../utils/debug';
 
@@ -53,7 +53,7 @@ const assertType = (res: DefaultMessageResponse, resType: string | string[]) => 
 
 const generateEntropy = (len: number) => {
     try {
-        return randombytes(len);
+        return randomBytes(len);
     } catch (err) {
         throw ERRORS.TypedError(
             'Runtime',
@@ -264,7 +264,7 @@ export class DeviceCommands {
     }
 
     async getAddress(
-        { address_n, show_display, multisig, script_type }: Messages.GetAddress,
+        { address_n, show_display, multisig, script_type, chunkify }: Messages.GetAddress,
         coinInfo: BitcoinNetworkInfo,
     ) {
         if (!script_type) {
@@ -287,6 +287,7 @@ export class DeviceCommands {
             show_display,
             multisig,
             script_type: script_type || 'SPENDADDRESS',
+            chunkify,
         });
 
         return {
@@ -300,11 +301,13 @@ export class DeviceCommands {
         address_n,
         show_display,
         encoded_network,
+        chunkify,
     }: Messages.EthereumGetAddress) {
         const response = await this.typedCall('EthereumGetAddress', 'EthereumAddress', {
             address_n,
             show_display,
             encoded_network,
+            chunkify,
         });
         return {
             path: address_n,
@@ -378,6 +381,7 @@ export class DeviceCommands {
             session: this.sessionId,
             name: type,
             data: msg,
+            protocol: this.device.protocol,
         });
         const res = await this.callPromise.promise;
         this.callPromise = undefined;
@@ -420,7 +424,10 @@ export class DeviceCommands {
         } catch (error) {
             // handle possible race condition
             // Bridge may have some unread message in buffer, read it
-            await this.transport.receive({ session: this.sessionId });
+            await this.transport.receive({
+                session: this.sessionId,
+                protocol: this.device.protocol,
+            });
             // throw error anyway, next call should be resolved properly
             throw error;
         }
@@ -700,6 +707,16 @@ export class DeviceCommands {
             };
         }
 
+        if (coinInfo.shortcut === 'SOL' || coinInfo.shortcut === 'DSOL') {
+            const { message } = await this.typedCall('SolanaGetAddress', 'SolanaAddress', {
+                address_n,
+            });
+            return {
+                descriptor: message.address,
+                address_n,
+            };
+        }
+
         throw ERRORS.TypedError(
             'Runtime',
             'DeviceCommands.getAccountDescriptor: unsupported coinInfo.type',
@@ -730,7 +747,7 @@ export class DeviceCommands {
          * user interactions in progress, so we have to do it manually.
          */
         const { name, version } = this.transport;
-        if (name === 'BridgeTransport' && versionCompare(version, '2.0.28') < 1) {
+        if (name === 'BridgeTransport' && !versionUtils.isNewer(version, '2.0.28')) {
             try {
                 await this.device.legacyForceRelease();
             } catch (err) {
@@ -738,6 +755,7 @@ export class DeviceCommands {
             }
         } else {
             await this.transport.send({
+                protocol: this.device.protocol,
                 session: this.sessionId,
                 name: 'Cancel',
                 data: {},

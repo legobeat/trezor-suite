@@ -1,6 +1,7 @@
 // original file https://github.com/trezor/connect/blob/develop/src/js/device/Device.js
-
 import { TypedEmitter } from '@trezor/utils/lib/typedEventEmitter';
+import { createDeferred, Deferred, versionUtils } from '@trezor/utils';
+import { TransportProtocol, v1 as v1Protocol, bridge as bridgeProtocol } from '@trezor/protocol';
 import { DeviceCommands } from './DeviceCommands';
 import { PROTO, ERRORS, NETWORK } from '../constants';
 import { DEVICE, DeviceButtonRequestPayload, UI } from '../events';
@@ -12,8 +13,6 @@ import {
     parseRevision,
     ensureInternalModelFeature,
 } from '../utils/deviceFeaturesUtils';
-import { versionCompare } from '../utils/versionUtils';
-import { create as createDeferred, Deferred } from '../utils/deferred';
 import { initLog } from '../utils/debug';
 import type { Transport, Descriptor } from '@trezor/transport';
 import {
@@ -24,7 +23,9 @@ import {
     ReleaseInfo,
     UnavailableCapabilities,
     FirmwareType,
+    VersionArray,
 } from '../types';
+import { models } from '../data/models';
 
 // custom log
 const _log = initLog('Device');
@@ -78,6 +79,7 @@ export interface DeviceEvents {
  */
 export class Device extends TypedEmitter<DeviceEvents> {
     transport: Transport;
+    protocol: TransportProtocol;
 
     originalDescriptor: Descriptor;
 
@@ -96,7 +98,7 @@ export class Device extends TypedEmitter<DeviceEvents> {
     acquirePromise?: ReturnType<Transport['acquire']> = undefined;
     releasePromise?: ReturnType<Transport['release']> = undefined;
 
-    runPromise?: Deferred<void> | null;
+    runPromise?: Deferred<void>;
 
     loaded = false;
 
@@ -122,8 +124,18 @@ export class Device extends TypedEmitter<DeviceEvents> {
 
     firmwareType?: FirmwareType;
 
+    name = 'Trezor';
+
+    color?: string;
+
     constructor(transport: Transport, descriptor: Descriptor) {
         super();
+
+        if (transport.name === 'BridgeTransport') {
+            this.protocol = bridgeProtocol;
+        } else {
+            this.protocol = v1Protocol;
+        }
 
         // === immutable properties
         this.transport = transport;
@@ -166,7 +178,7 @@ export class Device extends TypedEmitter<DeviceEvents> {
         if (!acquireResult.success) {
             if (this.runPromise) {
                 this.runPromise.reject(new Error(acquireResult.error));
-                this.runPromise = null;
+                delete this.runPromise;
             }
             throw acquireResult.error;
         }
@@ -220,7 +232,7 @@ export class Device extends TypedEmitter<DeviceEvents> {
     async cleanup() {
         this.removeAllListeners();
         // make sure that Device_CallInProgress will not be thrown
-        this.runPromise = null;
+        delete this.runPromise;
         await this.release();
     }
 
@@ -232,9 +244,14 @@ export class Device extends TypedEmitter<DeviceEvents> {
 
         options = parseRunOptions(options);
 
-        this.runPromise = createDeferred(this._runInner.bind(this, fn, options));
+        const runPromise = createDeferred();
+        this.runPromise = runPromise;
 
-        return this.runPromise.promise;
+        this._runInner(fn, options).catch(err => {
+            runPromise.reject(err);
+        });
+
+        return runPromise.promise;
     }
 
     async override(error: Error) {
@@ -256,7 +273,7 @@ export class Device extends TypedEmitter<DeviceEvents> {
         if (this.runPromise) {
             // reject inner defer
             this.runPromise.reject(error);
-            this.runPromise = null;
+            delete this.runPromise;
         }
         if (this.commands) {
             await this.commands.cancel();
@@ -267,7 +284,7 @@ export class Device extends TypedEmitter<DeviceEvents> {
      * TODO: this does not work properly (even before transport-refactor)
      * one of the problem here is, that this.runPromise.reject is caught in src/core finally block that triggers
      * device release. This is not right because we know that somebody else has already taken control of device
-     * which means that session managament does not make sense anymore. releasing device, on the other hand
+     * which means that session management does not make sense anymore. releasing device, on the other hand
      * makes sense, because this instance of connect might be the only one who has the right to do it.
      */
     interruptionFromOutside() {
@@ -278,18 +295,18 @@ export class Device extends TypedEmitter<DeviceEvents> {
         }
         if (this.runPromise) {
             this.runPromise.reject(ERRORS.TypedError('Device_UsedElsewhere'));
-            this.runPromise = null;
+            delete this.runPromise;
         }
 
         // session was acquired by another instance. but another might not have power to release interface
-        // so it only notified about its session acquiral and the interrupted instance shoud cooperata
+        // so it only notified about its session acquiral and the interrupted instance should cooperate
         // and release device too.
         this.transport.releaseDevice(this.originalDescriptor.path);
     }
 
     async _runInner<X>(fn: (() => Promise<X>) | undefined, options: RunOptions): Promise<void> {
         // typically when using cancel/override, device might be releasing
-        // note: I am tempted to do this check at the begining of device.acquire but on the other hand I would like
+        // note: I am tempted to do this check at the beginning of device.acquire but on the other hand I would like
         // to have methods as atomic as possible and shift responsibility for deciding when to call them on the caller
         if (this.releasePromise) {
             await this.releasePromise.promise;
@@ -330,7 +347,7 @@ export class Device extends TypedEmitter<DeviceEvents> {
                     return this._runInner(() => Promise.resolve({}), options);
                 }
                 this.inconsistent = true;
-                this.runPromise = null;
+                delete this.runPromise;
                 return Promise.reject(
                     ERRORS.TypedError(
                         'Device_InitializeFailed',
@@ -376,7 +393,7 @@ export class Device extends TypedEmitter<DeviceEvents> {
             this.runPromise.resolve();
         }
 
-        this.runPromise = null;
+        delete this.runPromise;
 
         if (!this.loaded) {
             this.loaded = true;
@@ -502,18 +519,6 @@ export class Device extends TypedEmitter<DeviceEvents> {
     _updateFeatures(feat: Features) {
         const capabilities = parseCapabilities(feat);
         feat.capabilities = capabilities;
-        const version = [feat.major_version, feat.minor_version, feat.patch_version];
-        // capabilities could change in case where features was fetched with older version of messages.json which doesn't know this field
-        const capabilitiesDidChange =
-            this.features &&
-            this.features.capabilities &&
-            this.features.capabilities.join('') !== capabilities.join('');
-        // check if FW version or capabilities did change
-        if (versionCompare(version, this.getVersion()) !== 0 || capabilitiesDidChange) {
-            this.unavailableCapabilities = getUnavailableCapabilities(feat, getAllNetworks());
-            this.firmwareStatus = getFirmwareStatus(feat);
-            this.firmwareRelease = getRelease(feat);
-        }
         // GetFeatures doesn't return 'session_id'
         if (this.features && this.features.session_id && !feat.session_id) {
             feat.session_id = this.features.session_id;
@@ -533,17 +538,50 @@ export class Device extends TypedEmitter<DeviceEvents> {
             feat.internal_model = ensureInternalModelFeature(feat.model);
         }
 
+        const version = [
+            feat.major_version,
+            feat.minor_version,
+            feat.patch_version,
+        ] satisfies VersionArray;
+
+        // check if FW version or capabilities did change
+        if (!versionUtils.isEqual(version, this.getVersion() as VersionArray)) {
+            this.unavailableCapabilities = getUnavailableCapabilities(feat, getAllNetworks());
+            this.firmwareStatus = getFirmwareStatus(feat);
+            this.firmwareRelease = getRelease(feat);
+        }
+
         this.features = feat;
         this.featuresNeedsReload = false;
 
-        // Firmware type is unknown in bootloader mode
-        if (this.getMode() !== 'bootloader') {
+        // Vendor headers have been changed in 2.6.3.
+        if (feat.fw_vendor === 'Trezor Bitcoin-only') {
+            this.firmwareType = FirmwareType.BitcoinOnly;
+        } else if (feat.fw_vendor === 'Trezor') {
+            this.firmwareType = FirmwareType.Regular;
+        } else if (this.getMode() !== 'bootloader') {
+            // Relevant for T1B1, T2T1 and custom firmware with a different vendor header. Capabilities do not work in bootloader mode.
             this.firmwareType =
                 feat.capabilities &&
                 feat.capabilities.length > 0 &&
                 !feat.capabilities.includes('Capability_Bitcoin_like')
                     ? FirmwareType.BitcoinOnly
                     : FirmwareType.Regular;
+        }
+
+        const deviceInfo = models[feat.internal_model] ?? {
+            name: `Unknown ${feat.internal_model}`,
+            colors: {},
+        };
+
+        this.name = deviceInfo.name;
+
+        if (feat?.unit_color) {
+            const deviceUnitColor = feat.unit_color.toString();
+
+            if (deviceUnitColor in deviceInfo.colors) {
+                this.color = (deviceInfo.colors as Record<string, string>)[deviceUnitColor];
+            }
         }
     }
 
@@ -557,7 +595,7 @@ export class Device extends TypedEmitter<DeviceEvents> {
 
         this.activitySessionID = null; // set to null to prevent transport.release
         this.interruptionFromUser(ERRORS.TypedError('Device_Disconnected'));
-        this.runPromise = null;
+        delete this.runPromise;
     }
 
     isBootloader() {
@@ -582,14 +620,14 @@ export class Device extends TypedEmitter<DeviceEvents> {
             this.features.major_version,
             this.features.minor_version,
             this.features.patch_version,
-        ];
+        ] satisfies [number, number, number];
     }
 
     atLeast(versions: string[] | string) {
         if (!this.features) return false;
         const modelVersion =
             typeof versions === 'string' ? versions : versions[this.features.major_version - 1];
-        return versionCompare(this.getVersion(), modelVersion) >= 0;
+        return versionUtils.isNewerOrEqual(this.getVersion().join('.'), modelVersion);
     }
 
     isUsed() {
@@ -680,6 +718,7 @@ export class Device extends TypedEmitter<DeviceEvents> {
                 path: this.originalDescriptor.path,
                 error: this.unreadableError, // provide error details
                 label: 'Unreadable device',
+                name: this.name,
             };
         }
         if (this.isUnacquired()) {
@@ -687,6 +726,7 @@ export class Device extends TypedEmitter<DeviceEvents> {
                 type: 'unacquired',
                 path: this.originalDescriptor.path,
                 label: 'Unacquired device',
+                name: this.name,
             };
         }
         const defaultLabel = 'My Trezor';
@@ -702,6 +742,8 @@ export class Device extends TypedEmitter<DeviceEvents> {
             state: this.getExternalState(),
             status,
             mode: this.getMode(),
+            name: this.name,
+            color: this.color,
             firmware: this.firmwareStatus,
             firmwareRelease: this.firmwareRelease,
             firmwareType: this.firmwareType,
